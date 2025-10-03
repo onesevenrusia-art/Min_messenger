@@ -1,7 +1,7 @@
 @echo off
 echo 🔄 Сохранение проекта на GitHub...
 
-cd /d "H:\AlexProj\Python\segment-anything-main\messenger"
+
 
 echo 📦 Добавляем файлы...
 git add .
