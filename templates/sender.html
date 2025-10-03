@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC camclient (mirror of Unity flow)</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            padding: 16px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .video-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        video {
+            width: 480px;
+            max-width: 100%;
+            background: #000;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 10px 16px;
+            border-radius: 10px;
+            border: 0;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        #startBtn {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        #startBtn:hover {
+            background: #388E3C;
+        }
+        
+        #startBtn:disabled {
+            background: #A5D6A7;
+            cursor: not-allowed;
+        }
+        
+        #stopBtn {
+            background: #F44336;
+            color: white;
+        }
+        
+        #stopBtn:hover {
+            background: #D32F2F;
+        }
+        
+        #stopBtn:disabled {
+            background: #EF9A9A;
+            cursor: not-allowed;
+        }
+        
+        .log-container {
+            flex: 1 1 380px;
+            min-width: 300px;
+        }
+        
+        pre {
+            background: #111;
+            color: #0f0;
+            padding: 12px;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow: auto;
+            font-family: 'Courier New', monospace;
+            line-height: 1.4;
+        }
+        
+        .status {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #E3F2FD;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #bbb;
+        }
+        
+        .status.connected .status-indicator {
+            background: #4CAF50;
+        }
+        
+        .status.connecting .status-indicator {
+            background: #FFC107;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+        
+        h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        
+        .gyro-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #FFF8E1;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .camera-select {
+            margin-top: 10px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            width: 100%;
+            max-width: 300px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>WebRTC клиент → /offer, /answer, /iceunity</h2>
+
+    <div class="container">
+        <div class="video-container">
+            <video id="localVideo" autoplay playsinline muted></video>
+            <select id="cameraSelect" class="camera-select" style="display: none;">
+                <option value="">Выберите камеру...</option>
+            </select>
+            <div class="controls">
+                <button id="startBtn">Start</button>
+                <button id="stopBtn" disabled>Stop</button>
+            </div>
+            <div class="gyro-info" id="gyroInfo">
+                Гироскоп: не поддерживается или не доступен
+            </div>
+        </div>
+        <div class="log-container">
+            <strong>Лог соединения</strong>
+            <pre id="log"></pre>
+            <div class="status" id="connectionStatus">
+                <div class="status-indicator"></div>
+                <span>Не подключено</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (async() => {
+            const serverUrl = "";
+            const sessionId = "default"; // такой же как в Unity
+            const logEl = document.getElementById('log');
+            const videoEl = document.getElementById('localVideo');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const statusEl = document.getElementById('connectionStatus');
+            const gyroInfoEl = document.getElementById('gyroInfo');
+            const cameraSelect = document.getElementById('cameraSelect');
+
+            let pc;
+            let gyroChannel = null;
+            let answerReceived = false;
+            let icePoller = null;
+            let answerPoller = null;
+            let localStream = null;
+            let gyroSupported = false;
+
+            function updateStatus(state, text) {
+                statusEl.className = 'status ' + state;
+                statusEl.querySelector('span').textContent = text;
+            }
+
+            function log(...args) {
+                const s = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+                console.log(...args);
+                const now = new Date().toLocaleTimeString();
+                logEl.textContent += `[${now}] ${s}\n`;
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+
+            async function postJson(url, data) {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data),
+                });
+                if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+                return res.text();
+            }
+
+            async function getText(url) {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+                return res.text();
+            }
+
+            const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+            // Функция для получения доступа к камере
+            async function getCameraStream(deviceId = null) {
+                const constraints = {
+                    video: deviceId ? {
+                        deviceId: {
+                            exact: deviceId
+                        }
+                    } : {
+                        width: {
+                            ideal: 640
+                        },
+                        height: {
+                            ideal: 480
+                        }
+                    },
+                    audio: false
+                };
+
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    return stream;
+                } catch (error) {
+                    log("Ошибка доступа к камере:", error.message);
+                    throw error;
+                }
+            }
+
+            // Функция для получения списка камер
+            async function setupCameraSelection() {
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+                    if (videoDevices.length > 1) {
+                        cameraSelect.style.display = 'block';
+                        cameraSelect.innerHTML = '<option value="">Выберите камеру...</option>';
+
+                        videoDevices.forEach(device => {
+                            const option = document.createElement('option');
+                            option.value = device.deviceId;
+                            option.text = device.label || `Камера ${cameraSelect.length}`;
+                            cameraSelect.appendChild(option);
+                        });
+                    }
+                } catch (error) {
+                    log("Ошибка получения списка камер:", error);
+                }
+            }
+
+            function stop() {
+                log("Остановка соединения...");
+
+                // Остановка всех опросов
+                answerReceived = true;
+
+                // Закрытие каналов
+                if (gyroChannel) {
+                    gyroChannel.close();
+                    gyroChannel = null;
+                }
+
+                // Закрытие PeerConnection
+                if (pc) {
+                    pc.close();
+                    pc = null;
+                }
+
+                // Остановка потока
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                    localStream = null;
+                }
+
+                videoEl.srcObject = null;
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                updateStatus('disconnected', 'Не подключено');
+            }
+
+            async function start() {
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                log("Запуск...");
+                updateStatus('connecting', 'Подключение...');
+
+                try {
+                    // 1) Получаем поток с камеры вместо синего экрана
+                    const deviceId = cameraSelect.value || null;
+                    localStream = await getCameraStream(deviceId);
+                    videoEl.srcObject = localStream;
+
+                    // 2) PeerConnection c STUN
+                    pc = new RTCPeerConnection({
+                        iceServers: [{
+                            urls: ["stun:stun.l.google.com:19302"]
+                        }],
+                        iceTransportPolicy: "all"
+                    });
+
+                    // 3) Лог состояния
+                    pc.onconnectionstatechange = () => {
+                        log("[WebRTC] Состояние соединения:", pc.connectionState);
+                        if (pc.connectionState === "connected") {
+                            updateStatus('connected', 'Подключено');
+                        } else if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
+                            updateStatus('disconnected', 'Соединение прервано');
+                        }
+                    };
+
+                    pc.oniceconnectionstatechange = () => log("[WebRTC] ICE состояние:", pc.iceConnectionState);
+
+                    // 4) Получаем DataChannel от Unity (Unity создаёт "gyro")
+                    pc.ondatachannel = (ev) => {
+                        const ch = ev.channel;
+                        log("[DataChannel] Входящий канал:", ch.label);
+                        if (ch.label === "gyro") {
+                            gyroChannel = ch;
+                            ch.onopen = () => {
+                                log("[gyro] Канал открыт");
+                                gyroInfoEl.textContent = "Гироскоп: канал готов к передаче данных";
+                            };
+                            ch.onclose = () => {
+                                log("[gyro] Канал закрыт");
+                                gyroInfoEl.textContent = "Гироскоп: канал закрыт";
+                            };
+                            ch.onmessage = (e) => log("[gyro] от Unity:", e.data);
+
+                            // Проверяем поддержку DeviceOrientation
+                            if (window.DeviceOrientationEvent) {
+                                window.addEventListener('deviceorientation', handleDeviceOrientation);
+                                gyroInfoEl.textContent = "Гироскоп: отслеживание данных";
+                                gyroSupported = true;
+                            } else {
+                                gyroInfoEl.textContent = "Гироскоп: не поддерживается вашим браузером";
+                            }
+                        }
+                    };
+
+                    function handleDeviceOrientation(event) {
+                        if (gyroChannel && gyroChannel.readyState === "open") {
+                            const payload = {
+                                alpha: event.alpha,
+                                beta: event.beta,
+                                gamma: event.gamma,
+                                t: Date.now()
+                            };
+                            gyroChannel.send(JSON.stringify(payload));
+                        }
+                    }
+
+                    // 5) Добавляем видео-трек
+                    const videoTrack = localStream.getVideoTracks()[0];
+                    try {
+                        const transceiver = pc.addTransceiver(videoTrack, {
+                            direction: "sendrecv"
+                        });
+                        if (RTCRtpSender.getCapabilities) {
+                            const caps = RTCRtpSender.getCapabilities("video");
+                            if (caps && caps.codecs) {
+                                const h264 = caps.codecs.filter(c => /H264/i.test(c.mimeType));
+                                if (h264.length) await transceiver.setCodecPreferences(h264.concat(caps.codecs.filter(c => !/H264/i.test(c.mimeType))));
+                                log("[Codec] Предпочтение H264");
+                            }
+                        } else {
+                            pc.addTrack(videoTrack, localStream);
+                        }
+                    } catch (e) {
+                        log("[addTransceiver fallback] -> addTrack", e);
+                        pc.addTrack(videoTrack, localStream);
+                    }
+
+                    // 6) Отправка локальных ICE → /iceunity
+                    pc.onicecandidate = async(ev) => {
+                        if (!ev.candidate) return;
+                        const url = serverUrl.replace(/\/$/, "") + "/iceunity";
+                        const payload = {
+                            session_id: sessionId,
+                            candidate: {
+                                candidate: ev.candidate.candidate,
+                                sdpMid: ev.candidate.sdpMid,
+                                sdpMLineIndex: ev.candidate.sdpMLineIndex
+                            }
+                        };
+                        try {
+                            await postJson(url, payload);
+                            log("[ICE] отправлено:", payload.candidate.candidate.substring(0, 50) + "...");
+                        } catch (e) {
+                            log("[ICE] ошибка отправки:", e.message);
+                        }
+                    };
+
+                    // 7) Создание OFFER → /offer
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    log("Создан OFFER, длина SDP:", offer.sdp.length);
+
+                    try {
+                        const offerUrl = serverUrl.replace(/\/$/, "") + "/offer";
+                        await postJson(offerUrl, {
+                            sdp: offer.sdp,
+                            type: "offer",
+                            session_id: sessionId
+                        });
+                        log("OFFER отправлен");
+                    } catch (e) {
+                        log("Ошибка отправки OFFER:", e.message);
+                        stop();
+                        return;
+                    }
+
+                    // 8) Поллинг /answer
+                    answerReceived = false;
+                    (async function pollAnswer() {
+                        const answerUrl = serverUrl.replace(/\/$/, "") + "/answer";
+                        for (let i = 0; i < 30 && !answerReceived; i++) {
+                            try {
+                                const txt = await getText(answerUrl);
+                                if (txt && txt.trim() && txt.trim() !== "{}") {
+                                    const ans = JSON.parse(txt);
+                                    if (ans && ans.sdp) {
+                                        await pc.setRemoteDescription({
+                                            type: "answer",
+                                            sdp: ans.sdp
+                                        });
+                                        answerReceived = true;
+                                        log("ANSWER получен и установлен, длина SDP:", ans.sdp.length);
+                                        break;
+                                    }
+                                }
+                            } catch (e) {
+                                // Игнорируем временные ошибки
+                                log("Ошибка при опросе ANSWER:", e.message);
+                            }
+                            await sleep(2000);
+                        }
+                        if (!answerReceived) {
+                            log("Таймаут ожидания ANSWER");
+                            stop();
+                        }
+                    })();
+
+                    // 9) Поллинг входящих ICE от Unity из /iceunity
+                    (async function pollIce() {
+                        const iceUrl = serverUrl.replace(/\/$/, "") + "/iceunity";
+                        while (pc && pc.connectionState !== "connected" && pc.connectionState !== "failed") {
+                            try {
+                                const txt = await getText(iceUrl);
+                                if (txt && txt.trim() && txt.trim() !== "[]") {
+                                    // сервер отсылает массив объектов {type:'candidate', candidate:{...}}
+                                    let list;
+                                    try {
+                                        list = JSON.parse(txt);
+                                    } catch {
+                                        // иногда сервер может отдавать объект — приведём к массиву
+                                        list = Array.isArray(txt) ? txt : [];
+                                    }
+                                    if (Array.isArray(list)) {
+                                        for (const item of list) {
+                                            if (item && item.type === "candidate" && item.candidate) {
+                                                const c = item.candidate;
+                                                try {
+                                                    await pc.addIceCandidate({
+                                                        candidate: c.candidate,
+                                                        sdpMid: c.sdpMid,
+                                                        sdpMLineIndex: c.sdpMLineIndex
+                                                    });
+                                                    log("[ICE] добавлен от Unity:", c.candidate.substring(0, 50) + "...");
+                                                } catch (e) {
+                                                    log("[ICE] ошибка добавления:", e.message);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (e) {
+                                // Игнорируем временные ошибки
+                            }
+                            await sleep(1000);
+                        }
+                    })();
+                } catch (error) {
+                    log("Критическая ошибка:", error.message);
+                    stop();
+                }
+            }
+
+            // Инициализация при загрузке страницы
+            async function init() {
+                try {
+                    // Запрашиваем разрешение на доступ к камере для получения списка устройств
+                    const stream = await getCameraStream();
+                    stream.getTracks().forEach(track => track.stop()); // Останавливаем временный поток
+
+                    // Настраиваем выбор камеры
+                    await setupCameraSelection();
+
+                    log("Камера готова к использованию");
+                } catch (error) {
+                    log("Предварительный доступ к камере не удался:", error.message);
+                }
+
+                // Назначаем обработчики событий
+                startBtn.addEventListener('click', start);
+                stopBtn.addEventListener('click', stop);
+            }
+
+            // Запускаем инициализацию
+            init();
+        })();
+    </script>
+</body>
+
+</html>

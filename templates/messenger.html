@@ -1,0 +1,74 @@
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIN Messenger - Свободу слову!</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style2.css') }}">
+</head>
+
+<body>
+    <div class="background-container">
+        <img src="{{ url_for('static', filename='images/bgmes.jpg') }}" alt="Фон" class="background-image">
+    </div>
+
+    <div class="shapes">
+        <div id="searchblock">
+            <input id="inputsearchuser">
+            <button id="buttonsearch">search</button>
+        </div>
+
+        <div class="optionsblock">
+            <div class="swimopt">
+                <button id="optionsbtn">Настройки</button>
+                <div class="optionsmenu">
+                    <a href="#">Профиль</a>
+                    <a href="#">Выйти</a>
+                    <a href="#" color="red">Удалить аккаунт</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div id="chatbox">
+    </div>
+
+    <script>
+        const DataUser = localStorage.getItem('userdata');
+        console.log(DataUser);
+        if (DataUser) {
+            const Data = JSON.parse(DataUser);
+            const ChatBox = document.getElementById("chatbox")
+            ChatBox.innerHTML = '';
+            fetch("/userchatlist", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: Data.email
+                    }),
+                })
+                .then(response => response.json())
+                .then(result => {
+                    const chats = result.chats;
+                    chats.forEach(chat => {
+                        ChatBox.innerHTML += `
+                    <div class="chatinfo">
+                        <img src="${chat.avatar}" alt="${chat.name}">
+                        <b>${chat.name}</b> 
+                    </div>
+                `;
+                    });
+
+                })
+                .catch(error => {
+                    console.error("Ошибка сети:", error);
+                });
+        }
+    </script>
+</body>
+
+</html>

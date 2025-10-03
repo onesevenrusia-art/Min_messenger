@@ -1,0 +1,1 @@
+(window.__LOADABLE_LOADED_CHUNKS__=window.__LOADABLE_LOADED_CHUNKS__||[]).push([["0bd8e0"],{omwk:function(_,n,t){"use strict";t.d(n,"a",(function(){return A}));var o=t("4Gwv"),w=t("CVJ3"),A=Object(o.g)({desktop:w.a})}}]);

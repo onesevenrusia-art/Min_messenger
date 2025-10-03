@@ -1,0 +1,199 @@
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    .conteiner {
+        display: flex;
+        justify-content: center;
+    }
+    
+    .background-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+    }
+    
+    .shapes {
+        display: flex;
+        justify-self: center;
+        justify-content: space-between;
+        align-items: center;
+        width: 99%;
+        height: 5%;
+        background-color: rgb(206, 247, 233);
+        border: 3px solid black;
+    }
+    
+    .searchblock {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 10px;
+    }
+    
+    .optionsblock {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    #buttonsearch {
+        border-radius: 10%;
+        color: white;
+        background-color: black;
+        border: 1px solid rgb(124, 124, 124);
+    }
+    
+    #buttonsearch:hover {
+        background-color: white;
+        color: black;
+    }
+    
+    #inputsearchuser {
+        border: 1px solid black;
+        border-radius: 10%;
+        background-color: beige;
+        margin-left: 10px;
+    }
+    
+    #optionsbtn {
+        border-radius: 10%;
+        color: white;
+        background-color: black;
+        border: 1px solid red;
+        margin-right: 15px;
+    }
+    
+    .swimopt {
+        position: relative;
+        display: inline-block;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        margin-right: 15px;
+        /* Переносим margin с кнопки сюда */
+    }
+    
+    .optionsmenu {
+        display: none;
+        position: absolute;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background-color: white;
+        min-width: 160%;
+        right: 0;
+        left: auto;
+        top: 100%;
+        z-index: 1;
+    }
+    
+    .optionsmenu a {
+        display: block;
+        /* Блочный элемент */
+        padding: 6px 8px;
+        /* Отступы как у кнопки */
+        text-decoration: none;
+        /* Без подчеркивания */
+        color: black;
+        /* Цвет текста */
+        background: #f8f8f8;
+        /* Фон как у кнопки */
+        border: 1px solid #ddd;
+        /* Рамка как у кнопки */
+        border-radius: 4px;
+        /* Закругленные углы */
+        margin: 4px;
+        /* Отступ между кнопками */
+        text-align: center;
+        /* Текст по центру */
+        cursor: pointer;
+        /* Курсор-рука */
+        width: 90%;
+        /* Ширина почти на всю меню */
+        transition: background 0.2s ease;
+        /* Плавный переход */
+    }
+    
+    .optionsmenu a:hover {
+        background: #e8e8e8;
+        /* Темнее при наведении */
+        border-color: #ccc;
+        /* Рамка темнее */
+    }
+    /* Красная кнопка "Удалить аккаунт" */
+    
+    .optionsmenu a[style*="color: red"] {
+        background: #ffebee;
+        color: #d32f2f !important;
+        border: 1px solid #f44336;
+        font-weight: bold;
+    }
+    
+    .optionsmenu a[style*="color: red"]:hover {
+        background: #ffcdd2;
+    }
+    
+    .swimopt:hover .optionsmenu {
+        display: flex;
+        /* Показываем при наведении */
+    }
+    
+    #chatbox {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        justify-content: center;
+        border: 2px solid black;
+        background-color: white;
+        height: 94vh;
+        width: 100%;
+        margin: 2px;
+        overflow-y: scroll;
+    }
+    
+    .chatinfo {
+        display: block;
+        border: 1px solid black;
+        background: white;
+        gap: 7px;
+        cursor: pointer;
+    }
+    
+    .chatinfo:hover {
+        background: #dfd9da;
+    }
+    
+    .chat-avatar {
+        width: 54px;
+        height: 54px;
+        border-radius: 50%;
+        /* Круглый */
+        object-fit: cover;
+        /* Заполняет круг */
+        margin-right: 12px;
+        flex-shrink: 0;
+        /* Не сжимается */
+    }
+    
+    .chat-name {
+        font-weight: 500;
+        font-size: 16px;
+        color: #212121;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        /* Многоточие если длинное имя */
+    }
+    
+    @media (min-width: 768px) {
+        #chatbox {
+            width: 33%;
+            /* На ПК занимает 30% */
+        }
+    }

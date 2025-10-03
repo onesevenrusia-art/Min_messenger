@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIN Messenger - Вход и регистрация</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="background-container">
+        <img src="{{ url_for('static', filename='images/bg.jpg') }}" alt="Фон" class="background-image">
+    </div>
+
+    <div class="container">
+        <!-- Основной блок авторизации -->
+        <div class="auth-box" id="authBox">
+            <div class="logo">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MIN Messenger">
+            </div>
+            <h1 class="welcome-text">Добро пожаловать в мессенджер MIN!</h1>
+
+            <div class="buttons-container">
+                <a href="#" class="auth-btn login-btn" id="inputbtn">Войти</a>
+                <a href="#" class="auth-btn register-btn" id="registerBtn">Зарегистрироваться</a>
+            </div>
+        </div>
+
+        <!-- Блок регистрации (изначально скрыт) -->
+        <div class="auth-box register-box" id="registerBox" style="display: none;">
+            <div class="logo">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MIN Messenger">
+            </div>
+            <h2 class="welcome-text">Создание аккаунта</h2>
+
+            <form class="register-form" id="registerForm">
+                <div class="input-group">
+                    <input type="text" id="name" name="name" placeholder=" " required>
+                    <label for="name">Имя</label>
+                </div>
+
+                <div class="input-group">
+                    <input type="email" id="email" name="email" placeholder=" " required>
+                    <label for="email">Email</label>
+                </div>
+
+                <div class="input-group">
+                    <input type="tel" id="phone" name="phone" placeholder=" ">
+                    <label for="phone">Телефон (необязательно)</label>
+                </div>
+
+                <button type="submit" class="auth-btn next-btn" id="nextBtn" disabled>Далее</button>
+            </form>
+
+            <div class="back-container">
+                <a class="back-link" id="backBtn">← Назад</a>
+            </div>
+        </div>
+
+        <div class="auth-box" id="codeBox" style="display: none;">
+            <form class="register-form" id="passwordForm">
+                <div>
+                    <p id="mes"></p>
+                    <input id="keycode">
+                    <label id="logs"></label>
+                    <button type="button" id="sendcode" disabled>отправить >>></button>
+                    <button type="button" class="auth-btn register-btn" id="backBtnCode">Назад</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="inputmesseg" style="display:none" ,>
+            <form class="register-form">
+                <div>
+                    <p id="p_in">введите ваш email</p>
+                    <div>
+                        <input id="inpytregememail" style.margin=3 px>
+                    </div>
+                    <button style.margin=10px type="button" class="auth-btn register-btn" id="sendcode1" disabled>отправить >>></button>
+                    <button style.margin=10px type="button" class="auth-btn register-btn" id="bkin">Назад</button>
+                </div>
+            </form>
+        </div>
+
+
+        <div class="auth-box" id="loadingBox" style="display: none;">
+            <div class="logo">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MIN Messenger">
+            </div>
+            <h2>Пожалуйста, подождите</h2>
+            <div class="loading-spinner"></div>
+            <p>Идет обработка данных...</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const DataUser = localStorage.getItem('userdata');
+            console.log(DataUser);
+            if (DataUser) {
+                const Data = JSON.parse(DataUser);
+                fetch("/input", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: DataUser
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.state) {
+                            alert("вы в мессенжере");
+                            window.location.href = 'messenger.html';
+                        } else {
+                            alert("ошибка входа");
+                            localStorage.removeItem("userdata");
+                            location.reload();
+                            Authorisation();
+
+                        }
+                    })
+                    .catch(e => console.log("error get answer " + e));
+            } else {
+                function Authorisation() {
+                    const authBox = document.getElementById('authBox');
+                    const registerBox = document.getElementById('registerBox');
+                    const registerBtn = document.getElementById('registerBtn');
+                    const backBtn = document.getElementById('backBtn');
+                    const registerForm = document.getElementById('registerForm');
+                    const nextBtn = document.getElementById('nextBtn');
+                    const nameInput = document.getElementById('name');
+                    const emailInput = document.getElementById('email');
+                    const backBtnCode = document.getElementById('backBtnCode');
+                    //   document.getElementById()
+                    const inputbtn = document.getElementById("inputbtn");
+
+                    // Добавляем глобальные переменные для обработчиков
+                    let currentInputHandler = null;
+                    let currentClickHandler = null;
+                    let attemptsLeft = 3;
+
+                    function showStep(stepNumber) {
+                        document.getElementById('authBox').style.display = 'none';
+                        document.getElementById('registerBox').style.display = 'none';
+                        document.getElementById('codeBox').style.display = 'none';
+                        document.getElementById('loadingBox').style.display = 'none';
+                        document.getElementById('inputmesseg').style.display = 'none';
+
+                        if (stepNumber === 1) {
+                            attemptsLeft = 3;
+                            document.getElementById('authBox').style.display = 'block';
+                        } else if (stepNumber === 2) {
+                            document.getElementById('registerBox').style.display = 'block';
+                        } else if (stepNumber === 3) {
+                            document.getElementById('codeBox').style.display = 'block';
+                        } else if (stepNumber === 4) {
+                            document.getElementById('loadingBox').style.display = 'block';
+                        } else if (stepNumber === 5) {
+                            document.getElementById('inputmesseg').style.display = 'block';
+                        }
+                    }
+
+                    registerBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        showStep(2);
+                    });
+
+                    backBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        showStep(1);
+                    });
+
+                    backBtnCode.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        showStep(1);
+                        attemptsLeft = 3; // Сброс попыток
+                    });
+
+
+
+
+                    inputbtn.addEventListener("click", function() {
+                        showStep(5);
+                        const email = document.getElementById("inpytregememail");
+                        const send = document.getElementById("sendcode1");
+                        const attemptsLeft = 3;
+                        email.addEventListener("input", function() {
+                            const isEmailValid = email.value.trim().length > 0 &&
+                                email.value.includes('@');
+                            send.disabled = !(isEmailValid);
+                        });
+                        send.addEventListener("click", function() {
+                            showStep(4)
+                            fetch("/doctypeinput", {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        email: email.value
+                                    }),
+                                })
+                                .then(response => response.json())
+                                .then(result => {
+                                    if (result.state !== "ok") {
+                                        console.log("errors");
+                                        showStep(5);
+                                    }
+                                    switch (result.state) {
+
+                                        case "notreg":
+                                            getElementById("p-in").innerText = "Вы не зарегестрированы в MIN!";
+                                            send.disabled;
+                                        case "errorpost":
+                                            getElementById("p-in").innerText = "Ошибка отправки на email";
+                                            send.disabled;
+                                        case "ok":
+                                            showStep(3);
+                                            passbox(0, {
+                                                email: email.value.trim()
+                                            }, "")
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error("Ошибка сети:", error);
+                                });
+                        });
+                        document.getElementById("bkin").addEventListener("click", function() {
+                            location.reload();
+                        });
+                    });
+
+
+
+
+
+
+
+                    function checkFormValidity() {
+                        const isNameValid = nameInput.value.trim().length > 0;
+                        const isEmailValid = emailInput.value.trim().length > 0 &&
+                            emailInput.value.includes('@');
+                        nextBtn.disabled = !(isNameValid && isEmailValid);
+                    }
+
+                    function passbox(st, formData, logs, flag = false) {
+                        const passwordinput = document.getElementById("keycode");
+                        const sendcodeBtn = document.getElementById("sendcode");
+                        const mesElement = document.getElementById("mes");
+                        const logsElement = document.getElementById("logs");
+
+                        // Удаляем старые обработчики
+                        if (currentInputHandler) {
+                            passwordinput.removeEventListener("input", currentInputHandler);
+                        }
+                        if (currentClickHandler) {
+                            sendcodeBtn.removeEventListener("click", currentClickHandler);
+                        }
+
+                        if (st === 0) {
+                            mesElement.innerText = `Код подтверждения был отправлен на ваш email\n${formData.email}.\n⚠️ Внимание: код мог быть отправлен в спам.`;
+                            logsElement.innerText = logs;
+
+                            // Создаем новые обработчики
+                            currentInputHandler = function() {
+                                sendcodeBtn.disabled = (passwordinput.value.trim().length !== 6);
+                            };
+
+                            currentClickHandler = function(e) {
+                                e.preventDefault();
+                                if (flag) {
+                                    fetch("/interkeydostype", {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json'
+                                            },
+                                            body: JSON.stringify({
+                                                "key": passwordinput.value.trim(),
+                                                "email": formData.email,
+                                                "name": formData.name,
+                                                "phone": formData.phone
+                                            }),
+                                        })
+                                        .then(response => response.json())
+                                        .then(result => {
+                                            if (result.success) {
+                                                console.log("yes contact");
+                                                localStorage.setItem("userdata", JSON.stringify({
+                                                    token: result.token,
+                                                    email: formData.email
+                                                }));
+                                                alert("Регистрация прошла успешно.");
+                                                window.location.href = 'messenger.html';
+                                                return true;
+                                            } else {
+                                                attemptsLeft--;
+                                                if (attemptsLeft > 0) {
+                                                    logsElement.innerText = `Неверный код! Осталось попыток: ${attemptsLeft}`;
+                                                } else {
+                                                    logsElement.innerText = "Превышено количество попыток";
+                                                    sendcodeBtn.disabled = true;
+                                                    return false;
+                                                }
+                                            }
+                                        })
+                                        .catch(error => {
+                                            console.error("Ошибка сети:", error);
+                                            logsElement.innerText = "Ошибка соединения с сервером";
+                                        });
+                                } else {
+                                    console.log(JSON.stringify({
+                                        key: passwordinput.value.trim(),
+                                        email: formData.email
+                                    }));
+                                    fetch("/interkey2", {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json'
+                                            },
+                                            body: JSON.stringify({
+                                                key: passwordinput.value.trim(),
+                                                email: formData.email
+                                            }),
+                                        })
+                                        .then(response => response.json())
+                                        .then(result => {
+                                            if (result.success) {
+                                                console.log("yes contact");
+                                                localStorage.setItem("userdata", JSON.stringify({
+                                                    token: result.token,
+                                                    email: formData.email
+                                                }));
+                                                alert("Регистрация прошла успешно.");
+                                                window.location.href = 'messenger.html';
+                                                return true;
+                                            } else {
+                                                attemptsLeft--;
+                                                if (attemptsLeft > 0) {
+                                                    logsElement.innerText = `Неверный код! Осталось попыток: ${attemptsLeft}`;
+                                                } else {
+                                                    logsElement.innerText = "Превышено количество попыток";
+                                                    sendcodeBtn.disabled = true;
+                                                    return false;
+                                                }
+                                            }
+                                        })
+                                        .catch(error => {
+                                            console.error("Ошибка сети:", error);
+                                            logsElement.style.color = "red";
+                                            logsElement.innerText = "Ошибка соединения с сервером";
+                                        });
+                                }
+                            };
+
+                            // Добавляем обработчики
+                            passwordinput.addEventListener("input", currentInputHandler);
+                            sendcodeBtn.addEventListener("click", currentClickHandler);
+                        }
+
+                        if (st === 1) {
+                            mesElement.innerText = `Ошибка отправки кода на email ${formData.email}.\nПопробуйте повторить попытку с другим email`;
+                        }
+
+                        if (st === 2) {
+                            mesElement.innerText = `Не удалось найти email\n${formData.email}.\nУкажите корректный адрес email.`;
+                        }
+                    }
+
+                    nameInput.addEventListener('input', checkFormValidity);
+                    emailInput.addEventListener('input', checkFormValidity);
+
+                    registerForm.addEventListener('submit', function(e) {
+                        e.preventDefault();
+
+                        if (!nextBtn.disabled) {
+                            showStep(4);
+                            const formData = {
+                                name: nameInput.value.trim(),
+                                email: emailInput.value.trim(),
+                                phone: document.getElementById('phone').value.trim()
+                            };
+
+                            fetch("/registrform", {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify(formData),
+                                })
+                                .then(response => response.json())
+                                .then(result => {
+                                    showStep(3);
+                                    if (result["state"] === "errorpost") {
+                                        passbox(1, formData);
+                                    } else if (result["state"] === "errorfind") {
+                                        passbox(2, formData);
+                                    } else if (result["state"] === "ok") {
+                                        attemptsLeft = 3; // Сброс счетчика попыток
+                                        passbox(0, formData, "", true); // Только ОДИН раз!
+
+                                    }
+                                })
+                                .catch(e => console.log("error get answer " + e));
+                        }
+                    });
+
+                    setTimeout(() => {
+                        document.querySelectorAll('.auth-box').forEach(box => {
+                            box.style.opacity = '1';
+                            box.style.transform = 'translateY(0)';
+                        });
+                    }, 100);
+                }
+                Authorisation();
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Video Receiver</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f2f5;
+            color: #333;
+        }
+        
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .video-container {
+            flex: 1 1 600px;
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        #video {
+            width: 100%;
+            max-height: 480px;
+            background: #000;
+            border-radius: 8px;
+        }
+        
+        .status-panel {
+            flex: 1 1 300px;
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        
+        .status-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-value {
+            min-height: 20px;
+            word-break: break-all;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            background: #4a6fa5;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #3a5a80;
+        }
+        
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .connection-state {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            background: #e9ecef;
+            font-size: 14px;
+        }
+        
+        .connection-state.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .connection-state.connecting {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .connection-state.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .indicator.connected {
+            background: #28a745;
+            box-shadow: 0 0 5px #28a745;
+        }
+        
+        .indicator.connecting {
+            background: #ffc107;
+            box-shadow: 0 0 5px #ffc107;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .indicator.disconnected {
+            background: #dc3545;
+        }
+        
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+        
+        .log-container {
+            background: #2d3748;
+            color: #a0aec0;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+        
+        .log-time {
+            color: #718096;
+        }
+        
+        .log-error {
+            color: #fc8181;
+        }
+        
+        .log-success {
+            color: #68d391;
+        }
+        
+        .log-warning {
+            color: #f6e05e;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>WebRTC Video Receiver</h1>
+
+    <div class="container">
+        <div class="video-container">
+            <video id="video" autoplay playsinline></video>
+            <div class="controls">
+                <button id="startBtn" onclick="start()">Start Connection</button>
+                <button id="stopBtn" onclick="stop()" disabled>Stop</button>
+                <button id="playBtn" onclick="playVideo()" style="display:none;">Play Video</button>
+            </div>
+        </div>
+
+        <div class="status-panel">
+            <div class="status-item">
+                <div class="status-title">
+                    <span class="indicator disconnected" id="connIndicator"></span> Connection State:
+                </div>
+                <div class="connection-state disconnected" id="conn">disconnected</div>
+            </div>
+
+            <div class="status-item">
+                <div class="status-title">Data Channel:</div>
+                <div id="datastate">Not connected</div>
+            </div>
+
+            <div class="status-item">
+                <div class="status-title">Offer Status:</div>
+                <div id="offer">Not requested</div>
+            </div>
+
+            <div class="status-item">
+                <div class="status-title">Answer Status:</div>
+                <div id="answer">Not sent</div>
+            </div>
+
+            <div class="status-item">
+                <div class="status-title">ICE from Unity:</div>
+                <div id="iceunity">No candidates</div>
+            </div>
+
+            <div class="status-item">
+                <div class="status-title">ICE to Server:</div>
+                <div id="icebrowser">No candidates</div>
+            </div>
+        </div>
+    </div>
+
+    <h3>Connection Log</h3>
+    <div class="log-container" id="log"></div>
+
+    <script>
+        const SERVER_URL = ''; // Оставьте пустым для относительных путей
+        let dataChannel;
+        let pc;
+        let videoElement;
+        let icePollInterval;
+        let isRunning = false;
+
+        // Элементы UI
+        const connEl = document.getElementById('conn');
+        const connIndicatorEl = document.getElementById('connIndicator');
+        const datastateEl = document.getElementById('datastate');
+        const offerEl = document.getElementById('offer');
+        const answerEl = document.getElementById('answer');
+        const iceunityEl = document.getElementById('iceunity');
+        const icebrowserEl = document.getElementById('icebrowser');
+        const logEl = document.getElementById('log');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const playBtn = document.getElementById('playBtn');
+
+        function log(message, type = 'info') {
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.innerHTML = `<span class="log-time">[${timeStr}]</span> ${message}`;
+            logEl.appendChild(logEntry);
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(message);
+        }
+
+        function updateConnectionState(state) {
+            connEl.textContent = state;
+            connEl.className = `connection-state ${state}`;
+            connIndicatorEl.className = `indicator ${state}`;
+        }
+
+        function initPeerConnection() {
+            // Очищаем предыдущее соединение, если есть
+            if (pc) {
+                pc.close();
+            }
+
+            pc = new RTCPeerConnection({
+                iceServers: [{
+                    urls: 'stun:stun.l.google.com:19302'
+                }],
+                iceTransportPolicy: 'all'
+            });
+
+            videoElement = document.getElementById('video');
+
+            // Обработчики событий PeerConnection
+            pc.onconnectionstatechange = () => {
+                log(`Connection state changed to: ${pc.connectionState}`);
+                updateConnectionState(pc.connectionState);
+
+                if (pc.connectionState === 'connected') {
+                    log('Connection established successfully!', 'success');
+                    // Диагностика через секунду после подключения
+                    setTimeout(() => {
+                        log('Checking receivers...');
+                        pc.getReceivers().forEach((receiver, index) => {
+                            log(`Receiver ${index}: ${receiver.track ? receiver.track.kind : 'no track'}`);
+                            if (receiver.track) {
+                                log(`Track state: ${receiver.track.readyState}`);
+                            }
+                        });
+                    }, 1000);
+                } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+                    log('Connection lost or failed', 'error');
+                }
+            };
+
+            pc.ontrack = (event) => {
+                log('=== ONTRACK EVENT ===', 'success');
+                log(`Track received: ${event.track.kind}`);
+
+                // Создаем или получаем поток
+                const stream = event.streams[0] || new MediaStream([event.track]);
+                videoElement.srcObject = stream;
+
+                // Пытаемся воспроизвести видео
+                videoElement.play().then(() => {
+                    log('Video playback started successfully', 'success');
+                    playBtn.style.display = 'none';
+                }).catch(error => {
+                    log(`Autoplay blocked: ${error}`, 'warning');
+                    playBtn.style.display = 'inline-block';
+                });
+            };
+
+            pc.ondatachannel = (event) => {
+                dataChannel = event.channel;
+                datastateEl.textContent = "DataChannel opened";
+                log('Data channel received', 'success');
+
+                dataChannel.onopen = () => {
+                    datastateEl.textContent = "✅ DataChannel открыт";
+                    log('Data channel opened', 'success');
+                };
+
+                dataChannel.onclose = () => {
+                    datastateEl.textContent = "❌ DataChannel закрыт";
+                    log('Data channel closed', 'error');
+                };
+
+                dataChannel.onmessage = (event) => {
+                    log(`Data received: ${event.data}`);
+                };
+            };
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    const candidateStr = event.candidate.candidate.substring(0, 50) + '...';
+                    icebrowserEl.textContent = `Sending ICE candidate: ${candidateStr}`;
+                    log(`ICE candidate: ${candidateStr}`);
+
+                    fetch("/icebrowser", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            type: "candidate",
+                            candidate: {
+                                candidate: event.candidate.candidate,
+                                sdpMid: event.candidate.sdpMid,
+                                sdpMLineIndex: event.candidate.sdpMLineIndex
+                            }
+                        })
+                    }).catch(error => {
+                        icebrowserEl.textContent = `Failed to send ICE: ${error}`;
+                        log(`Failed to send ICE candidate: ${error}`, 'error');
+                    });
+                }
+            };
+
+            // Добавляем обработчик gyro данных, если поддерживается
+            if (window.DeviceOrientationEvent) {
+                let lastSend = 0;
+                window.addEventListener("deviceorientation", (e) => {
+                    if (dataChannel && dataChannel.readyState === "open" && Date.now() - lastSend > 100) {
+                        const gyroData = {
+                            alpha: e.alpha,
+                            beta: e.beta,
+                            gamma: e.gamma,
+                            timestamp: Date.now()
+                        };
+                        try {
+                            dataChannel.send(JSON.stringify(gyroData));
+                            lastSend = Date.now();
+                        } catch (error) {
+                            log(`Failed to send gyro data: ${error}`, 'error');
+                        }
+                    }
+                });
+                log('Device orientation support enabled', 'success');
+            } else {
+                log('Device orientation not supported', 'warning');
+            }
+        }
+
+        async function start() {
+            if (isRunning) return;
+
+            isRunning = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            log('Starting WebRTC connection...');
+            updateConnectionState('connecting');
+
+            try {
+                initPeerConnection();
+
+                // 1. Получаем оффер от Unity
+                offerEl.textContent = 'Requesting offer from server...';
+                log('Requesting offer from server');
+
+                let offerResp = await fetch("/offer");
+                if (!offerResp.ok) {
+                    throw new Error("No offer from Unity!");
+                }
+
+                let offer = await offerResp.json();
+                offerEl.textContent = '✅ Offer received';
+                log('Offer received successfully', 'success');
+
+                await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+                // 2. Создаем Answer
+                answerEl.textContent = 'Creating answer...';
+                log('Creating answer');
+
+                let answer = await pc.createAnswer();
+
+                // Модифицируем SDP при необходимости
+                let modifiedSdp = answer.sdp;
+                if (!modifiedSdp.includes('msid:')) {
+                    modifiedSdp = modifiedSdp.replace(
+                        /a=recvonly\r\n/,
+                        'a=recvonly\r\na=msid:- browser_video_stream\r\n'
+                    );
+                    log('Modified SDP to include msid');
+                }
+
+                const modifiedAnswer = {
+                    sdp: modifiedSdp,
+                    type: answer.type
+                };
+
+                await pc.setLocalDescription(modifiedAnswer);
+
+                // 3. Отправляем answer на сервер
+                answerEl.textContent = 'Sending answer to server...';
+                log('Sending answer to server');
+
+                await fetch("/answer", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(modifiedAnswer)
+                });
+
+                answerEl.textContent = '✅ Answer sent';
+                log('Answer sent successfully', 'success');
+
+                // 4. Диагностика transceivers
+                log('Transceivers: ' + pc.getTransceivers().map(t => ({
+                    mid: t.mid,
+                    direction: t.direction,
+                    receiver: t.receiver.track ? t.receiver.track.kind : 'none',
+                    sender: t.sender.track ? t.sender.track.kind : 'none'
+                })).join(', '));
+
+                // 5. Цикл получения ICE кандидатов от Unity
+                icePollInterval = setInterval(async() => {
+                    if (pc && pc.connectionState !== "connected") {
+                        try {
+                            let resp = await fetch("/icebrowser");
+                            if (resp.ok) {
+                                let candidates = await resp.json();
+                                if (candidates && candidates.length > 0) {
+                                    iceunityEl.textContent = `Received ${candidates.length} ICE candidates`;
+
+                                    for (let candidateData of candidates) {
+                                        if (candidateData.candidate) {
+                                            const c = candidateData.candidate;
+                                            const candidateStr = c.candidate.substring(0, 50) + '...';
+                                            log(`Adding ICE from Unity: ${candidateStr}`);
+
+                                            await pc.addIceCandidate(new RTCIceCandidate({
+                                                candidate: c.candidate,
+                                                sdpMid: c.sdpMid,
+                                                sdpMLineIndex: c.sdpMLineIndex
+                                            }));
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            log(`Error fetching ICE: ${error}`, 'error');
+                        }
+                    }
+                }, 2000);
+
+            } catch (error) {
+                log(`Start failed: ${error}`, 'error');
+                stop();
+            }
+        }
+
+        function stop() {
+            isRunning = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+
+            log('Stopping WebRTC connection...');
+
+            // Останавливаем интервал опроса ICE
+            if (icePollInterval) {
+                clearInterval(icePollInterval);
+                icePollInterval = null;
+            }
+
+            // Закрываем DataChannel
+            if (dataChannel) {
+                dataChannel.close();
+                dataChannel = null;
+            }
+
+            // Закрываем PeerConnection
+            if (pc) {
+                pc.close();
+                pc = null;
+            }
+
+            // Очищаем видео
+            if (videoElement && videoElement.srcObject) {
+                videoElement.srcObject = null;
+            }
+
+            // Сбрасываем UI
+            updateConnectionState('disconnected');
+            datastateEl.textContent = "Not connected";
+            offerEl.textContent = "Not requested";
+            answerEl.textContent = "Not sent";
+            iceunityEl.textContent = "No candidates";
+            icebrowserEl.textContent = "No candidates";
+
+            log('Connection stopped', 'warning');
+        }
+
+        function playVideo() {
+            if (videoElement) {
+                videoElement.play().then(() => {
+                    log('Video playback started manually', 'success');
+                    playBtn.style.display = 'none';
+                }).catch(error => {
+                    log(`Failed to play video: ${error}`, 'error');
+                });
+            }
+        }
+
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            log('Page loaded. Click "Start Connection" to begin.');
+            updateConnectionState('disconnected');
+        });
+    </script>
+</body>
+
+</html>
