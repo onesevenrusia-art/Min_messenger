@@ -31,9 +31,18 @@
     </div>
 
 
-
-    <div id="chatbox">
+    <div class="mesenger_body">
+        <div id="chatbox">
+        </div>
+        <div class="chat">
+            <div class="input_msg">
+                <input id="input_message">
+                <button id="send_btn">Send</button>
+            </div>
+        </div>
     </div>
+
+
 
     <script>
         const DataUser = localStorage.getItem('userdata');
@@ -67,6 +76,7 @@
                 .catch(error => {
                     console.error("Ошибка сети:", error);
                 });
+            document.getElementsByClassName("chatinfo")
         }
     </script>
 </body>
