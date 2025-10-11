@@ -66,8 +66,8 @@
                     chats.forEach(chat => {
                         ChatBox.innerHTML += `
                     <div class="chatinfo">
-                        <img src="${chat.avatar}" alt="${chat.name}">
-                        <b>${chat.name}</b> 
+                        <img src="${chat.avatar}" alt="${chat.name} class=${'chat-avatar'}">
+                        <b class=${'chat-avatar'}>${chat.name}</b> 
                     </div>
                 `;
                     });

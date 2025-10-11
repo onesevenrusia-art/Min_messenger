@@ -185,7 +185,7 @@ def returnUserChatList():
         print("yes")
         return jsonify({"chats":json.loads(chats[0])})
     else:
-        return jsonify({"chats":[{"avatar":0b0,"name":'123abcname'}]})
+        return jsonify({"chats":[{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'russia'},{"avatar":0b0,"name":'polyaki'}]})
 
 
 
