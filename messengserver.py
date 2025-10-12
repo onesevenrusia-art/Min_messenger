@@ -8,6 +8,11 @@ import random
 from email_validator import validate_email, EmailNotValidError
 import Users_db
 import json
+
+import base64  
+with open('static\images\logo.png', 'rb') as img:  
+    minb=base64.b64encode(img.read()).decode('utf-8')
+
 simv="qwertyuioplkjhgfdsazxcvbnm@#_1234567890"
 
 DoctypeKeys={}
@@ -185,7 +190,7 @@ def returnUserChatList():
         print("yes")
         return jsonify({"chats":json.loads(chats[0])})
     else:
-        return jsonify({"chats":[{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'russia'},{"avatar":0b0,"name":'polyaki'}]})
+        return jsonify({"chats":[{"avatar":'\static\images\logo.png',"name":'MIN-поддержка'}, {"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'russia'},{"avatar":0b0,"name":'polyaki'}]})
 
 
 

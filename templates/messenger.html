@@ -42,8 +42,15 @@
         </div>
     </div>
 
+    <div class="SearchUser">
+        <div class="User">
+            <img class="useravatar" src="{{ url_for('static', filename='images/bgmes.jpg') }}">
+            <p class="username">user</p>
+        </div>
+    </div>
 
 
+</body>
     <script>
         const DataUser = localStorage.getItem('userdata');
         console.log(DataUser);
@@ -65,9 +72,9 @@
                     const chats = result.chats;
                     chats.forEach(chat => {
                         ChatBox.innerHTML += `
-                    <div class="chatinfo">
-                        <img src="${chat.avatar}" alt="${chat.name} class=${'chat-avatar'}">
-                        <b class=${'chat-avatar'}>${chat.name}</b> 
+                    <div class=${'chatinfo'}>
+                        <img src="${chat.avatar}" class=${'chat-avatar'} alt="${0} ">
+                        <b class=${'chat-name'}>${chat.name}</b> 
                     </div>
                 `;
                     });

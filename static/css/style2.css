@@ -163,7 +163,7 @@
         display: flex;
         flex-direction: column;
         gap: 1px;
-        justify-content: center;
+        justify-content: start;
         border: 2px solid black;
         background-color: white;
         height: 94vh;
@@ -175,9 +175,10 @@
     .chatinfo {
         display: block;
         border: 1px solid black;
-        background: white;
-        gap: 7px;
+        background:ghostwhite;
+        gap: 2px;
         cursor: pointer;
+        width: 100%;
     }
     
     .chatinfo:hover {
@@ -203,15 +204,11 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
         /* Многоточие если длинное имя */
     }
     
-    @media (min-width: 768px) {
-        #chatbox {
-            width: 33%;
-            /* На ПК занимает 30% */
-        }
-    }
+
     /*chatbox*/
     /*chatbox*/
     /*chatbox*/
@@ -227,9 +224,10 @@
     .input_msg {
         display: flex;
         justify-content: space-around;
-        background-color: rgba(0, 0, 0, 0);
+        background-color: rgba(255, 255, 255, 0.5);
         width: 100%;
         margin-block-end: 1%;
+        padding: 1%;
     }
     
     #input_message {
@@ -269,9 +267,53 @@
     }
     
     .chat {
-        display: flex;
+        display: none;
         flex-direction: column;
         background-color: rgba(0, 0, 0, 0);
         width: 100%;
         justify-content: end;
     }
+
+    @media (min-width: 768px) {
+        #chatbox {
+            width: 33%;
+            /* На ПК занимает 30% */
+        }
+        .chat{
+            display: flex;
+            width: 67%;
+        }
+    }
+
+    .SearchUser{
+        position: absolute;
+        display: block;
+        align-self: flex-start;
+        background-color:lightskyblue;
+        z-index: 10;
+        top: 6%;
+        left: 2%;
+        min-width: 22%;
+    }
+
+    .username{
+        font-size: 22px;
+        color:darkblue;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin: 3px,3px,3px;
+    }
+
+    .useravatar{
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex-shrink: 0;
+        margin-right: 6px;
+        margin-left: 2px;
+    }
+
+    

@@ -163,7 +163,11 @@ body {
 
 #inputmesseg {
     margin: 15px;
-    color: rgba(255, 255, 255, 0.774);
+    padding-top: 5%;
+    padding-bottom: 5%;
+    padding: 25px 25px 25px;
+    top: 5%;
+    color: rgba(168, 62, 62, 0.774);
 }
 
 
@@ -185,5 +189,13 @@ body {
 }
 
 .new{
-    padding-left: 10px 8px 10px;
+    padding-top: 10px;
+    padding: 10px 8px 10px;
+    padding-bottom: 10px;
+}
+
+#inpytregememail{
+    font-size: 18px;
+    margin-top: 8px;
+    margin-bottom: 8px;
 }
