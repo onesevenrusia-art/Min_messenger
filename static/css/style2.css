@@ -175,7 +175,7 @@
     .chatinfo {
         display: block;
         border: 1px solid black;
-        background:ghostwhite;
+        background: ghostwhite;
         gap: 2px;
         cursor: pointer;
         width: 100%;
@@ -207,8 +207,6 @@
         white-space: nowrap;
         /* Многоточие если длинное имя */
     }
-    
-
     /*chatbox*/
     /*chatbox*/
     /*chatbox*/
@@ -273,40 +271,39 @@
         width: 100%;
         justify-content: end;
     }
-
+    
     @media (min-width: 768px) {
         #chatbox {
             width: 33%;
             /* На ПК занимает 30% */
         }
-        .chat{
+        .chat {
             display: flex;
             width: 67%;
         }
     }
-
-    .SearchUser{
+    
+    .SearchUser {
         position: absolute;
-        display: block;
+        display: none;
         align-self: flex-start;
-        background-color:lightskyblue;
-        z-index: 10;
+        background-color: lightskyblue;
         top: 6%;
         left: 2%;
         min-width: 22%;
     }
-
-    .username{
+    
+    .username {
         font-size: 22px;
-        color:darkblue;
+        color: darkblue;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        margin: 3px,3px,3px;
+        margin: 3px, 3px, 3px;
     }
-
-    .useravatar{
+    
+    .useravatar {
         width: 32px;
         height: 32px;
         border-radius: 50%;
@@ -315,5 +312,3 @@
         margin-right: 6px;
         margin-left: 2px;
     }
-
-    

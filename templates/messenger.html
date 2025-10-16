@@ -43,49 +43,52 @@
     </div>
 
     <div class="SearchUser">
-        <div class="User">
-            <img class="useravatar" src="{{ url_for('static', filename='images/bgmes.jpg') }}">
-            <p class="username">user</p>
-        </div>
+        <img class="useravatar" src="{{ url_for('static', filename='images/bgmes.jpg') }}">
+        <p class="username">user</p>
     </div>
 
 
 </body>
-    <script>
-        const DataUser = localStorage.getItem('userdata');
-        console.log(DataUser);
-        if (DataUser) {
-            const Data = JSON.parse(DataUser);
-            const ChatBox = document.getElementById("chatbox")
-            ChatBox.innerHTML = '';
-            fetch("/userchatlist", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        email: Data.email
-                    }),
-                })
-                .then(response => response.json())
-                .then(result => {
-                    const chats = result.chats;
-                    chats.forEach(chat => {
-                        ChatBox.innerHTML += `
+<script>
+    const DataUser = localStorage.getItem('userdata');
+    console.log(DataUser);
+    if (DataUser) {
+        const Data = JSON.parse(DataUser);
+        const ChatBox = document.getElementById("chatbox")
+        ChatBox.innerHTML = '';
+        fetch("/userchatlist", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: Data.email
+                }),
+            })
+            .then(response => response.json())
+            .then(result => {
+                const chats = result.chats;
+                chats.forEach(chat => {
+                    ChatBox.innerHTML += `
                     <div class=${'chatinfo'}>
                         <img src="${chat.avatar}" class=${'chat-avatar'} alt="${0} ">
                         <b class=${'chat-name'}>${chat.name}</b> 
                     </div>
                 `;
-                    });
-
-                })
-                .catch(error => {
-                    console.error("Ошибка сети:", error);
                 });
-            document.getElementsByClassName("chatinfo")
-        }
-    </script>
+
+            })
+            .catch(error => {
+                console.error("Ошибка сети:", error);
+            });
+        document.getElementById("inputsearchuser").addEventListener("focus", function() {
+            document.querySelector(".SearchUser").style.display = "flex";
+        });
+        document.getElementById("inputsearchuser").addEventListener("blur", function() {
+            document.querySelector(".SearchUser").style.display = "none";
+        });
+    }
+</script>
 </body>
 
 </html>
