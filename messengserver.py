@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import random
 from email_validator import validate_email, EmailNotValidError
-import Users_db
+import SearchUser
 import json
 
 import base64  
@@ -16,7 +16,7 @@ with open('static\images\logo.png', 'rb') as img:
 simv="qwertyuioplkjhgfdsazxcvbnm@#_1234567890"
 
 DoctypeKeys={}
-usersdb = Users_db.usersDataBase()
+usersdb = SearchUser.UserManager()
 
 
 app = Flask(__name__)
@@ -121,8 +121,9 @@ def key():
                 token.append(simv[random.randint(0,len(simv)-1)].upper())
             else:
                 token.append(simv[random.randint(0,len(simv)-1)])
-        token=str("".join(token))           
-        usersdb.adduser(email=data["email"], name=data["name"], phone=data["phone"], token=token)
+        token=str("".join(token))        
+        usersdb.add_user(email=data["email"], userid=usersdb.get_max_userid()["id"], name=data["name"], phone=data["phone"], token=token)   
+        #usersdb.adduser(email=data["email"], name=data["name"], phone=data["phone"], token=token)
         return jsonify({"success":True,
                         "token":token})
     else:
@@ -131,7 +132,8 @@ def key():
 @app.route("/input", methods=["POST"])
 def input():
     data=request.get_json()
-    token=usersdb.getUser(data["email"], ["token"])
+    #token=usersdb.getUser(data["email"], ["token"])
+    token = usersdb.get_user_by_email(data["email"])["token"]
     try:
         print(token,data["token"])
         if token[0] == data["token"].replace(" ",""):
@@ -146,10 +148,16 @@ def input():
 def eminp():
     email=request.get_json()["email"]
     try:
-        if email not in usersdb.allUsers()[0]:
-            print(email,usersdb.allUsers())
+        fl=False
+        for user in usersdb.get_all_users():
+            if email == user["email"]:
+                fl=True
+                break
+        if fl:
+            #print(email,usersdb.allUsers())
             return jsonify({"state":"notreg"})
-    except:jsonify({"state":"errorfind"})
+    except:
+        jsonify({"state":"errorfind"})
     correct = IsEmailCorrect(email)
     if correct:
         state = SendCode(email)
@@ -171,9 +179,9 @@ def dostype_2():
     print(DoctypeKeys)
     print(data, "z")
     if data["key"]==DoctypeKeys[data["email"]]:
-        print(usersdb.getUser(data["email"],["token"]))
+        #print(usersdb.getUser(data["email"],["token"]))
         return jsonify({"success":True,
-                        "token":usersdb.getUser(data["email"],["token"])[0]})
+                        "token":usersdb.get_user_by_email(data["email"])["token"]})
     else:
         return jsonify({"success":False})      
 
@@ -184,11 +192,11 @@ def dostype_2():
 @app.route("/userchatlist",methods=["POST"])
 def returnUserChatList():
     email = request.get_json()["email"]
-    chats=list(usersdb.getUser(email,["chats"])[0])
+    chats=list(usersdb.get_user_by_email(email)["chats"])
     print(chats)
-    if len(chats)==0:
+    if len(chats)!=0:
         print("yes")
-        return jsonify({"chats":json.loads(chats[0])})
+        return jsonify({"chats":json.loads(chats)})
     else:
         return jsonify({"chats":[{"avatar":'\static\images\logo.png',"name":'MIN-поддержка'}, {"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'russia'},{"avatar":0b0,"name":'polyaki'}]})
 
