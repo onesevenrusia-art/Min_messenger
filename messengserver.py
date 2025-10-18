@@ -194,6 +194,21 @@ def returnUserChatList():
         return jsonify({"chats":[{"avatar":'\static\images\logo.png',"name":'MIN-поддержка'}, {"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'russia'},{"avatar":0b0,"name":'polyaki'}]})
 
 
+@app.route("/SearchUserBy",methods=["POST"])
+def SearchUserBy():
+    data = request.get_json()
+    print(data)
+    typeS = data["type"]
+    what = data["request"]
+    back = {"sucess":True, "userlist":[]}
+    match typeS:
+        case "name": 
+            res=usersdb.search_users_by(what)
+            back["sucess"]=len(res)>0
+            back["userlist"]=res
+    print(back)
+    return jsonify(back)
+
 
 if __name__ == '__main__':    
     app.run( host='0.0.0.0',  port=5000, debug=True, 

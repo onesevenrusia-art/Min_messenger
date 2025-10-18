@@ -1,1 +1,0 @@
-(window.__LOADABLE_LOADED_CHUNKS__=window.__LOADABLE_LOADED_CHUNKS__||[]).push([["666f99"],{JJbA:function(n,_,e){"use strict";e.d(_,"a",(function(){return o}));var t=e("4Gwv"),i=e("zy2/"),c=e("ZWnW"),s=(e("wlnM"),Object(i.createClassNameModifier)(Object(c.a)(),{size:"s"})),o=Object(t.g)({desktop:s})},wlnM:function(n,_,e){}}]);

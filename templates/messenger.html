@@ -47,9 +47,7 @@
         </div>
     </div>
 
-    <div class="SearchUser">
-        <img class="useravatar" src="{{ url_for('static', filename='images/bgmes.jpg') }}">
-        <p class="username">user</p>
+    <div id="SearchUser">
     </div>
 
 
@@ -87,12 +85,116 @@
                 console.error("Ошибка сети:", error);
             });
         document.getElementById("inputsearchuser").addEventListener("focus", function() {
-            document.querySelector(".SearchUser").style.display = "flex";
+            document.querySelector("#SearchUser").style.display = "flex";
         });
         document.getElementById("inputsearchuser").addEventListener("blur", function() {
-            document.querySelector(".SearchUser").style.display = "none";
+            document.querySelector("#SearchUser").style.display = "none";
         });
     }
+
+    const button = document.getElementById('buttonsearch');
+    const menu = document.querySelector('.by');
+    const InputSearch = document.getElementById("inputsearchuser");
+    let timeout;
+    
+    function showMenu() {
+        const rect = button.getBoundingClientRect();
+        menu.style.display = 'flex';
+        menu.style.position = 'absolute';
+        menu.style.top = (rect.bottom + 2) + 'px';
+        menu.style.left = rect.left + 'px';
+        menu.style.minWidth = rect.width + 'px';
+        
+        // Запускаем анимацию
+        setTimeout(() => menu.classList.add('show'), 10);
+        clearTimeout(timeout);
+    }
+    
+    function hideMenu() {
+        menu.classList.remove('show');
+        timeout = setTimeout(() => {
+            menu.style.display = 'none';
+        }, 200); // Ждем окончания анимации
+    }
+    
+    button.addEventListener('mouseenter', showMenu);
+    button.addEventListener('mouseleave', hideMenu);
+    
+    menu.addEventListener('mouseenter', function() {
+        clearTimeout(timeout);
+        menu.classList.add('show');
+    });
+    
+    menu.addEventListener('mouseleave', hideMenu);
+
+    const menuLinks = document.querySelectorAll('.by a');
+    
+    menuLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault(); // Отменяем переход по ссылке
+            
+            const linkText = this.textContent;
+            console.log(`Нажата ссылка: ${linkText}`);
+            
+            // Определяем какая именно ссылка нажата
+            switch(linkText) {
+                case 'Name':
+                    SearchBy("name");
+                    break;
+                case 'Phone':
+                    SearchBy("phone");
+                    break;
+                case 'Id':
+                    SearchBy("id");
+                    break;
+            }
+            
+            // Закрываем меню после выбора
+            this.closest('.by').style.display = 'none';
+            document.querySelector("#SearchUser").style.display = "flex";
+        });
+    });
+    
+    function SearchBy(type_search) {
+        console.log('Выбран поиск по имени ${}');
+        // Ваш код для поиска по имени
+        UserBox = document.getElementById("SearchUser");
+        if (InputSearch.value.trim() != ""){
+            fetch("/SearchUserBy", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    "type":type_search,
+                    "request":InputSearch.value.trim()
+                }),
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.sucess){
+                    const users = result.userlist;
+                    users.forEach(user => {
+                        if (user.photo === null){user.photo = "static/images/Uniknown.png"}
+                        UserBox.innerHTML += `
+                        <div class=${'SearchUser'}>
+                            <img src="${user.photo}" class=${'useravatar'} alt="${0} ">
+                            <b class=${'username'}>${user.name}</b> 
+                        </div>
+                    `;
+                    });
+                }
+                else{
+
+                }
+
+            })
+            .catch(error => {
+                console.error("Ошибка сети:", error);
+            });
+        }
+    }
+ 
 </script>
 </body>
 

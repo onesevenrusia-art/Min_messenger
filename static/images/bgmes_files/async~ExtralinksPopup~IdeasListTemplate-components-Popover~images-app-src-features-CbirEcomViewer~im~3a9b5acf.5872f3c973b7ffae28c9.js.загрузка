@@ -1,1 +1,0 @@
-(window.__LOADABLE_LOADED_CHUNKS__=window.__LOADABLE_LOADED_CHUNKS__||[]).push([["c10f4a"],{CfDi:function(t,e,_){"use strict";_.d(e,"a",(function(){return a}));var c=_("4Gwv"),n=_("zy2/"),o=_("Xd8z"),i=Object(n.createClassNameModifier)(Object(o.a)(),{tone:"beauty"}),a=(_("cmQo"),Object(c.g)({desktop:i}))},cmQo:function(t,e,_){}}]);
