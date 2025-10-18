@@ -147,19 +147,12 @@ def input():
 @app.route("/doctypeinput",methods=["POST"])
 def eminp():
     email=request.get_json()["email"]
-    try:
-        fl=False
-        for user in usersdb.get_all_users():
-            if email == user["email"]:
-                fl=True
-                break
-        if fl:
-            #print(email,usersdb.allUsers())
-            return jsonify({"state":"notreg"})
-    except:
-        jsonify({"state":"errorfind"})
-    correct = IsEmailCorrect(email)
-    if correct:
+    fl=False
+    for user in usersdb.get_all_users():
+        if email == user["email"]:
+            fl=True
+            break
+    if fl:
         state = SendCode(email)
         if type(state) == str:
             print(f"ERROR! {state}")
@@ -168,7 +161,7 @@ def eminp():
             if state[0]:
                 DoctypeKeys[email]=state[1]
                 print("ok email")
-                return jsonify({"state":"ok"})
+        return jsonify({"state":"ok"})
     else:
         print("errorfind email")
         return jsonify({"state":"errorfind"})

@@ -39,6 +39,24 @@
         align-items: center;
         gap: 7px;
         padding: 10px;
+        padding-inline-end: 2px;
+        position: relative;
+        /* ← ключевое для позиционирования .by */
+    }
+    
+    .by {
+        display: flex;
+        position: absolute;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background-color: black;
+        color: #f8f8f8;
+        font-size: 17px;
+        padding-left: 3px;
+        padding-right: 3px;
+        padding-top: 2px;
+        right: 0;
     }
     
     .optionsblock {
@@ -52,6 +70,10 @@
         color: white;
         background-color: black;
         border: 1px solid rgb(124, 124, 124);
+    }
+    
+    #buttonsearch:hover .by {
+        display: flex;
     }
     
     #buttonsearch:hover {
