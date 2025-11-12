@@ -121,8 +121,10 @@ def key():
                 token.append(simv[random.randint(0,len(simv)-1)].upper())
             else:
                 token.append(simv[random.randint(0,len(simv)-1)])
-        token=str("".join(token))        
-        usersdb.add_user(email=data["email"], userid=usersdb.get_max_userid()["id"], name=data["name"], phone=data["phone"], token=token)   
+        token=str("".join(token))     
+        print("adding user to", data)   
+        usersdb.add_user(email=data["email"], userid=usersdb.get_max_userid()["id"]+1, name=data["name"], phone=data["phone"], token=token)  
+        print(usersdb.get_user_by_email(data["email"])) 
         #usersdb.adduser(email=data["email"], name=data["name"], phone=data["phone"], token=token)
         return jsonify({"success":True,
                         "token":token})
@@ -133,7 +135,11 @@ def key():
 def input():
     data=request.get_json()
     #token=usersdb.getUser(data["email"], ["token"])
-    token = usersdb.get_user_by_email(data["email"])["token"]
+    token = usersdb.get_user_by_email(data["email"])
+    if len(token)>0:
+        token=token["token"]
+    else:
+        return jsonify({"state":False})        
     try:
         print(token,data["token"])
         if token[0] == data["token"].replace(" ",""):
@@ -173,9 +179,12 @@ def dostype_2():
     print(data, "z")
     if data["key"]==DoctypeKeys[data["email"]]:
         #print(usersdb.getUser(data["email"],["token"]))
+        print("ok input")
         return jsonify({"success":True,
                         "token":usersdb.get_user_by_email(data["email"])["token"]})
+    
     else:
+        print("errorinput")
         return jsonify({"success":False})      
 
 #################################################
@@ -185,6 +194,7 @@ def dostype_2():
 @app.route("/userchatlist",methods=["POST"])
 def returnUserChatList():
     email = request.get_json()["email"]
+    print("email",usersdb.get_user_by_email(email))
     chats=list(usersdb.get_user_by_email(email)["chats"])
     print(chats)
     if len(chats)!=0:
@@ -201,12 +211,10 @@ def SearchUserBy():
     typeS = data["type"]
     what = data["request"]
     back = {"sucess":True, "userlist":[]}
-    match typeS:
-        case "name": 
-            res=usersdb.search_users_by(what)
-            back["sucess"]=len(res)>0
-            back["userlist"]=res
-    print(back)
+    res=usersdb.search_users_by(what,typeS)
+    back["sucess"]=len(res)>0
+    back["userlist"]=[{"id":i['userid'],"email":i['email'],"name":i['name'],"photo":i["photo"],"phone":i['phone'],"about":i['about']} for i in res]
+    print(back,res)
     return jsonify(back)
 
 

@@ -174,6 +174,7 @@ class UserManager:
             
         except Exception as e:
             session.rollback()
+            print("error adding")
             return {"error": str(e)}
         finally:
             session.close()
@@ -268,6 +269,11 @@ class UserManager:
 
 #db = UserManager()
 #db.add_user("onesevenrusia@gmail.com",0,"Alex","79157683304")
+#data={'key': '902440', 'email': 'adk@gmail.com', 'name': 'nodejs', 'phone': ''}
+#userid=int(db.get_max_userid()["id"])
+#print(userid)
+#db.add_user(email=data["email"], userid=userid+1, name=data["name"], phone=data["phone"], token="llllhgsgdvcyadvfsdytvfy")  
+#print(type(db.get_max_userid()["id"]))
 #
 #print(db.get_all_users())
 #print(db.get_user_by_id(0))
