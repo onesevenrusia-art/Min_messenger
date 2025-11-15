@@ -207,16 +207,27 @@ def returnUserChatList():
 @app.route("/SearchUserBy",methods=["POST"])
 def SearchUserBy():
     data = request.get_json()
-    print(data)
     typeS = data["type"]
     what = data["request"]
     back = {"sucess":True, "userlist":[]}
     res=usersdb.search_users_by(what,typeS)
     back["sucess"]=len(res)>0
-    back["userlist"]=[{"id":i['userid'],"email":i['email'],"name":i['name'],"photo":i["photo"],"phone":i['phone'],"about":i['about']} for i in res]
-    print(back,res)
+    back["userlist"]=[{"id":i['userid'],"name":i['name'],"photo":i["photo"]} for i in res]
+    #back["userlist"]=[{"id":i['userid'],"email":i['email'],"name":i['name'],"photo":i["photo"],"phone":i['phone'],"about":i['about']} for i in res]
     return jsonify(back)
 
+@app.route("/GetUserInfo",methods=["POST"])
+def GetUserInfo():
+    id = request.get_json()["id"]
+    user=usersdb.get_user_by_id(id)
+    if user["photo"]==None:
+        user["photo"]="static/images/Uniknown.png"
+    return jsonify({"id":user['userid'],
+                    "email":user['email'],
+                    "name":user['name'],
+                    "photo":user["photo"],
+                    "phone":user['phone'],
+                    "about":user['about']})
 
 if __name__ == '__main__':    
     app.run( host='0.0.0.0',  port=5000, debug=True, 

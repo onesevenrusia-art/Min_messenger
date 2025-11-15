@@ -15,11 +15,11 @@
     <div class="shapes">
         <div id="searchblock">
             <input id="inputsearchuser">
-            <button id="buttonsearch">Search By</button>
+            <button class="zzz" id="buttonsearch">Search By</button>
             <div class="by">
-                <a href="#">Name</a>
-                <a href="#">Phone</a>
-                <a href="#" color="red">Id</a>
+                <a class="zzz" href="#">Name</a>
+                <a class="zzz" href="#">Phone</a>
+                <a class="zzz" href="#" color="red">Id</a>
             </div>
         </div>
 
@@ -51,7 +51,25 @@
     </div>
 
     <div id="MainChatCreator">
-        <div class="WhatCreate"></div>
+        <div class="WhatCreate">
+            <p id="usname">Вы хотите создать чат с </p>
+            <div class="formdata">
+                <div>
+                    <img src="" id="user_ava" alt="0">
+                </div>
+                <div>
+                    <p>Имя</p>
+                    <p>Телефон</p>
+                    <p>ID</p>
+                </div>
+            </div>
+            <p>О пользователе:</p>
+            <div id="about_user"></div>
+            <div class="button_box">
+                <button id="cancel">Отмена</button>
+                <button id="create_chatbtn">Создать чат</button>
+            </div>
+        </div>
     </div>
 
 
@@ -158,9 +176,14 @@
             document.querySelector("#SearchUser").style.display = "flex";
         });
     });
+    document.addEventListener("click", function(e) {
+        if (e.target.className !== "zzz") {
+            document.querySelector("#SearchUser").style.display = "none";
+        }
+    })
 
     function SearchBy(type_search) {
-        console.log('Выбран поиск по имени ${}');
+        //console.log('Выбран поиск по имени ${}');
         // Ваш код для поиска по имени
         UserBox = document.getElementById("SearchUser");
         if (InputSearch.value.trim() != "") {
@@ -191,7 +214,15 @@
                     `;
                         });
                     } else {
-
+                        let name = "Ничего не найдено";
+                        let photo = "static/images/notfind.png";
+                        let id = "errorfind";
+                        UserBox.innerHTML = `
+                        <div class=${'User'}>
+                            <img src="${photo}" class=${'useravatar'} alt="${0} ">
+                            <b class=${'username'} id=${id}>${name}</b> 
+                        </div>
+                    `;
                     }
 
                 })
@@ -210,15 +241,39 @@
             const userAvatar = userElement.querySelector('.useravatar');
             const userId = username.id;
             // Вызываем функцию обработки
-            CreateChat(userId, userElement);
+            if (userId !== "errorfind") {
+                CreateChat(userId, userElement);
+
+            }
         }
     });
 
     function CreateChat(userId, element) {
-        console.log(`Обрабатываем пользователя с ID: ${userId}`);
-        document.getElementById("MainChatCreator").style.display = "block";
-
+        //console.log(`Обрабатываем пользователя с ID: ${userId}`);
+        document.getElementById("MainChatCreator").style.display = "flex";
+        fetch("/GetUserInfo", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    "id": userId
+                }),
+            })
+            .then(response => response.json())
+            .then(result => {
+                console.log(result.photo);
+                document.getElementById("usname").innerText = `Вы хотите создать чат с ${result.name}`;
+                document.getElementById("user_ava").src = result.photo;
+            })
+            .catch(error => {
+                console.error("Ошибка сети:", error);
+            });
     }
+
+    document.getElementById("cancel").addEventListener("click", function(e) {
+        document.getElementById("MainChatCreator").style.display = "none";
+    });
 </script>
 </body>
 
