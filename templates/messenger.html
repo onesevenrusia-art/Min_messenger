@@ -27,9 +27,9 @@
             <div class="swimopt">
                 <button id="optionsbtn">Настройки</button>
                 <div class="optionsmenu">
-                    <a href="#">Профиль</a>
-                    <a href="#">Выйти</a>
-                    <a href="#" color="red">Удалить аккаунт</a>
+                    <a id="profil" href="#">Профиль</a>
+                    <a id="exit" href="#">Выйти</a>
+                    <a id="deletemyacc" href="#" color="red">Удалить аккаунт</a>
                 </div>
             </div>
         </div>
@@ -57,18 +57,28 @@
                 <div>
                     <img src="" id="user_ava" alt="0">
                 </div>
-                <div>
+                <div class="betta">
                     <p>Имя</p>
                     <p>Телефон</p>
                     <p>ID</p>
                 </div>
             </div>
             <p>О пользователе:</p>
-            <div id="about_user"></div>
+            <div id="about_user">
+                <p class="long-text">Не указано</p>
+            </div>
             <div class="button_box">
                 <button id="cancel">Отмена</button>
                 <button id="create_chatbtn">Создать чат</button>
             </div>
+        </div>
+    </div>
+
+    <div class="delete">
+        <p>Вы уверены, что хотите удалить аккаунт?</p>
+        <div class="button_box">
+            <button id="nodelete">Нет</button>
+            <button id="yesdelete">Да</button>
         </div>
     </div>
 
@@ -112,6 +122,10 @@
         document.getElementById("inputsearchuser").addEventListener("blur", function() {
             document.querySelector("#SearchUser").style.display = "none";
         });
+    } else {
+        window.close();
+        window.location.href = '/';
+
     }
 
     const button = document.getElementById('buttonsearch');
@@ -265,6 +279,16 @@
                 console.log(result.photo);
                 document.getElementById("usname").innerText = `Вы хотите создать чат с ${result.name}`;
                 document.getElementById("user_ava").src = result.photo;
+                document.querySelectorAll(".betta p").forEach(p => {
+                    if (p.textContent.trim().includes("Имя")) {
+                        p.textContent = `Имя: ${result.name}`;
+                    } else if (p.textContent.trim().includes("Телефон")) {
+                        p.textContent = `Телефон: ${result.phone}`;
+                    }
+                    if (p.textContent.trim().includes("ID")) {
+                        p.textContent = `ID: ${result.id}`;
+                    }
+                });
             })
             .catch(error => {
                 console.error("Ошибка сети:", error);
@@ -273,6 +297,19 @@
 
     document.getElementById("cancel").addEventListener("click", function(e) {
         document.getElementById("MainChatCreator").style.display = "none";
+    });
+
+    document.getElementById("exit").addEventListener("click", function(e) {
+        const res = confirm("Вы уверены, что хотите выйти из аккаунта на текущем устройстве ?")
+        if (res) {
+            localStorage.clear();
+            window.close();
+            window.location.href = '';
+            return true
+        };
+    });
+    document.getElementById("exit").addEventListener("click", function(e) {
+
     });
 </script>
 </body>

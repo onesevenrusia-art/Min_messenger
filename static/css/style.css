@@ -35,12 +35,12 @@ body {
 
 .auth-box {
     background: rgba(255, 255, 255, 0.95);
-    padding: 50px 40px;
+    padding: 25px;
     border-radius: 20px;
     text-align: center;
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(10px);
-    max-width: 300px;
+    max-width: 340px;
     width: 100%;
     opacity: 0;
     transform: translateY(20px);
@@ -71,18 +71,20 @@ body {
 }
 
 .auth-btn {
-    padding: 16px 20px;
+    padding: 8px 8px;
     border-radius: 12px;
     text-decoration: none;
     font-weight: 600;
     font-size: 16px;
     transition: all 0.3s ease;
     border: 2px solid transparent;
+    margin: 3px;
 }
 
 .login-btn {
     background: #3498db;
     color: white;
+    margin: 3px;
 }
 
 .login-btn:hover {
@@ -94,12 +96,18 @@ body {
     background: transparent;
     color: #3498db;
     border-color: #3498db;
+    margin: 3px;
 }
 
 .register-btn:hover {
     background: #3498db;
     color: white;
     transform: translateY(-2px);
+}
+
+.new1 {
+    display: flex;
+    justify-content: space-between;
 }
 
 .loading-spinner {
