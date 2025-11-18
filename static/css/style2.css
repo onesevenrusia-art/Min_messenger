@@ -337,7 +337,7 @@
         justify-content: end;
     }
     
-    @media (min-width: 768px) {
+    @media (min-width: 480px) {
         #chatbox {
             width: 33%;
             /* На ПК занимает 30% */
@@ -348,6 +348,9 @@
         .chat {
             display: flex;
             width: 67%;
+        }
+        .deletebox {
+            width: 94vw;
         }
     }
     /*SEARCH BLOCK*/
@@ -444,7 +447,7 @@
         padding: 1;
     }
     
-    #cancel {
+    .cancel_class {
         background-color: #d32f2f;
         color: #ddd;
         border: 1px solid black;
@@ -452,11 +455,11 @@
         font-size: 22px;
     }
     
-    #cancel:hover {
+    .cancel_class:hover {
         background-color: darkred;
     }
     
-    #create_chatbtn {
+    .createchatbtn_class {
         background-color: chartreuse;
         border: 1px solid black;
         border-radius: 7px;
@@ -464,7 +467,7 @@
         color: #212121;
     }
     
-    #create_chatbtn:hover {
+    .createchatbtn_class:hover {
         background-color: forestgreen;
         color: #ddd;
     }
@@ -514,3 +517,172 @@
     /*ChatCreator*/
     /*ChatCreator*/
     /*ChatCreator*/
+    /*DELETE*/
+    
+    #red {
+        display: flex;
+        position: absolute;
+        left: 0;
+        top: 0;
+        background-color: rgba(255, 0, 0, 0.322);
+        width: 100%;
+        height: 100%;
+        justify-content: center;
+        justify-items: center;
+        z-index: 10;
+    }
+    
+    .deletebox {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        background-color: #e8e8e8;
+        padding: 10px;
+        width: auto;
+        height: auto;
+        border: 3px solid red;
+        border-radius: 10px;
+        margin: auto;
+    }
+    
+    .why {
+        display: flex;
+        flex-direction: column;
+        background-color: #e8e8e8;
+        padding: 10px;
+        min-height: 180px;
+        min-height: 180px;
+        border: 2px solid black;
+        border-radius: 10px;
+        margin: auto;
+    }
+    
+    .inpwhy {
+        margin: 5px;
+        border: 1px solid black;
+        background-color: #f8f8f8;
+        padding: 2px;
+        min-height: 20vw;
+    }
+    
+    .button_box2 {
+        display: flex;
+        padding: 3px;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .yes {
+        padding: 4px;
+        font-size: 32px;
+        min-width: 100px;
+        background-color: red;
+        color: #ddd;
+        border: 2px solid black;
+        border-radius: 20px;
+    }
+    
+    .yes:hover {
+        background-color: #d32f2f;
+    }
+    
+    .no {
+        padding: 4px;
+        font-size: 32px;
+        min-width: 100px;
+        background-color: greenyellow;
+        border: 2px solid black;
+        border-radius: 20px;
+    }
+    
+    .no:hover {
+        background-color: green;
+        color: white;
+    }
+    /*DELETE*/
+    
+    .MainCreateProfil {
+        display: flex;
+        position: absolute;
+        left: 0;
+        top: 0;
+        background-color: rgba(0, 0, 0, 0.322);
+        width: 100%;
+        height: 100%;
+        justify-content: center;
+        justify-items: center;
+        z-index: 10;
+    }
+    
+    .CreateProfil {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        background-color: #e8e8e8;
+        padding: 20px;
+        width: auto;
+        height: auto;
+        border: 3px solid blue;
+        border-radius: 10px;
+        margin: auto;
+    }
+    
+    .pol {
+        display: flex;
+        align-items: center;
+        padding: 6px;
+    }
+    
+    .chek {
+        margin: 6px;
+        transform: scale(1.5);
+    }
+    
+    .btnboxprof {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 2px;
+        margin-top: 15px;
+        margin-bottom: 10px;
+    }
+    
+    #prof_canc {
+        font-size: 21px;
+        border: 1px solid black;
+        background-color: #d32f2f;
+        color: #e8e8e8;
+        padding: 3 6 3 6px;
+        border-radius: 10px;
+    }
+    
+    #prof_canc:hover {
+        background-color: red;
+    }
+    
+    #prof_save {
+        font-size: 21px;
+        border: 1px solid black;
+        background-color: mediumblue;
+        color: #e8e8e8;
+        padding: 3 6 3 6px;
+        border-radius: 10px;
+    }
+    
+    #prof_save:hover {
+        background-color: blue;
+        color: chartreuse;
+    }
+    
+    #my_photo {
+        border: 1px solid black;
+        width: 225px;
+        height: 225px;
+        object-fit: cover;
+        aspect-ratio: 1/1;
+        justify-self: center;
+        margin: auto;
+    }

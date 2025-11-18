@@ -10,6 +10,7 @@
 <body>
     <div class="background-container">
         <img src="{{ url_for('static', filename='images/bgmes.jpg') }}" alt="Фон" class="background-image">
+
     </div>
 
     <div class="shapes">
@@ -68,25 +69,121 @@
                 <p class="long-text">Не указано</p>
             </div>
             <div class="button_box">
-                <button id="cancel">Отмена</button>
-                <button id="create_chatbtn">Создать чат</button>
+                <button class="cancel_class" id="cancel">Отмена</button>
+                <button class="createchatbtn_class" id="create_chatbtn">Создать чат</button>
+            </div>
+        </div>
+    </div>
+    <div style="display: none;" id="red">
+        <div class="deletebox">
+            <p style="font-size: 27px;">Вы уверены, что хотите удалить аккаунт?</p>
+            <p style="font-size: 15px; margin:4px; justify-self: center;">все ваши данные будут безвозвратно удалены</p>
+            <div class="button_box2">
+                <button class="no" id="nodelete">Нет</button>
+                <button class="yes" id="yesdelete">Да</button>
+            </div>
+        </div>
+        <div style="display: none;" class="why">
+            <p style="font-size: 22px;">Укажите причину, по которой решили удалить аккаунт</p>
+            <textarea id="txa" class="inpwhy"></textarea>
+            <div class="button_box2">
+                <button class="no" id="nodelete">Отмена</button>
+                <button class="yes" id="yesdelete2">Удалить</button>
             </div>
         </div>
     </div>
 
-    <div class="delete">
-        <p>Вы уверены, что хотите удалить аккаунт?</p>
-        <div class="button_box">
-            <button id="nodelete">Нет</button>
-            <button id="yesdelete">Да</button>
+    <div style="display: none;" class="MainCreateProfil">
+        <div class="CreateProfil">
+            <p style="font-size: 30px; margin-bottom: 8px; margin-top:10px">Мой профиль</p>
+            <img id="my_photo">
+            <div style="display: flex; align-items: center; margin:6px">
+                <p style="font-size: 22px; margin-right: 10px">Имя:</p>
+                <input>
+            </div>
+            <div class="pol">
+                <p style="margin-right: 35px; font-size:22px">Пол:</p>
+                <input class="chek" type="checkbox">
+                <p style="margin-right: 28px; margin-left:3px">Муж.</p>
+                <input class="chek" type="checkbox">
+                <p style="padding-left: 3px;">Жен.</p>
+            </div>
+            <div style="display: flex; align-items: center; margin:6px">
+                <p style="font-size: 22px; margin-right: 10px">Возраст:</p>
+                <input type="number">
+            </div>
+            <div style="display: flex; align-items: center; margin:6px">
+                <p style="font-size: 22px; margin-right: 10px">ДР:</p>
+                <input type="date">
+            </div>
+            <p>Своё</p>
+            <textarea style="min-height: 30px;"></textarea>
+            <div class="btnboxprof">
+                <button id="prof_canc">Отмена</button>
+                <button id="prof_save">Сохранить</button>
+            </div>
         </div>
     </div>
-
 
 </body>
 <script>
     const DataUser = localStorage.getItem('userdata');
     console.log(DataUser);
+
+
+
+    // Самый простой вариант - только fetch и then
+    const images = [{
+        name: 'avatar',
+        url: '/static/images/Uniknown.png'
+    }, {
+        name: 'logo',
+        url: '/static/images/logo.png'
+    }, {
+        name: "notfind",
+        url: "static/images/notfind.png"
+    }, {
+        name: 'fone',
+        url: "static/images/bgmes.jpg"
+    }];
+
+    function loadAllImages() {
+        images.forEach(image => {
+            // Проверяем есть ли в localStorage
+            const saved = localStorage.getItem(image.name);
+
+            if (saved) {
+                // Уже есть - используем
+                console.log(`✅ ${image.name} - из кэша`);
+
+            } else {
+                // Загружаем новую
+                console.log(`📥 ${image.name} - загружаем...`);
+
+                fetch(image.url)
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const reader = new FileReader();
+                        reader.onload = function() {
+                            // Сохраняем
+                            localStorage.setItem(image.name, this.result);
+                            // Показываем
+                            console.log(`✅ ${image.name} - сохранено`);
+                        };
+                        reader.readAsDataURL(blob);
+                    })
+                    .catch(error => {
+                        console.error(`❌ Ошибка загрузки ${image.name}:`, error);
+                    });
+            }
+        });
+    }
+
+    // Просто вызови эту функцию
+    loadAllImages();
+
+
+
     if (DataUser) {
         const Data = JSON.parse(DataUser);
         const ChatBox = document.getElementById("chatbox")
@@ -115,6 +212,8 @@
             })
             .catch(error => {
                 console.error("Ошибка сети:", error);
+                window.localStorage.clear();
+                window.location.href = "";
             });
         document.getElementById("inputsearchuser").addEventListener("focus", function() {
             document.querySelector("#SearchUser").style.display = "flex";
@@ -218,7 +317,7 @@
                         UserBox.innerHTML = "";
                         users.forEach(user => {
                             if (user.photo === null) {
-                                user.photo = "static/images/Uniknown.png"
+                                user.photo = localStorage.getItem("avatar");
                             }
                             UserBox.innerHTML += `
                         <div class=${'User'}>
@@ -229,7 +328,7 @@
                         });
                     } else {
                         let name = "Ничего не найдено";
-                        let photo = "static/images/notfind.png";
+                        let photo = localStorage.getItem("notfind");
                         let id = "errorfind";
                         UserBox.innerHTML = `
                         <div class=${'User'}>
@@ -278,6 +377,9 @@
             .then(result => {
                 console.log(result.photo);
                 document.getElementById("usname").innerText = `Вы хотите создать чат с ${result.name}`;
+                if (result.photo) {
+                    result.photo = localStorage.getItem("avatar")
+                }
                 document.getElementById("user_ava").src = result.photo;
                 document.querySelectorAll(".betta p").forEach(p => {
                     if (p.textContent.trim().includes("Имя")) {
@@ -305,11 +407,69 @@
             localStorage.clear();
             window.close();
             window.location.href = '';
-            return true
+            return true;
         };
     });
-    document.getElementById("exit").addEventListener("click", function(e) {
+    document.getElementById("deletemyacc").addEventListener("click", function(e) {
+        document.getElementById("red").style.display = "flex";
+        document.querySelectorAll(".deletebox").forEach(e => {
+            e.style.display = "flex";
+        });
+    });
 
+    document.getElementById("yesdelete").addEventListener("click", function(e) {
+        document.querySelectorAll(".deletebox").forEach(e => {
+            e.style.display = "none";
+        });
+        document.querySelectorAll(".why").forEach(e => {
+            e.style.display = "flex";
+        });
+    });
+    document.querySelectorAll(".no").forEach(e => {
+        e.addEventListener("click", function(i) {
+            document.getElementById("red").style.display = "none";
+            document.querySelectorAll(".why").forEach(e => {
+                e.style.display = "none";
+            });
+        })
+    })
+
+    document.getElementById("yesdelete2").addEventListener("click", function(e) {
+        let tx = document.getElementById("txa").value.trim();
+        fetch("/Delete", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    data: DataUser,
+                    why: tx
+                }),
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.sucess) {
+                    alert("Аккаунт успешно удалён");
+                    window.localStorage.clear();
+                    window.location.href = "";
+                } else {
+                    alert("Ошибка авторизации токена");
+                    document.getElementById("red").style.display = "none";
+                }
+            })
+            .catch(error => {
+                console.error("Ошибка сети:", error);
+            });
+    })
+    document.getElementById("profil").addEventListener("click", function(e) {
+        document.querySelectorAll(".MainCreateProfil").forEach(e => {
+            e.style.display = "flex"
+        });
+    });
+    document.getElementById("prof_canc").addEventListener("click", function(e) {
+        document.querySelectorAll(".MainCreateProfil").forEach(e => {
+            e.style.display = "none"
+        });
     });
 </script>
 </body>

@@ -29,7 +29,7 @@ def IsEmailCorrect(email):
     except EmailNotValidError:
         return False
 
-def SendCode(emailreciver):
+def SendCode(emailreciver,body=0):
     email_from = 'onesevenrusia@gmail.com' 
     password = 'qhxw zqci vqit xwvp'  
     email_to = emailreciver
@@ -38,12 +38,14 @@ def SendCode(emailreciver):
     msg['From'] = email_from
     msg['To'] = email_to
     msg['Subject'] = 'Ваш код подтверждения'
-    body = f"""
-    Здравствуйте!
-    Ваш код для подтверждения: <b>{code}</b>
+    if body==0:
+        body = f"""
+        Здравствуйте!
+        Ваш код для подтверждения: <b>{code}</b>
 
-    Никому не сообщайте этот код.
-    """
+        Никому не сообщайте этот код.
+        """
+    else:body=body
     msg.attach(MIMEText(body, 'html')) 
     try:
         # Создаем соединение с SMTP-сервером Gmail (порт 587 для TLS)
@@ -63,6 +65,8 @@ def SendCode(emailreciver):
             server.quit()
         except:pass
         return [True, code]
+
+
 
 @app.route("/")
 def index():
@@ -220,14 +224,39 @@ def SearchUserBy():
 def GetUserInfo():
     id = request.get_json()["id"]
     user=usersdb.get_user_by_id(id)
-    if user["photo"]==None:
-        user["photo"]="static/images/Uniknown.png"
+
     return jsonify({"id":user['userid'],
                     "email":user['email'],
                     "name":user['name'],
                     "photo":user["photo"],
                     "phone":user['phone'],
                     "about":user['about']})
+
+@app.route("/Delete", methods=["POST"])
+def DeleteAcc():
+    data = request.get_json()
+    why=data["why"]
+    token=json.loads(data["data"])["token"]
+    email=json.loads(data["data"])["email"]
+    realy = usersdb.get_user_by_email(email)
+    if realy is not None:
+        if token==realy["token"]:
+            if realy["blocked"]==False:
+                usersdb.delete_user(email)
+                res=True
+            else:res=False
+        else:
+            res=False
+    else:
+        res=False
+    if res is False:
+        SendCode(email,"""
+Кто-то пытается удалить ваш аккаунт,
+                  попытка входа в аккаунт или его удаление будут заблокированы на 24 часа!
+""")
+    return jsonify({"sucess":res})
+
+
 
 if __name__ == '__main__':    
     app.run( host='0.0.0.0',  port=5000, debug=True, 
