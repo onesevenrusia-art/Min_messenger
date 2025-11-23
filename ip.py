@@ -1,5 +1,6 @@
 import requests
-
+import vrotayadb
+usersdb = vrotayadb.UserManager()
 ip =input() # замените на нужный IP, например, свой внешний
 response = requests.get(f"https://ipinfo.io/{ip}/json")
 data = response.json()
@@ -12,3 +13,5 @@ print(f"Регион: {data.get('region')}")
 print(f"Страна: {data.get('country')}")
 print(f"Организация: {data.get('org')}")
 print(f"Координаты: {data.get('loc')}")
+
+usersdb.update_user(email="pokrytay@gmail.com",phone="89756483321")

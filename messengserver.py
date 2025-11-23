@@ -222,8 +222,11 @@ def SearchUserBy():
 
 @app.route("/GetUserInfo",methods=["POST"])
 def GetUserInfo():
-    id = request.get_json()["id"]
-    user=usersdb.get_user_by_id(id)
+    data = request.get_json()
+    if 'id' in data:
+        scrh="id"
+    else:scrh="email"
+    user=usersdb.get_user_by_id(scrh)
 
     return jsonify({"id":user['userid'],
                     "email":user['email'],

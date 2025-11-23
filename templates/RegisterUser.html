@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIN Messenger - Вход и регистрация</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="background-container">
+        <img src="{{ url_for('static', filename='images/bg.jpg') }}" alt="Фон" class="background-image">
+    </div>
+
+    <div class="container">
+        <!-- Основной блок авторизации -->
+        <div class="auth-box" id="authBox">
+            <div class="logo">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MIN Messenger">
+            </div>
+            <h1 class="welcome-text">Добро пожаловать в мессенджер MIN!</h1>
+
+            <div class="buttons-container">
+                <a href="#" class="auth-btn login-btn" id="inputbtn">Войти</a>
+                <a style="background-color: seagreen;" href="#" class="auth-btn login-btn" id="inputbtnwithgoogle">Войти с Gooqle</a>
+                <a href="#" class="auth-btn register-btn" id="registerBtn">Зарегистрироваться</a>
+            </div>
+        </div>
+
+        <!-- Блок регистрации (изначально скрыт) -->
+        <div class="auth-box register-box" id="registerBox" style="display: none;">
+            <div class="logo">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MIN Messenger">
+            </div>
+            <h2 class="welcome-text">Создание аккаунта</h2>
+
+            <form class="register-form" id="registerForm">
+                <div class="input-group">
+                    <input type="text" id="name" name="name" placeholder=" " required>
+                    <label for="name">Имя</label>
+                </div>
+
+                <div class="input-group">
+                    <input type="email" id="email" name="email" placeholder=" " required>
+                    <label for="email">Email</label>
+                </div>
+
+                <div class="input-group">
+                    <input type="tel" id="phone" name="phone" placeholder=" ">
+                    <label for="phone">Телефон (необязательно)</label>
+                </div>
+
+                <button type="submit" class="auth-btn next-btn" id="nextBtn" disabled>Далее</button>
+            </form>
+
+            <div class="back-container">
+                <a class="back-link" id="backBtn">← Назад</a>
+            </div>
+        </div>
+
+        <div class="auth-box" id="codeBox" style="display: none;">
+            <form class="register-form" id="passwordForm">
+                <div>
+                    <p id="mes"></p>
+                    <input id="keycode">
+                    <label id="logs"></label>
+                    <button type="button" id="sendcode" disabled>отправить >>></button>
+                    <button type="button" class="auth-btn register-btn" id="backBtnCode">Назад</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="inputmesseg" style="display:none" ,>
+            <form class="auth-box">
+                <div class="new">
+                    <p id="p-in">введите ваш email</p>
+                    <input id="inpytregememail">
+                    <div class="new1">
+                        <button type="button" class="auth-btn register-btn" id="sendcode1" disabled>отправить >>></button>
+                        <button type="button" class="auth-btn register-btn" id="bkin">Назад</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+
+        <div class="auth-box" id="loadingBox" style="display: none;">
+            <div class="logo">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MIN Messenger">
+            </div>
+            <h2>Пожалуйста, подождите</h2>
+            <div class="loading-spinner"></div>
+            <p>Идет обработка данных...</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const DataUser = localStorage.getItem('Userdata');
+            console.log(DataUser)
+            if (DataUser) {
+                window.location.href = "messenger.html";
+
+            } else {
+                // Всё что нужно - одна функция
+                (async function() {
+                    const keys = await generateKeyPair();
+
+                    const userData2 = {
+                        device: generateDeviceId(),
+                        publickey: keys.publickey,
+                        privatekey: keys.privateKey,
+
+                    };
+                    localStorage.setItem('userdata2', JSON.stringify(userData2));
+
+
+                })();
+
+                function Authorisation() {
+                    const authBox = document.getElementById('authBox');
+                    const registerBox = document.getElementById('registerBox');
+                    const registerBtn = document.getElementById('registerBtn');
+                    const backBtn = document.getElementById('backBtn');
+                    const registerForm = document.getElementById('registerForm');
+                    const nextBtn = document.getElementById('nextBtn');
+                    const nameInput = document.getElementById('name');
+                    const emailInput = document.getElementById('email');
+                    const backBtnCode = document.getElementById('backBtnCode');
+                    //   document.getElementById()
+                    const inputbtn = document.getElementById("inputbtn");
+
+                    // Добавляем глобальные переменные для обработчиков
+                    let currentInputHandler = null;
+                    let currentClickHandler = null;
+                    let attemptsLeft = 3;
+
+                    function showStep(stepNumber) {
+                        document.getElementById('authBox').style.display = 'none';
+                        document.getElementById('registerBox').style.display = 'none';
+                        document.getElementById('codeBox').style.display = 'none';
+                        document.getElementById('loadingBox').style.display = 'none';
+                        document.getElementById('inputmesseg').style.display = 'none';
+
+                        if (stepNumber === 1) {
+                            attemptsLeft = 3;
+                            document.getElementById('authBox').style.display = 'block';
+                        } else if (stepNumber === 2) {
+                            document.getElementById('registerBox').style.display = 'block';
+                        } else if (stepNumber === 3) {
+                            document.getElementById('codeBox').style.display = 'block';
+                        } else if (stepNumber === 4) {
+                            document.getElementById('loadingBox').style.display = 'block';
+                        } else if (stepNumber === 5) {
+                            document.getElementById('inputmesseg').style.display = 'block';
+                        }
+                    }
+
+                    registerBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        showStep(2);
+                    });
+
+                    backBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        showStep(1);
+                    });
+
+                    backBtnCode.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        showStep(1);
+                        attemptsLeft = 3; // Сброс попыток
+                    });
+
+
+
+
+                    inputbtn.addEventListener("click", function() {
+                        showStep(5);
+                        const email = document.getElementById("inpytregememail");
+                        const send = document.getElementById("sendcode1");
+                        const attemptsLeft = 3;
+                        email.addEventListener("input", function() {
+                            const isEmailValid = email.value.trim().length > 0 &&
+                                email.value.includes('@');
+                            send.disabled = !(isEmailValid);
+                        });
+                        send.addEventListener("click", function() {
+
+                            fetch("/doctypeinput", {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        email: email.value
+                                    }),
+                                })
+                                .then(response => response.json())
+                                .then(result => {
+                                    if (result.state !== "ok") {
+                                        console.log(result);
+                                    }
+                                    showStep(5);
+
+                                    switch (result.state) {
+                                        case "errorfind":
+                                            document.getElementById("p-in").innerText = "Вы не зарегестрированы в MIN!";
+                                            send.disabled;
+                                            console.log("notreg");
+                                            break;
+                                        case "errorpost":
+                                            document.getElementById("p-in").innerText = "Ошибка отправки на email";
+                                            send.disabled;
+                                            break;
+                                        case "ok":
+                                            showStep(3);
+                                            passbox(0, {
+                                                email: email.value.trim()
+                                            }, "");
+                                            break;
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error("Ошибка сети:", error);
+                                });
+                        });
+                        document.getElementById("bkin").addEventListener("click", function() {
+                            location.reload();
+                        });
+                    });
+
+
+
+
+
+
+
+                    function checkFormValidity() {
+                        const isNameValid = nameInput.value.trim().length > 0;
+                        const isEmailValid = emailInput.value.trim().length > 0 &&
+                            emailInput.value.includes('@');
+                        nextBtn.disabled = !(isNameValid && isEmailValid);
+                    }
+
+                    function passbox(st, formData, logs, flag = false) {
+                        const passwordinput = document.getElementById("keycode");
+                        const sendcodeBtn = document.getElementById("sendcode");
+                        const mesElement = document.getElementById("mes");
+                        const logsElement = document.getElementById("logs");
+
+                        // Удаляем старые обработчики
+                        if (currentInputHandler) {
+                            passwordinput.removeEventListener("input", currentInputHandler);
+                        }
+                        if (currentClickHandler) {
+                            sendcodeBtn.removeEventListener("click", currentClickHandler);
+                        }
+
+                        if (st === 0) {
+                            mesElement.innerText = `Код подтверждения был отправлен на ваш email\n${formData.email}.\n⚠️ Внимание: код мог быть отправлен в спам.`;
+                            logsElement.innerText = logs;
+
+                            // Создаем новые обработчики
+                            currentInputHandler = function() {
+                                sendcodeBtn.disabled = (passwordinput.value.trim().length !== 6);
+                            };
+
+                            currentClickHandler = function(e) {
+                                e.preventDefault();
+                                if (flag) {
+                                    console.log(JSON.parse(localStorage.getItem("userdata2")))
+                                    fetch("/interkeydostype", {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json'
+                                            },
+                                            body: JSON.stringify({
+                                                "key": passwordinput.value.trim(),
+                                                "email": formData.email,
+                                                "name": formData.name,
+                                                "phone": formData.phone,
+                                                "device": JSON.parse(localStorage.getItem("userdata2")).device,
+                                                "publickey": JSON.parse(localStorage.getItem("userdata2")).publickey,
+                                            }),
+                                        })
+                                        .then(response => response.json())
+                                        .then(result => {
+                                            if (result.success) {
+                                                const UserData = {
+                                                    email: formData.email,
+                                                    device: JSON.parse(localStorage.getItem("userdata2")).device,
+                                                    publickey: JSON.parse(localStorage.getItem("userdata2")).publickey,
+                                                    privatekey: JSON.parse(localStorage.getItem("userdata2")).privatekey,
+                                                };
+                                                localStorage.clear();
+                                                console.log(`mykey ${UserData}`);
+
+                                                localStorage.setItem('Userdata', JSON.stringify(UserData));
+                                                console.log("✅ Данные сохранены в localStorage");
+                                                alert("Регистрация прошла успешно.");
+                                                window.location.href = 'messenger.html';
+                                                return true;
+                                            } else {
+                                                attemptsLeft--;
+                                                if (attemptsLeft > 0) {
+                                                    logsElement.innerText = `Неверный код! Осталось попыток: ${attemptsLeft}`;
+                                                } else {
+                                                    logsElement.innerText = "Превышено количество попыток";
+                                                    sendcodeBtn.disabled = true;
+                                                    return false;
+                                                }
+                                            }
+                                        })
+                                        .catch(error => {
+                                            console.error("Ошибка сети:", error);
+                                            logsElement.innerText = "Ошибка соединения с сервером";
+                                        });
+                                } else {
+                                    console.log(JSON.stringify({
+                                        key: passwordinput.value.trim(),
+                                        email: formData.email
+                                    }));
+
+                                    fetch("/interkey2", {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json'
+                                            },
+                                            body: JSON.stringify({
+                                                "key": passwordinput.value.trim(),
+                                                "email": formData.email,
+                                                "device": UserData.device,
+                                                "publickey": keys.publickey,
+                                            }),
+                                        })
+                                        .then(response => response.json())
+                                        .then(result => {
+                                            if (result.success) {
+                                                ////
+                                                ////
+                                                ////
+                                                ////
+                                                ////  ТУТ ПОВТОРНЫЙ ВХОД УЖЕЗАРЕГИСТРИРОВАННОГО ПОЛЬЗОВАТЕЛЯ
+                                                ////
+                                                ////
+                                                ////
+                                                ////
+                                                const UserData = {
+                                                    email: formData.email,
+                                                    device: JSON.parse(localStorage.getItem("userdata2")).device,
+                                                    publickey: JSON.parse(localStorage.getItem("userdata2")).publickey,
+                                                    privatekey: JSON.parse(localStorage.getItem("userdata2")).privatekey,
+                                                };
+                                                console.log(`mykey ${UserData.privatekey}`);
+                                                localStorage.clear();
+                                                localStorage.setItem('Userdata', JSON.stringify(UserData));
+                                                console.log("✅ Данные сохранены в localStorage");
+                                                alert("Регистрация прошла успешно.");
+                                                window.location.href = 'messenger.html';
+                                                return true;
+                                            } else {
+                                                attemptsLeft--;
+                                                if (attemptsLeft > 0) {
+                                                    logsElement.innerText = `Неверный код! Осталось попыток: ${attemptsLeft}`;
+                                                } else {
+                                                    logsElement.innerText = "Превышено количество попыток, возможность войти заблокирована на 24 часа";
+                                                    sendcodeBtn.disabled = true;
+                                                    return false;
+                                                }
+                                            }
+                                        })
+                                        .catch(error => {
+                                            console.error("Ошибка сети:", error);
+                                            logsElement.style.color = "red";
+                                            logsElement.innerText = "Ошибка соединения с сервером";
+                                        });
+                                }
+                            };
+
+                            // Добавляем обработчики
+                            passwordinput.addEventListener("input", currentInputHandler);
+                            sendcodeBtn.addEventListener("click", currentClickHandler);
+                        }
+
+                        if (st === 1) {
+                            mesElement.innerText = `Ошибка отправки кода на email ${formData.email}.\nПопробуйте повторить попытку с другим email`;
+                        }
+
+                        if (st === 2) {
+                            mesElement.innerText = `Не удалось найти email\n${formData.email}.\nУкажите корректный адрес email.`;
+                        }
+                    }
+
+                    nameInput.addEventListener('input', checkFormValidity);
+                    emailInput.addEventListener('input', checkFormValidity);
+
+                    registerForm.addEventListener('submit', function(e) {
+                        e.preventDefault();
+
+                        if (!nextBtn.disabled) {
+                            showStep(4);
+                            const formData = {
+                                name: nameInput.value.trim(),
+                                email: emailInput.value.trim(),
+                                phone: document.getElementById('phone').value.trim()
+                            };
+
+                            fetch("/registrform", {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify(formData),
+                                })
+                                .then(response => response.json())
+                                .then(result => {
+                                    showStep(3);
+                                    if (result["state"] === "errorpost") {
+                                        passbox(1, formData);
+                                    } else if (result["state"] === "errorfind") {
+                                        passbox(2, formData);
+                                    } else if (result["state"] === "ok") {
+                                        attemptsLeft = 3; // Сброс счетчика попыток
+                                        passbox(0, formData, "", true); // Только ОДИН раз!
+
+                                    }
+                                })
+                                .catch(e => console.log("error get answer " + e));
+                        }
+                    });
+
+                    setTimeout(() => {
+                        document.querySelectorAll('.auth-box').forEach(box => {
+                            box.style.opacity = '1';
+                            box.style.transform = 'translateY(0)';
+                        });
+                    }, 100);
+                }
+                Authorisation();
+            }
+        });
+
+
+
+        // Ваша функция генерации токена
+        function generateToken() {
+            const simv = "qwertyuioplkjhgfdsazxcvbnm@#_1234567890";
+            const token = [];
+            const length = Math.floor(Math.random() * (35 - 27 + 1)) + 27;
+
+            for (let i = 0; i < length; i++) {
+                if (Math.random() > 0.5) {
+                    token.push(simv[Math.floor(Math.random() * simv.length)].toUpperCase());
+                } else {
+                    token.push(simv[Math.floor(Math.random() * simv.length)]);
+                }
+            }
+            return token.join("");
+        }
+
+        // Генерация ключей
+        async function generateKeyPair() {
+            try {
+                // Генерируем ключевую пару
+                const keyPair = await crypto.subtle.generateKey({
+                        name: "RSA-OAEP",
+                        modulusLength: 2048,
+                        publicExponent: new Uint8Array([1, 0, 1]),
+                        hash: "SHA-256",
+                    },
+                    true, // extractable - можно экспортировать
+                    ["encrypt", "decrypt"]
+                );
+
+                // Экспортируем ключи в формате base64
+                const exportedPublic = await crypto.subtle.exportKey(
+                    "spki",
+                    keyPair.publicKey // ✅ Правильно передаем CryptoKey объект
+                );
+                const exportedPrivate = await crypto.subtle.exportKey(
+                    "pkcs8",
+                    keyPair.privateKey // ✅ Правильно передаем CryptoKey объект
+                );
+
+                // Конвертируем ArrayBuffer в base64
+                const publicKeyB64 = arrayBufferToBase64(exportedPublic);
+                const privateKeyB64 = arrayBufferToBase64(exportedPrivate);
+
+                return {
+                    publickey: publicKeyB64,
+                    privateKey: privateKeyB64
+                };
+
+            } catch (error) {
+                console.error('❌ Ошибка генерации ключей:', error);
+                throw error;
+            }
+        }
+
+        // Вспомогательная функция для конвертации ArrayBuffer в base64
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+
+        // Генерация deviceId
+        function generateDeviceId() {
+            let browser = 'web';
+
+            // Определяем браузер
+            const ua = navigator.userAgent.toLowerCase();
+            if (ua.includes('chrome')) browser = 'chrome';
+            else if (ua.includes('firefox')) browser = 'firefox';
+            else if (ua.includes('safari')) browser = 'safari';
+            else if (ua.includes('edge')) browser = 'edge';
+            else {
+                browser = "uniknown"
+            }
+            const random = Math.random().toString(36).substring(2, 10);
+            return `${browser}-${generateToken()}`;
+        }
+    </script>
+</body>
+
+</html>

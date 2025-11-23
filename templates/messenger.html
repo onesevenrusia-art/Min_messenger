@@ -9,7 +9,7 @@
 
 <body>
     <div class="background-container">
-        <img src="{{ url_for('static', filename='images/bgmes.jpg') }}" alt="Фон" class="background-image">
+        <img id="fon" src="" alt="Фон" class="background-image">
 
     </div>
 
@@ -95,29 +95,45 @@
 
     <div style="display: none;" class="MainCreateProfil">
         <div class="CreateProfil">
-            <p style="font-size: 30px; margin-bottom: 8px; margin-top:10px">Мой профиль</p>
-            <img id="my_photo">
-            <div style="display: flex; align-items: center; margin:6px">
+            <p style="font-size: 30px; margin-bottom: 6px; margin-top:7px">Мой профиль</p>
+            <div class="photo-container" style="position: relative; display: inline-block;">
+                <img id="my_photo" src="">
+                <!-- Иконка добавления фото -->
+                <div class="photo-add" style="position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.7); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                    <span style="color: white; font-size: 18px;">+</span>
+                </div>
+                <!-- Иконка удаления фото -->
+                <div class="photo-delete" style="position: absolute; top: 5px; left: 5px; background: rgba(255,0,0,0.7); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; display: none;">
+                    <span style="color: white; font-size: 18px;">×</span>
+                </div>
+            </div>
+            <!-- Скрытый input для выбора файла -->
+            <input type="file" id="photo_upload" accept="image/*" style="display: none;">
+            <div style="display: flex; align-items: center; margin:5px">
                 <p style="font-size: 22px; margin-right: 10px">Имя:</p>
-                <input>
+                <input id="Name_input">
             </div>
             <div class="pol">
                 <p style="margin-right: 35px; font-size:22px">Пол:</p>
-                <input class="chek" type="checkbox">
+                <input id="MaleCheck" class="chek" type="checkbox">
                 <p style="margin-right: 28px; margin-left:3px">Муж.</p>
-                <input class="chek" type="checkbox">
+                <input id="FemaleChack" class="chek" type="checkbox">
                 <p style="padding-left: 3px;">Жен.</p>
             </div>
-            <div style="display: flex; align-items: center; margin:6px">
+            <div style="display: flex; align-items: center; margin:5px">
                 <p style="font-size: 22px; margin-right: 10px">Возраст:</p>
-                <input type="number">
+                <input id="AgeINP" type="number">
             </div>
-            <div style="display: flex; align-items: center; margin:6px">
+            <div style="display: flex; align-items: center; margin:5px">
+                <p style="font-size: 22px; margin-right: 10px">Телефон:</p>
+                <input id="PhoneINP" type="number">
+            </div>
+            <div style="display: flex; align-items: center; margin:5px">
                 <p style="font-size: 22px; margin-right: 10px">ДР:</p>
-                <input type="date">
+                <input id="DR" type="date">
             </div>
             <p>Своё</p>
-            <textarea style="min-height: 30px;"></textarea>
+            <textarea id="AboutMe" style="min-height: 30px;"></textarea>
             <div class="btnboxprof">
                 <button id="prof_canc">Отмена</button>
                 <button id="prof_save">Сохранить</button>
@@ -127,8 +143,48 @@
 
 </body>
 <script>
-    const DataUser = localStorage.getItem('userdata');
-    console.log(DataUser);
+    const photoContainer = document.querySelector('.photo-container');
+    const photoAdd = document.querySelector('.photo-add');
+    const photoDelete = document.querySelector('.photo-delete');
+    const photoUpload = document.getElementById('photo_upload');
+    const myPhoto = document.getElementById('my_photo');
+    const DataUser = localStorage.getItem('Userdata');
+    if (DataUser) {
+        const Data = JSON.parse(DataUser);
+        //console.log(Data)
+        const delay = 1;
+        if (true) {
+            console.log("ppp")
+            if (navigator.onLine) {
+                const result = confirmIdentity(Data.email, Data.privatekey, Data.device, {
+                    x: "auth"
+                });
+                console.log(result);
+                if (result.result === false && result.what == "server") {
+                    console.error("ошибка установления соединения с сервером");
+                    delay++;
+                    if (delay > 25) {
+                        delay = 25;
+                    }
+                    setTimeout(() => {}, 1000 * delay)
+                }
+                if (result.result === false && result.what == "auth") {
+                    alert("Ошибка входа");
+                    localStorage.removeItem("Userdata");
+                    window.location.href = "/";
+                }
+                if (result.result === true) {
+                    console.log('🎉 Вход выполнен!');
+
+                }
+            }
+
+        }
+
+    } else {
+        window.location.href = '/';
+
+    }
 
 
 
@@ -144,7 +200,7 @@
         url: "static/images/notfind.png"
     }, {
         name: 'fone',
-        url: "static/images/bgmes.jpg"
+        url: "{{ url_for('static', filename='images/bgmes.jpg') }}"
     }];
 
     function loadAllImages() {
@@ -179,53 +235,43 @@
         });
     }
 
-    // Просто вызови эту функцию
     loadAllImages();
-
-
-
-    if (DataUser) {
-        const Data = JSON.parse(DataUser);
-        const ChatBox = document.getElementById("chatbox")
-        ChatBox.innerHTML = '';
-        fetch("/userchatlist", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email: Data.email
-                }),
-            })
-            .then(response => response.json())
-            .then(result => {
-                const chats = result.chats;
-                chats.forEach(chat => {
-                    ChatBox.innerHTML += `
-                    <div class=${'chatinfo'}>
-                        <img src="${chat.avatar}" class=${'chat-avatar'} alt="${0} ">
-                        <b class=${'chat-name'}>${chat.name}</b> 
-                    </div>
-                `;
-                });
-
-            })
-            .catch(error => {
-                console.error("Ошибка сети:", error);
-                window.localStorage.clear();
-                window.location.href = "";
+    document.getElementById("fon").src = localStorage.getItem("fone");
+    const ChatBox = document.getElementById("chatbox")
+    ChatBox.innerHTML = '';
+    fetch("/userchatlist", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: JSON.parse(localStorage.getItem("Userdata")).email
+            }),
+        })
+        .then(response => response.json())
+        .then(result => {
+            const chats = result.chats;
+            chats.forEach(chat => {
+                ChatBox.innerHTML += `
+                <div class=${'chatinfo'}>
+                    <img src="${chat.avatar}" class=${'chat-avatar'} alt="${0} ">
+                    <b class=${'chat-name'}>${chat.name}</b> 
+                </div>
+            `;
             });
-        document.getElementById("inputsearchuser").addEventListener("focus", function() {
-            document.querySelector("#SearchUser").style.display = "flex";
-        });
-        document.getElementById("inputsearchuser").addEventListener("blur", function() {
-            document.querySelector("#SearchUser").style.display = "none";
-        });
-    } else {
-        window.close();
-        window.location.href = '/';
 
-    }
+        })
+        .catch(error => {
+            console.error("Ошибка сети:", error);
+        });
+    document.getElementById("inputsearchuser").addEventListener("focus", function() {
+        document.querySelector("#SearchUser").style.display = "flex";
+    });
+    document.getElementById("inputsearchuser").addEventListener("blur", function() {
+        document.querySelector("#SearchUser").style.display = "none";
+    });
+
+
 
     const button = document.getElementById('buttonsearch');
     const menu = document.querySelector('.by');
@@ -375,9 +421,10 @@
             })
             .then(response => response.json())
             .then(result => {
-                console.log(result.photo);
                 document.getElementById("usname").innerText = `Вы хотите создать чат с ${result.name}`;
                 if (result.photo) {
+                    result.photo = result.photo
+                } else {
                     result.photo = localStorage.getItem("avatar")
                 }
                 document.getElementById("user_ava").src = result.photo;
@@ -434,43 +481,389 @@
         })
     })
 
+
     document.getElementById("yesdelete2").addEventListener("click", function(e) {
         let tx = document.getElementById("txa").value.trim();
-        fetch("/Delete", {
+        const Data = JSON.parse(localStorage.getItem("Userdata"));
+        const result = confirmIdentity(Data.email, Data.privatekey, Data.device, {
+            x: "del",
+            "why": tx
+        });
+        console.log(result);
+        if (result.result === false && result.what == "server") {
+            alert("ошибка установления соединения с сервером");
+        }
+        if (result.result === false && result.what == "auth") {
+            alert("Ошибка аутидентификации, следующая попытка будет возможно через 2 часа");
+        }
+        if (result.result === true) {
+            console.log('🎉 Вход выполнен!');
+            localStorage.removeItem("Userdata");
+            window.location.herf = "/";
+        }
+
+    });
+
+    const maleCheck = document.getElementById('MaleCheck');
+    const femaleCheck = document.getElementById('FemaleChack');
+
+    // Вешаем обработчики
+    maleCheck.addEventListener('change', function() {
+        if (this.checked) {
+            femaleCheck.checked = false;
+        }
+    });
+
+    femaleCheck.addEventListener('change', function() {
+        if (this.checked) {
+            maleCheck.checked = false;
+        }
+    });
+
+
+    document.getElementById("profil").addEventListener("click", function(e) {
+        document.querySelectorAll(".MainCreateProfil").forEach(e => {
+            e.style.display = "flex"
+            fetch("/GetUserInfo", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: JSON.parse(localStorage.getItem("Userdata")).email
+                    }),
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.photo === null) {
+                        result.photo = localStorage.getItem("avatar");
+                    }
+                    if (result.phone !== null) {
+                        document.getElementById("PhoneINP").value = result.phone
+                    }
+                    if (result.age !== null) {
+                        document.getElementById("AgeINP").value = result.age;
+                    }
+                    if (result.DR !== null) {
+                        document.getElementById("DR").value = result.DR;
+                    }
+                    if (result.pol !== null) {
+                        switch (result.pol) {
+                            case "Муж":
+                                maleCheck.checked = true;
+                            case "Жен":
+                                femaleCheck.checked = true;
+                        }
+                    }
+                    document.getElementById("my_photo").src = result.photo;
+                    document.getElementById("Name_input").value = result.name;
+                })
+                .catch(error => {
+                    console.error("Ошибка сети:", error);
+                });
+        });
+    });
+
+    document.getElementById("prof_canc").addEventListener("click", function(e) {
+        document.querySelectorAll(".MainCreateProfil").forEach(e => {
+            e.style.display = "none";
+        });
+    });
+
+    document.getElementById("prof_save").addEventListener("click", async function(e) {
+        const strg = JSON.parse(localStorage.getItem("Userdata"));
+        let pol = "не указано";
+        if (maleCheck.checked) {
+            pol = "Муж";
+        }
+        if (femaleCheck.checked) {
+            pol = "Жен";
+        }
+
+        // Получаем фото данные - ВАЖНО: await!
+        const ph = await getProfilePhotoData();
+
+        const about = {
+            name: document.getElementById("Name_input").value,
+            phone: document.getElementById("PhoneINP").value,
+            age: document.getElementById("AgeINP").value,
+            DR: document.getElementById("DR").value,
+            pol: pol,
+            dopinf: document.getElementById("AboutMe").value,
+            photo: ph // base64 строка или null
+        }
+        console.log(about);
+        // Добавляем await для confirmIdentity
+        const result = await confirmIdentity(strg.email, strg.privatekey, strg.device, {
+            x: "prof",
+            data: about
+        });
+
+        // Обрабатываем результат
+        if (result.result === true) {
+            console.log('Профиль сохранен!');
+            document.querySelector('.MainCreateProfil').style.display = 'none';
+        }
+        if (result.result === false && result.what === "auth") {
+            alert('Ошибка аутидентификации');
+            document.querySelector('.MainCreateProfil').style.display = 'none';
+        }
+        if (result.result === false && result.what === "server") {
+            alert('Ошибка соединения с сервером');
+            document.querySelector('.MainCreateProfil').style.display = 'none';
+        }
+    });
+
+    let currentPhotoFile = null;
+
+    // Обработчик клика на "+" - открыть проводник
+    photoAdd.addEventListener('click', function(e) {
+        e.preventDefault();
+        photoUpload.click();
+    });
+
+    // Обработчик выбора файла
+    photoUpload.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Проверяем тип файла
+            if (!file.type.startsWith('image/')) {
+                alert('Пожалуйста, выберите файл изображения');
+                return;
+            }
+
+            // Проверяем размер файла (максимум 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Размер файла не должен превышать 5MB');
+                return;
+            }
+
+            currentPhotoFile = file;
+
+            // Показываем превью
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                myPhoto.src = e.target.result;
+                // Показываем иконку удаления
+                photoDelete.style.display = 'flex';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Обработчик клика на корзину - удалить фото
+    photoDelete.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Сбрасываем фото
+        myPhoto.src = localStorage.getItem("avatar");
+        currentPhotoFile = null;
+        photoUpload.value = '';
+
+        // Скрываем иконку удаления
+        photoDelete.style.display = 'none';
+    });
+
+    // Drag and Drop функционал
+    photoContainer.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        photoContainer.style.borderColor = '#007bff';
+    });
+
+    photoContainer.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        photoContainer.style.borderColor = '#ccc';
+    });
+
+    photoContainer.addEventListener('drop', function(e) {
+        e.preventDefault();
+        photoContainer.style.borderColor = '#ccc';
+
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Размер файла не должен превышать 5MB');
+                return;
+            }
+
+            currentPhotoFile = file;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                myPhoto.src = e.target.result;
+                photoDelete.style.display = 'flex';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+
+    function loadExistingPhoto(photoBase64) {
+        if (photoBase64) {
+            myPhoto.src = photoBase64;
+            photoDelete.style.display = 'flex';
+            currentPhotoFile = null; // сбрасываем файл, т.к. используем base64
+        }
+    }
+
+    // Функция для получения данных фото (для сохранения)
+    function getProfilePhotoData() {
+        if (currentPhotoFile) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    resolve(e.target.result); // возвращает base64
+                };
+                reader.readAsDataURL(currentPhotoFile);
+            });
+        }
+        return Promise.resolve(null);
+    }
+
+    async function confirmIdentity(email, privateKey, device_name, purpose = 'auth') {
+        try {
+            //console.log(`🔐 Запрашиваю подтверждение для: ${email}`);
+            const challengeResponse = await fetch("/challenge", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    data: DataUser,
-                    why: tx
-                }),
-            })
-            .then(response => response.json())
-            .then(result => {
-                if (result.sucess) {
-                    alert("Аккаунт успешно удалён");
-                    window.localStorage.clear();
-                    window.location.href = "";
-                } else {
-                    alert("Ошибка авторизации токена");
-                    document.getElementById("red").style.display = "none";
-                }
-            })
-            .catch(error => {
-                console.error("Ошибка сети:", error);
+                    email: email,
+                    what: purpose
+                })
             });
-    })
-    document.getElementById("profil").addEventListener("click", function(e) {
-        document.querySelectorAll(".MainCreateProfil").forEach(e => {
-            e.style.display = "flex"
-        });
-    });
-    document.getElementById("prof_canc").addEventListener("click", function(e) {
-        document.querySelectorAll(".MainCreateProfil").forEach(e => {
-            e.style.display = "none"
-        });
-    });
+            const challengeResult = await challengeResponse.json();
+            if (!challengeResult.success) {
+                console.error('❌ Не удалось получить challenge');
+                return {
+                    result: false,
+                    what: "server"
+                };
+            }
+            const challenge = challengeResult.challenge;
+            console.log('✅ Получен challenge для подтверждения');
+            const signature = await signChallenge(challenge, privateKey);
+            const verifyResponse = await fetch("/podpis", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email,
+                    challenge: challenge,
+                    signature: signature,
+                    device: device_name,
+                    what: purpose
+                })
+            });
+
+            const verifyResult = await verifyResponse.json();
+
+            if (verifyResult.success) {
+                console.log('✅ Подтверждение успешно');
+                return {
+                    result: true,
+                    what: "auth"
+                };
+            } else {
+                console.log('❌ Подтверждение не удалось:', verifyResult.error);
+                return {
+                    result: false,
+                    what: "auth"
+                };
+            }
+
+        } catch (error) {
+            console.error('❌ Ошибка подтверждения:', error);
+            return {
+                result: false,
+                what: "server"
+            };
+        }
+    }
+
+
+    function cleanPrivateKey(privateKeyData) {
+        //console.log('🔧 Очищаю ключ...');
+        if (privateKeyData.includes('-----BEGIN')) {
+            //console.log('📝 Обнаружен PEM формат');
+            return privateKeyData
+                .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+                .replace(/-----END PRIVATE KEY-----/g, '')
+                .replace(/-----BEGIN RSA PRIVATE KEY-----/g, '')
+                .replace(/-----END RSA PRIVATE KEY-----/g, '')
+                .replace(/\s/g, ''); // Убираем ВСЕ пробелы и переносы
+        }
+        return privateKeyData.replace(/\s/g, '');
+    }
+
+    // 🔧 НОВАЯ ФУНКЦИЯ - подпись challenge
+    async function signChallenge(challenge, privateKeyData) {
+        try {
+            //console.log('✍️ Начинаю подпись challenge...');
+            //console.log('Длина ключа до очистки:', privateKeyData.length);
+            // 1. Очищаем ключ от PEM заголовков и пробелов
+            const privateKeyB64 = cleanPrivateKey(privateKeyData);
+            //console.log('Длина ключа после очистки:', privateKeyB64.length);
+            //console.log('Первые 50 символов очищенного ключа:', privateKeyB64.substring(0, 50));
+            // 2. Импортируем приватный ключ
+            const privateKey = await importPrivateKey(privateKeyB64);
+            // 3. Подписываем challenge
+            const signature = await crypto.subtle.sign({
+                    name: "RSA-PSS",
+                    saltLength: 32
+                },
+                privateKey,
+                new TextEncoder().encode(challenge)
+            );
+            // 4. Конвертируем в base64
+            const signatureB64 = arrayBufferToBase64(signature);
+            //console.log('✅ Challenge подписан! Длина подписи:', signatureB64.length);
+            return signatureB64;
+
+        } catch (error) {
+            console.error('❌ Ошибка в signChallenge:', error);
+            throw error;
+        }
+    }
+
+    // 🔧 ОСТАВЬ эти функции без изменений:
+    async function importPrivateKey(privateKeyB64) {
+        try {
+            //console.log('🔑 Импортирую ключ...');
+            const binaryString = atob(privateKeyB64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const privateKey = await crypto.subtle.importKey(
+                "pkcs8",
+                bytes, {
+                    name: "RSA-PSS",
+                    hash: {
+                        name: "SHA-256"
+                    }
+                },
+                true, ["sign"]
+            );
+            //console.log('✅ Приватный ключ импортирован');
+            return privateKey;
+        } catch (error) {
+            console.error('❌ Ошибка импорта ключа:', error);
+            throw error;
+        }
+    }
+
+    function arrayBufferToBase64(buffer) {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+    }
 </script>
 </body>
 
