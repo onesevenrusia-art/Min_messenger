@@ -94,7 +94,12 @@
             <p>Идет обработка данных...</p>
         </div>
     </div>
-
+    <div class="Main_delay">
+        <div class="delay_form">
+            <p></p>
+            <button>Отмена</button>
+        </div>
+    </div>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const DataUser = localStorage.getItem('Userdata');
@@ -249,7 +254,12 @@
                         const sendcodeBtn = document.getElementById("sendcode");
                         const mesElement = document.getElementById("mes");
                         const logsElement = document.getElementById("logs");
-
+                        const UserData = {
+                            email: formData.email,
+                            device: JSON.parse(localStorage.getItem("userdata2")).device,
+                            publickey: JSON.parse(localStorage.getItem("userdata2")).publickey,
+                            privatekey: JSON.parse(localStorage.getItem("userdata2")).privatekey,
+                        };
                         // Удаляем старые обработчики
                         if (currentInputHandler) {
                             passwordinput.removeEventListener("input", currentInputHandler);
@@ -288,12 +298,7 @@
                                         .then(response => response.json())
                                         .then(result => {
                                             if (result.success) {
-                                                const UserData = {
-                                                    email: formData.email,
-                                                    device: JSON.parse(localStorage.getItem("userdata2")).device,
-                                                    publickey: JSON.parse(localStorage.getItem("userdata2")).publickey,
-                                                    privatekey: JSON.parse(localStorage.getItem("userdata2")).privatekey,
-                                                };
+
                                                 localStorage.clear();
                                                 console.log(`mykey ${UserData}`);
 
@@ -318,11 +323,8 @@
                                             logsElement.innerText = "Ошибка соединения с сервером";
                                         });
                                 } else {
-                                    console.log(JSON.stringify({
-                                        key: passwordinput.value.trim(),
-                                        email: formData.email
-                                    }));
-
+                                    console.log(UserData)
+                                    const fingerprint = generateKeyFingerprint(JSON.parse(localStorage.getItem("userdata2")).publickey)
                                     fetch("/interkey2", {
                                             method: 'POST',
                                             headers: {
@@ -332,7 +334,8 @@
                                                 "key": passwordinput.value.trim(),
                                                 "email": formData.email,
                                                 "device": UserData.device,
-                                                "publickey": keys.publickey,
+                                                "publickey": JSON.parse(localStorage.getItem("userdata2")).publickey,
+                                                "fingerprint": fingerprint
                                             }),
                                         })
                                         .then(response => response.json())
@@ -353,12 +356,29 @@
                                                     publickey: JSON.parse(localStorage.getItem("userdata2")).publickey,
                                                     privatekey: JSON.parse(localStorage.getItem("userdata2")).privatekey,
                                                 };
-                                                console.log(`mykey ${UserData.privatekey}`);
-                                                localStorage.clear();
-                                                localStorage.setItem('Userdata', JSON.stringify(UserData));
-                                                console.log("✅ Данные сохранены в localStorage");
-                                                alert("Регистрация прошла успешно.");
-                                                window.location.href = 'messenger.html';
+                                                fetch("/addme", {
+                                                        method: 'POST',
+                                                        headers: {
+                                                            'Content-Type': 'application/json'
+                                                        },
+                                                        body: JSON.stringify({
+
+                                                        }),
+                                                    })
+                                                    .then(response => response.json())
+                                                    .then(result => {
+
+                                                    })
+                                                    .catch(error => {
+                                                        console.error("Ошибка сети:", error);
+                                                    });
+
+                                                ///console.log(`mykey ${UserData.privatekey}`);
+                                                ///localStorage.clear();
+                                                ///localStorage.setItem('Userdata', JSON.stringify(UserData));
+                                                ///console.log("✅ Данные сохранены в localStorage");
+                                                ///alert("Регистрация прошла успешно.");
+                                                ///window.location.href = 'messenger.html';
                                                 return true;
                                             } else {
                                                 attemptsLeft--;
@@ -442,24 +462,6 @@
             }
         });
 
-
-
-        // Ваша функция генерации токена
-        function generateToken() {
-            const simv = "qwertyuioplkjhgfdsazxcvbnm@#_1234567890";
-            const token = [];
-            const length = Math.floor(Math.random() * (35 - 27 + 1)) + 27;
-
-            for (let i = 0; i < length; i++) {
-                if (Math.random() > 0.5) {
-                    token.push(simv[Math.floor(Math.random() * simv.length)].toUpperCase());
-                } else {
-                    token.push(simv[Math.floor(Math.random() * simv.length)]);
-                }
-            }
-            return token.join("");
-        }
-
         // Генерация ключей
         async function generateKeyPair() {
             try {
@@ -509,6 +511,104 @@
             return btoa(binary);
         }
 
+        function cleanPrivateKey(privateKeyData) {
+            //console.log('🔧 Очищаю ключ...');
+            if (privateKeyData.includes('-----BEGIN')) {
+                //console.log('📝 Обнаружен PEM формат');
+                return privateKeyData
+                    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+                    .replace(/-----END PRIVATE KEY-----/g, '')
+                    .replace(/-----BEGIN RSA PRIVATE KEY-----/g, '')
+                    .replace(/-----END RSA PRIVATE KEY-----/g, '')
+                    .replace(/\s/g, ''); // Убираем ВСЕ пробелы и переносы
+            }
+            return privateKeyData.replace(/\s/g, '');
+        }
+
+        // 🔧 НОВАЯ ФУНКЦИЯ - подпись challenge
+        async function signChallenge(challenge, privateKeyData) {
+            try {
+                //console.log('✍️ Начинаю подпись challenge...');
+                //console.log('Длина ключа до очистки:', privateKeyData.length);
+                // 1. Очищаем ключ от PEM заголовков и пробелов
+                const privateKeyB64 = cleanPrivateKey(privateKeyData);
+                //console.log('Длина ключа после очистки:', privateKeyB64.length);
+                //console.log('Первые 50 символов очищенного ключа:', privateKeyB64.substring(0, 50));
+                // 2. Импортируем приватный ключ
+                const privateKey = await importPrivateKey(privateKeyB64);
+                // 3. Подписываем challenge
+                const signature = await crypto.subtle.sign({
+                        name: "RSA-PSS",
+                        saltLength: 32
+                    },
+                    privateKey,
+                    new TextEncoder().encode(challenge)
+                );
+                // 4. Конвертируем в base64
+                const signatureB64 = arrayBufferToBase64(signature);
+                //console.log('✅ Challenge подписан! Длина подписи:', signatureB64.length);
+                return signatureB64;
+
+            } catch (error) {
+                console.error('❌ Ошибка в signChallenge:', error);
+                throw error;
+            }
+        }
+
+        // 🔧 ОСТАВЬ эти функции без изменений:
+        async function importPrivateKey(privateKeyB64) {
+            try {
+                //console.log('🔑 Импортирую ключ...');
+                const binaryString = atob(privateKeyB64);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                const privateKey = await crypto.subtle.importKey(
+                    "pkcs8",
+                    bytes, {
+                        name: "RSA-PSS",
+                        hash: {
+                            name: "SHA-256"
+                        }
+                    },
+                    true, ["sign"]
+                );
+                //console.log('✅ Приватный ключ импортирован');
+                return privateKey;
+            } catch (error) {
+                console.error('❌ Ошибка импорта ключа:', error);
+                throw error;
+            }
+        }
+
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+
+        // Ваша функция генерации токена
+        function generateToken() {
+            const simv = "qwertyuioplkjhgfdsazxcvbnm@#_1234567890";
+            const token = [];
+            const length = Math.floor(Math.random() * (35 - 27 + 1)) + 27;
+
+            for (let i = 0; i < length; i++) {
+                if (Math.random() > 0.5) {
+                    token.push(simv[Math.floor(Math.random() * simv.length)].toUpperCase());
+                } else {
+                    token.push(simv[Math.floor(Math.random() * simv.length)]);
+                }
+            }
+            return token.join("");
+        }
+
+
+
         // Генерация deviceId
         function generateDeviceId() {
             let browser = 'web';
@@ -524,6 +624,27 @@
             }
             const random = Math.random().toString(36).substring(2, 10);
             return `${browser}-${generateToken()}`;
+        }
+
+        async function generateKeyFingerprint(publicKey) {
+            const hash = await crypto.subtle.digest('SHA-256', base64ToArrayBuffer(publicKey));
+            const hashArray = Array.from(new Uint8Array(hash));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join(':').toUpperCase();
+        }
+
+        function base64ToArrayBuffer(base64) {
+            // Декодируем base64 в бинарную строку
+            const binaryString = atob(base64);
+
+            // Создаем ArrayBuffer нужного размера
+            const bytes = new Uint8Array(binaryString.length);
+
+            // Заполняем байтами
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            return bytes.buffer;
         }
     </script>
 </body>

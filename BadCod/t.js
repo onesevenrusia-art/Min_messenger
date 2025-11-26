@@ -1,9 +1,5 @@
     document.addEventListener('DOMContentLoaded', function() {
-        const photoContainer = document.querySelector('.photo-container');
-        const photoAdd = document.querySelector('.photo-add');
-        const photoDelete = document.querySelector('.photo-delete');
-        const photoUpload = document.getElementById('photo_upload');
-        const myPhoto = document.getElementById('my_photo');
+
 
         let currentPhotoFile = null;
 

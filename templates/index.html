@@ -329,14 +329,28 @@
                                         .then(response => response.json())
                                         .then(result => {
                                             if (result.success) {
-                                                console.log("yes contact");
-                                                localStorage.setItem("userdata", JSON.stringify({
-                                                    token: result.token,
-                                                    email: formData.email
-                                                }));
-                                                alert("Регистрация прошла успешно.");
-                                                window.location.href = 'messenger.html';
-                                                return true;
+
+
+                                                fetch("/addme", {
+                                                        method: 'POST',
+                                                        headers: {
+                                                            'Content-Type': 'application/json'
+                                                        },
+                                                        body: JSON.stringify({
+
+                                                        }),
+                                                    })
+                                                    .then(response => response.json())
+                                                    .then(result => {
+
+                                                    })
+                                                    .catch(error => {
+                                                        console.error("Ошибка сети:", error);
+                                                    });
+
+
+
+
                                             } else {
                                                 attemptsLeft--;
                                                 if (attemptsLeft > 0) {
@@ -418,6 +432,11 @@
                 Authorisation();
             }
         });
+        async function generateKeyFingerprint(publicKey) {
+            const hash = await crypto.subtle.digest('SHA-256', base64ToArrayBuffer(publicKey));
+            const hashArray = Array.from(new Uint8Array(hash));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join(':').toUpperCase();
+        }
     </script>
 </body>
 

@@ -8,11 +8,12 @@ from email_validator import validate_email, EmailNotValidError
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+import vrotayadb
 import FeedBacks
 import os
 import smtplib
 import random
-import vrotayadb
+import websockets
 import json
 import base64  
 import uuid
@@ -25,6 +26,7 @@ simv="qwertyuioplkjhgfdsazxcvbnm@#_1234567890"
 
 
 DoctypeKeys={}
+DevicesKeys = {}
 challenges_auth={}
 challenges_del={}
 challenges_prof={}
@@ -35,6 +37,8 @@ usersdb = vrotayadb.UserManager()
 
 app = Flask(__name__)
 CORS(app)
+
+
 
 def save_photo_to_folder(name, photo_base64):
     """
@@ -232,12 +236,23 @@ def key():
         print(f'adding user {data["name"]} .........')
         d={data["device"]:data["publickey"]}
         usersdb.add_user(email=data["email"], userid=usersdb.get_max_userid()["id"]+1, name=data["name"], phone=data["phone"], devices=str(d))  
-
+        del DoctypeKeys[data["email"]]
         return jsonify({"success":True})
     else:
+        #del DoctypeKeys[data["email"]]
         return jsonify({"success":False})
 
-
+@app.route("/interkey2", methods=["POST"])
+def dostype_2():
+    data = request.get_json()
+    if data["key"]==DoctypeKeys[data["email"]]:
+        print("ok input")
+        del DoctypeKeys[data["email"]]
+        DevicesKeys[data["email"]]={"publickey":data["publickey"],"fingerprint":data["fingerprint"],"device":data["device"],"status":"waiting"}
+        return jsonify({"success":True})
+    else:
+        print("errorinput")
+        return jsonify({"success":False})      
 
 
 @app.route("/challenge", methods=["POST"])
@@ -305,6 +320,9 @@ def podpis():
             if user["blocked"] is None or user["blocked"]<=datetime.now():
                 if "why" in data["what"]:
                     feedbacksdb.add_userFeedBack(email,data["what"]["why"])
+                try:
+                    os.remove(usersdb.get_user_by_email(email)["photo"]) 
+                except:pass
                 usersdb.delete_user(email)
                 print(f"Deleted user {email}")
                 return jsonify({"success":True})
@@ -323,7 +341,11 @@ def podpis():
                 if userdata["DR"] is not None:
                     aboutme+=f"день рождения: {userdata['DR']}\n"   
                 if userdata["dopinf"] is not None:
-                    aboutme+=f"Дополнительно: {userdata['dopinf']}\n"            
+                    aboutme+=f"Дополнительно: {userdata['dopinf']}\n"           
+                if userdata["photo"] == None:
+                    try:
+                        os.remove(user["photo"]) 
+                    except:pass
                 usersdb.update_user(email=email,phone=userdata["phone"],name=userdata["name"],about=aboutme,photo=path)
                 return jsonify({"success":True})
     else:
@@ -357,7 +379,7 @@ def podpis():
 
 
 
-@app.route("/d1octypeinput",methods=["POST"])
+@app.route("/doctypeinput",methods=["POST"])
 def eminp():
     email=request.get_json()["email"]
     fl=False
@@ -410,26 +432,31 @@ def SearchUserBy():
 @app.route("/GetUserInfo",methods=["POST"])
 def GetUserInfo():
     data = request.get_json()
-    print(data)
     if 'id' in data:
         user=usersdb.get_user_by_id(data["id"])
     else:
         user=usersdb.get_user_by_email(data["email"])
     
-    if user["about"] is None:
-        age = None
-        DR = None
-        pol = None
-    print(user["about"].split("\n"))
-    return jsonify({"id":user['userid'],
+
+    dt = {"id":user['userid'],
                     "email":user['email'],
                     "name":user['name'],
                     "photo":user["photo"],
-                    "phone":user['phone'],
-                    "about":user['about'],})
-                   #"DR":DR,
-                   #"pol":pol,
-                   #"age":age})
+                    "phone":user['phone'],}
+    if user["about"]!=None:
+        print(user["about"].split("\n"))
+        for d in user["about"].split("\n"):
+            if len(d.split(":")) == 2:
+                if d.split(":")[0] == "Возраст":
+                    dt["age"]=int(d.split(":")[1].strip())
+                if d.split(":")[0] == "Пол":
+                    dt["pol"]=d.split(":")[1].strip()
+                if d.split(":")[0] == "день рождения":
+                    dt["DR"]=d.split(":")[1]
+                if d.split(":")[0] == "Дополнительно":
+                    dt["about"]=d.split(":")[1]
+    return jsonify(dt)
+
 
 
 if __name__ == '__main__':    

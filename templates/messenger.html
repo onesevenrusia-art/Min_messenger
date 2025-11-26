@@ -236,8 +236,29 @@
     }
 
     loadAllImages();
+    const Data = JSON.parse(DataUser);
     document.getElementById("fon").src = localStorage.getItem("fone");
     const ChatBox = document.getElementById("chatbox")
+
+    const device_id = Data.email;
+    console.log("wss://" + window.location.hostname + ":8000/ws?device_id=" + device_id)
+    const ws = new WebSocket(
+        "wss://" + window.location.hostname + ":8000/ws?device_id=" + device_id
+    );
+
+    ws.onopen = () => {
+        console.log("WebSocket connected");
+    };
+
+    ws.onmessage = (event) => {
+        console.log("Received:", event.data);
+    };
+
+    ws.onclose = () => {
+        console.log("WebSocket closed");
+    };
+
+
     ChatBox.innerHTML = '';
     fetch("/userchatlist", {
             method: 'POST',
@@ -490,13 +511,13 @@
             "why": tx
         });
         console.log(result);
-        if (result.result === false && result.what == "server") {
+        if (result.success === false && result.what == "server") {
             alert("ошибка установления соединения с сервером");
         }
-        if (result.result === false && result.what == "auth") {
+        if (result.success === false && result.what == "auth") {
             alert("Ошибка аутидентификации, следующая попытка будет возможно через 2 часа");
         }
-        if (result.result === true) {
+        if (result.success === true) {
             console.log('🎉 Вход выполнен!');
             localStorage.removeItem("Userdata");
             window.location.herf = "/";
