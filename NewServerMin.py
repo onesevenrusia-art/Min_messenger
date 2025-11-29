@@ -8,12 +8,12 @@ from email_validator import validate_email, EmailNotValidError
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+import requests
 import vrotayadb
 import FeedBacks
 import os
 import smtplib
 import random
-import websockets
 import json
 import base64  
 import uuid
@@ -135,7 +135,9 @@ def verify_signature_simple(challenge, signature_b64, public_key_data):
 def IsEmailCorrect(email):
     try:
         valid = validate_email(email)
-        return True
+        if valid:
+            return True
+        else:return False
     except EmailNotValidError:
         return False
 
@@ -213,6 +215,8 @@ def favicon():
 def getregistrblank():
     data = request.get_json()
     email=data["email"]
+    if len(usersdb.get_user_by_email(email))>0:
+        return jsonify({"state":"youbeindb"})
     correct = IsEmailCorrect(email)
     #return jsonify({"state":"ok"})
     if correct:
@@ -222,7 +226,7 @@ def getregistrblank():
             return jsonify({"state":"errorpost"})
         if type(state) == list:
             if state[0]:
-                DoctypeKeys[email]=state[1]
+                DoctypeKeys[email]={"code":state[1],"attempents":3}
                 print("ok email")
                 return jsonify({"state":"ok"})
     else:
@@ -232,27 +236,42 @@ def getregistrblank():
 @app.route("/interkeydostype",methods=["POST"]) # ПЕРВАЯ РЕГИСТРАЦИЯ
 def key():
     data = request.get_json()
-    if data["key"]==DoctypeKeys[data["email"]]:
+    if data["key"]==DoctypeKeys[data["email"]]["code"]:
         print(f'adding user {data["name"]} .........')
         d={data["device"]:data["publickey"]}
         usersdb.add_user(email=data["email"], userid=usersdb.get_max_userid()["id"]+1, name=data["name"], phone=data["phone"], devices=str(d))  
         del DoctypeKeys[data["email"]]
         return jsonify({"success":True})
     else:
-        #del DoctypeKeys[data["email"]]
+        DoctypeKeys[data["email"]]["attempents"]-=1
         return jsonify({"success":False})
 
 @app.route("/interkey2", methods=["POST"])
 def dostype_2():
     data = request.get_json()
-    if data["key"]==DoctypeKeys[data["email"]]:
-        print("ok input")
+    if DoctypeKeys[data["email"]]["attempents"]<1:
         del DoctypeKeys[data["email"]]
-        DevicesKeys[data["email"]]={"publickey":data["publickey"],"fingerprint":data["fingerprint"],"device":data["device"],"status":"waiting"}
-        return jsonify({"success":True})
+        usersdb.block_user(data["email"],hours=1)
+        return jsonify({"success":"blocked"})
+    if data["email"] in DoctypeKeys:
+        if data["key"]==DoctypeKeys[data["email"]]["code"]:
+            print("ok input")
+            del DoctypeKeys[data["email"]]
+            ip = request.environ['REMOTE_ADDR']
+            DevicesKeys[data["email"]]=ip
+            return jsonify({"success":True})
+        else:
+            print("errorinput")
+            DoctypeKeys[data["email"]]["attempents"]-=1
+            print(DoctypeKeys[data["email"]]["attempents"])
+            if DoctypeKeys[data["email"]]["attempents"]<1:
+                print("blocked user from")
+                del DoctypeKeys[data["email"]]
+                usersdb.block_user(data["email"],hours=1)
+                return jsonify({"success":False})
+            return jsonify({"success":False})      
     else:
-        print("errorinput")
-        return jsonify({"success":False})      
+        return jsonify({"success":"error"})
 
 
 @app.route("/challenge", methods=["POST"])
@@ -382,21 +401,22 @@ def podpis():
 @app.route("/doctypeinput",methods=["POST"])
 def eminp():
     email=request.get_json()["email"]
-    fl=False
-    for user in usersdb.get_all_users():
-        if email == user["email"]:
-            fl=True
-            break
-    if fl:
-        state = SendCode(email)
-        if type(state) == str:
-            print(f"ERROR! {state}")
-            return jsonify({"state":"errorpost"})
-        if type(state) == list:
-            if state[0]:
-                DoctypeKeys[email]=state[1]
-                print("ok email")
-        return jsonify({"state":"ok"})
+    user=usersdb.get_user_by_email(email)
+    if len(user)>0:
+        if user["blocked"] is None or user["blocked"]<=datetime.now():
+            state = SendCode(email)
+            if type(state) == str:
+                print(f"ERROR! {state}")
+                return jsonify({"state":"errorpost"})
+            if type(state) == list:
+                if state[0]:
+                    DoctypeKeys[email]={"code":state[1],"attempents":3}
+                    print("ok email")
+            return jsonify({"state":"ok"})
+        else:
+            tm=str(user["blocked"]-datetime.now()).split(":")[1]
+            return jsonify({"state":"blocked",
+                            "time":tm})
     else:
         print("errorfind email")
         return jsonify({"state":"errorfind"})
@@ -414,7 +434,7 @@ def returnUserChatList():
         print("yes")
         return jsonify({"chats":json.loads(chats)})
     else:
-        return jsonify({"chats":[{"avatar":'\static\images\logo.png',"name":'MIN-поддержка'}, {"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'russia'},{"avatar":0b0,"name":'polyaki'}]})
+        return jsonify({"chats":[{"avatar":'\static\images\logo.png',"name":'MIN-поддержка'}, {"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'russia'},{"avatar":0b0,"name":'polyaki'}]})
 
 
 @app.route("/SearchUserBy",methods=["POST"])
@@ -426,7 +446,6 @@ def SearchUserBy():
     res=usersdb.search_users_by(what,typeS)
     back["sucess"]=len(res)>0
     back["userlist"]=[{"id":i['userid'],"name":i['name'],"photo":i["photo"]} for i in res]
-    #back["userlist"]=[{"id":i['userid'],"email":i['email'],"name":i['name'],"photo":i["photo"],"phone":i['phone'],"about":i['about']} for i in res]
     return jsonify(back)
 
 @app.route("/GetUserInfo",methods=["POST"])
@@ -456,6 +475,22 @@ def GetUserInfo():
                 if d.split(":")[0] == "Дополнительно":
                     dt["about"]=d.split(":")[1]
     return jsonify(dt)
+
+
+
+@app.post("/push")
+def Wss_Push_Notify():
+    data = request.get_json()
+    ip = request.environ['REMOTE_ADDR']
+    print(data,ip)
+    if data["type"] == "newdevice":
+        if data["email"] in DevicesKeys:
+            if data["fingerprint"]==str(DevicesKeys[data["email"]]):
+                DevicesKeys[data["email"]]={"publickey":data["publickey"],"fingerprint":data["fingerprint"],"device":data["device"],"status":"waiting"}
+                data["ip"]=ip
+                r = requests.post("https://127.0.0.1:8000/notify",json=data,verify=False)
+                print(r)
+                return r.json()
 
 
 

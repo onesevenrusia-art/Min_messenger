@@ -23,7 +23,7 @@
 
             <div class="buttons-container">
                 <a href="#" class="auth-btn login-btn" id="inputbtn">Войти</a>
-                <a style="background-color: seagreen;" href="#" class="auth-btn login-btn" id="inputbtnwithgoogle">Войти с Gooqle</a>
+                <a style="background-color: seagreen;" href="#" class="auth-btn login-btn" id="inputbtnwithgoogle">Войти с Google</a>
                 <a href="#" class="auth-btn register-btn" id="registerBtn">Зарегистрироваться</a>
             </div>
         </div>
@@ -96,7 +96,7 @@
     </div>
     <div class="Main_delay">
         <div class="delay_form">
-            <p></p>
+            <p>На другом устройстве придёт уведомление - подтвердите его</p>
             <button>Отмена</button>
         </div>
     </div>
@@ -136,7 +136,6 @@
                     //   document.getElementById()
                     const inputbtn = document.getElementById("inputbtn");
 
-                    // Добавляем глобальные переменные для обработчиков
                     let currentInputHandler = null;
                     let currentClickHandler = null;
                     let attemptsLeft = 3;
@@ -175,11 +174,8 @@
                     backBtnCode.addEventListener('click', function(e) {
                         e.preventDefault();
                         showStep(1);
-                        attemptsLeft = 3; // Сброс попыток
+                        attemptsLeft = 3;
                     });
-
-
-
 
                     inputbtn.addEventListener("click", function() {
                         showStep(5);
@@ -207,6 +203,7 @@
                                     if (result.state !== "ok") {
                                         console.log(result);
                                     }
+                                    console.log(result);
                                     showStep(5);
 
                                     switch (result.state) {
@@ -225,6 +222,10 @@
                                                 email: email.value.trim()
                                             }, "");
                                             break;
+                                        case "blocked":
+                                            document.getElementById("p-in").innerText = `Попытки входа для вас заблокированы\n до разблокировки ${result.time} минут.`;
+                                            send.disabled;
+                                            break;
                                     }
                                 })
                                 .catch(error => {
@@ -232,7 +233,7 @@
                                 });
                         });
                         document.getElementById("bkin").addEventListener("click", function() {
-                            location.reload();
+                            showStep(1);
                         });
                     });
 
@@ -260,7 +261,6 @@
                             publickey: JSON.parse(localStorage.getItem("userdata2")).publickey,
                             privatekey: JSON.parse(localStorage.getItem("userdata2")).privatekey,
                         };
-                        // Удаляем старые обработчики
                         if (currentInputHandler) {
                             passwordinput.removeEventListener("input", currentInputHandler);
                         }
@@ -272,7 +272,6 @@
                             mesElement.innerText = `Код подтверждения был отправлен на ваш email\n${formData.email}.\n⚠️ Внимание: код мог быть отправлен в спам.`;
                             logsElement.innerText = logs;
 
-                            // Создаем новые обработчики
                             currentInputHandler = function() {
                                 sendcodeBtn.disabled = (passwordinput.value.trim().length !== 6);
                             };
@@ -280,7 +279,6 @@
                             currentClickHandler = function(e) {
                                 e.preventDefault();
                                 if (flag) {
-                                    console.log(JSON.parse(localStorage.getItem("userdata2")))
                                     fetch("/interkeydostype", {
                                             method: 'POST',
                                             headers: {
@@ -301,7 +299,6 @@
 
                                                 localStorage.clear();
                                                 console.log(`mykey ${UserData}`);
-
                                                 localStorage.setItem('Userdata', JSON.stringify(UserData));
                                                 console.log("✅ Данные сохранены в localStorage");
                                                 alert("Регистрация прошла успешно.");
@@ -333,14 +330,17 @@
                                             body: JSON.stringify({
                                                 "key": passwordinput.value.trim(),
                                                 "email": formData.email,
-                                                "device": UserData.device,
                                                 "publickey": JSON.parse(localStorage.getItem("userdata2")).publickey,
                                                 "fingerprint": fingerprint
                                             }),
                                         })
                                         .then(response => response.json())
                                         .then(result => {
-                                            if (result.success) {
+                                            if (result.success === "error") {
+                                                logsElement.style.color = "red";
+                                                logsElement.innerText = "Ошибка соединения с сервером";
+                                            }
+                                            if (result.success === true) {
                                                 ////
                                                 ////
                                                 ////
@@ -352,26 +352,25 @@
                                                 ////
                                                 const UserData = {
                                                     email: formData.email,
-                                                    device: JSON.parse(localStorage.getItem("userdata2")).device,
+                                                    device: getDeviceInfo(),
                                                     publickey: JSON.parse(localStorage.getItem("userdata2")).publickey,
                                                     privatekey: JSON.parse(localStorage.getItem("userdata2")).privatekey,
                                                 };
-                                                fetch("/addme", {
-                                                        method: 'POST',
-                                                        headers: {
-                                                            'Content-Type': 'application/json'
-                                                        },
-                                                        body: JSON.stringify({
 
-                                                        }),
+                                                fetch("/push", {
+                                                    method: "POST",
+                                                    headers: {
+                                                        "Content-Type": "application/json"
+                                                    },
+                                                    body: JSON.stringify({
+                                                        "type": "newdevice",
+                                                        "fingerprint": fingerprint,
+                                                        "email": UserData.email,
+                                                        "device": UserData.device,
+                                                        "publickey": UserData.publickey
                                                     })
-                                                    .then(response => response.json())
-                                                    .then(result => {
+                                                });
 
-                                                    })
-                                                    .catch(error => {
-                                                        console.error("Ошибка сети:", error);
-                                                    });
 
                                                 ///console.log(`mykey ${UserData.privatekey}`);
                                                 ///localStorage.clear();
@@ -380,16 +379,18 @@
                                                 ///alert("Регистрация прошла успешно.");
                                                 ///window.location.href = 'messenger.html';
                                                 return true;
-                                            } else {
+                                            }
+                                            if (result.success === false) {
                                                 attemptsLeft--;
                                                 if (attemptsLeft > 0) {
                                                     logsElement.innerText = `Неверный код! Осталось попыток: ${attemptsLeft}`;
                                                 } else {
-                                                    logsElement.innerText = "Превышено количество попыток, возможность войти заблокирована на 24 часа";
+                                                    logsElement.innerText = "Превышено количество попыток, возможность войти заблокирована на 1 час";
                                                     sendcodeBtn.disabled = true;
                                                     return false;
                                                 }
                                             }
+
                                         })
                                         .catch(error => {
                                             console.error("Ошибка сети:", error);
@@ -399,7 +400,6 @@
                                 }
                             };
 
-                            // Добавляем обработчики
                             passwordinput.addEventListener("input", currentInputHandler);
                             sendcodeBtn.addEventListener("click", currentClickHandler);
                         }
@@ -410,6 +410,9 @@
 
                         if (st === 2) {
                             mesElement.innerText = `Не удалось найти email\n${formData.email}.\nУкажите корректный адрес email.`;
+                        }
+                        if (st === 3) {
+                            mesElement.innerText = `На email ${formData.email}\nуже создана учётная запись.\nУкажите другой адрес email.`;
                         }
                     }
 
@@ -442,9 +445,11 @@
                                     } else if (result["state"] === "errorfind") {
                                         passbox(2, formData);
                                     } else if (result["state"] === "ok") {
-                                        attemptsLeft = 3; // Сброс счетчика попыток
-                                        passbox(0, formData, "", true); // Только ОДИН раз!
-
+                                        attemptsLeft = 3;
+                                        passbox(0, formData, "", true);
+                                    } else if (result["state"] === "youbeindb") {
+                                        attemptsLeft = 3;
+                                        passbox(3, formData, "", true);
                                     }
                                 })
                                 .catch(e => console.log("error get answer " + e));
@@ -645,6 +650,34 @@
             }
 
             return bytes.buffer;
+        }
+
+        function getDeviceInfo() {
+            return {
+                // Браузер и ОС
+                platform: navigator.platform,
+                userAgent: navigator.userAgent,
+
+                // Язык
+                language: navigator.language,
+                languages: navigator.languages,
+
+                // Аппаратные характеристики
+                hardwareConcurrency: navigator.hardwareConcurrency || 'unknown',
+                deviceMemory: navigator.deviceMemory || 'unknown',
+
+                // Экран
+                screen: {
+                    width: screen.width,
+                    height: screen.height,
+                    colorDepth: screen.colorDepth,
+                    pixelDepth: screen.pixelDepth
+                },
+
+                // Время
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                timezoneOffset: new Date().getTimezoneOffset(),
+            };
         }
     </script>
 </body>

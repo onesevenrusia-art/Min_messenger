@@ -130,3 +130,39 @@
             currentPhotoFile = null; // сбрасываем файл, т.к. используем base64
         }
     }
+
+
+
+    Received: { "type": "newdevice", "fingerprint": {}, "email": "dedoutsider@gmail.com", "device": "chrome-c70WJQGxaB1yWg1T#0d6yQc270_nmlVL", "publickey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA9mnhra6uUH/2laCMZ+ZqPbHzy95V6LPhoe2k4ie+DrA1wXwHFuPdEG1YHOm/YX1Ki3RZhNuQbS/DUAHtsKMedqmEHECFYJNPX10CDYedmJFHcxAzQz1kgYPiz3JOPthYFeoIX1GeocdAVA8MTWbS3xISTWYyj98VeEdhGpKGQgzVhj5jSyB4T25utc63ix8j6a5iZbSaiEnyfOIxqUR+DNT8bCvQqkUFUVJxOkFtMYij92YpX1F3mhSCnL+7Odn0f3GCgJMSEHqeeeMXHLV+huY6xWGV6aD8Z16wc/Uo14+1csx75VvkNzkA7BAzuF8aodcum1pSIQPN+uLoGaDzNQIDAQAB", "ip": "192.168.1.64" }
+
+
+
+
+
+
+
+
+
+
+    .runline {
+        display: block;
+        width: 200 px;
+        background: gray;
+        overflow: hidden;
+        padding: 5 px;
+    }
+    .runline > span {
+            display: inline - block;
+            white - space: nowrap;
+            animation: runline 20 s linear infinite 1 s both;
+        }
+        .runline: hover > span {
+            animation - play - state: paused;
+        }
+    @keyframes runline {
+        to { transform: translateX(-100 % ); }
+    } <
+    div class = "runline" >
+        <
+        span > Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum < /span> < /
+            div >

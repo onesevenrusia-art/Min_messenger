@@ -299,7 +299,7 @@ class UserManager:
             user = session.query(User).filter(User.email == email).first()
             if not user:
                 return {"error": "Пользователь не найден"}
-            user.blocked = datetime.utcnow() + timedelta(hours=hours)
+            user.blocked = datetime.now() + timedelta(hours=hours)
             session.commit()
             
             return {

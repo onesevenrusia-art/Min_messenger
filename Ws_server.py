@@ -40,9 +40,8 @@ async def websocket_endpoint(ws: WebSocket):
 @app.post("/notify")
 async def notify(request: Request):
     data = await request.json()
-    device_id = data["device_id"]
-    payload = data["payload"]
-
+    device_id = data["email"]
+    payload = data
     if device_id in clients:
         try:
             await clients[device_id].send_json(payload)
