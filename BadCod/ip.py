@@ -1,6 +1,6 @@
 import requests
-import vrotayadb
-usersdb = vrotayadb.UserManager()
+import MainUsersDB
+usersdb = MainUsersDB.UserManager()
 ip =input() # замените на нужный IP, например, свой внешний
 response = requests.get(f"https://ipinfo.io/{ip}/json")
 data = response.json()

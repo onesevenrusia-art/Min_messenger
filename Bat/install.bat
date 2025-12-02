@@ -4,6 +4,9 @@ echo установка библиотек...
 pip install flask_cors
 pip install email_validator
 pip install psycopg2
+pip install uvicorn
+pip install fastapi
+pip install sqlalchemy
 
 echo ✅ Библиотеки установлены!
 pause

@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 import json
 from datetime import datetime, timedelta
 
-engine = create_engine('sqlite:///Usersv2.db')
+engine = create_engine('sqlite:///Databases/Usersv2.db')
 Base = declarative_base()
 
 class User(Base):
@@ -51,7 +51,7 @@ class User(Base):
 Base.metadata.create_all(engine)
 
 class UserManager:
-    def __init__(self, database_url='sqlite:///Usersv2.db'):
+    def __init__(self, database_url='sqlite:///Databases/Usersv2.db'):
         self.engine = create_engine(database_url)
         self.Session = sessionmaker(bind=self.engine)
     

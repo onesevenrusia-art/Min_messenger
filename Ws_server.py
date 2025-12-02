@@ -11,7 +11,7 @@ clients = {}
 #   WebSocket /ws (будет WSS)
 # ===============================
 @app.websocket("/ws")
-async def websocket_endpoint(ws: WebSocket):
+async def websocket_endpoint(ws: WebSocket): 
     await ws.accept()
 
     device_id = ws.query_params.get("device_id")
@@ -20,8 +20,12 @@ async def websocket_endpoint(ws: WebSocket):
         return
 
     print(f"[WS] Connected: {device_id}")
-    clients[device_id] = ws
-
+    clients[device_id] = {"ws":ws,"msgoffline":[]}
+    try:
+        for message in clients[device_id]["msgoffline"]:
+            await clients[device_id]["ws"].send_json(message)
+    except:
+            pass
     try:
         while True:
             msg = await ws.receive_text()
@@ -41,15 +45,21 @@ async def websocket_endpoint(ws: WebSocket):
 async def notify(request: Request):
     data = await request.json()
     device_id = data["email"]
-    payload = data
     if device_id in clients:
         try:
-            await clients[device_id].send_json(payload)
-            return {"status": "sent"}
+            await clients[device_id]["ws"].send_json(data)
+            return {"success":True,
+                    "status": "sent"}
         except:
-            return {"status": "error"}
+            return {"status": "error",
+                    "success":False}
+        
     else:
-        return {"status": "offline"}
+        clients[device_id]["msgoffline"].append(data)
+        return {
+            "success":True,
+            "status": "offline"
+            }
 
 
 if __name__ == "__main__":

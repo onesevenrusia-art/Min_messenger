@@ -241,7 +241,7 @@
     const ChatBox = document.getElementById("chatbox")
 
     const device_id = Data.email;
-    console.log("wss://" + window.location.hostname + ":8000/ws?device_id=" + device_id)
+
     const ws = new WebSocket(
         "wss://" + window.location.hostname + ":8000/ws?device_id=" + device_id
     );

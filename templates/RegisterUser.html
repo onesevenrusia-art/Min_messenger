@@ -94,10 +94,10 @@
             <p>Идет обработка данных...</p>
         </div>
     </div>
-    <div class="Main_delay">
+    <div style="display: none;" class="Main_delay">
         <div class="delay_form">
-            <p>На другом устройстве придёт уведомление - подтвердите его</p>
-            <button>Отмена</button>
+            <p style="margin-top:10px;margin-bottom:15px">На другом устройстве придёт уведомление - подтвердите его</p>
+            <button id="cancelauth" style="background-color: red; color:wheat; margin-top:5px">Отмена</button>
         </div>
     </div>
     <script>
@@ -158,6 +158,8 @@
                             document.getElementById('loadingBox').style.display = 'block';
                         } else if (stepNumber === 5) {
                             document.getElementById('inputmesseg').style.display = 'block';
+                        } else if (stepNumber === 0) {
+                            return;
                         }
                     }
 
@@ -320,8 +322,8 @@
                                             logsElement.innerText = "Ошибка соединения с сервером";
                                         });
                                 } else {
-                                    console.log(UserData)
                                     const fingerprint = generateKeyFingerprint(JSON.parse(localStorage.getItem("userdata2")).publickey)
+                                    console.log(fingerprint);
                                     fetch("/interkey2", {
                                             method: 'POST',
                                             headers: {
@@ -354,22 +356,45 @@
                                                     email: formData.email,
                                                     device: getDeviceInfo(),
                                                     publickey: JSON.parse(localStorage.getItem("userdata2")).publickey,
-                                                    privatekey: JSON.parse(localStorage.getItem("userdata2")).privatekey,
+                                                    fingerprint: fingerprint,
+                                                    type: "newdevice"
                                                 };
+                                                const res = WEbSKsend(UserData);
+                                                document.getElementById("cancelauth").addEventListener("click", function {
+                                                    fetch("/CancelAuthNewDevice", {
+                                                            method: 'POST',
+                                                            headers: {
+                                                                'Content-Type': 'application/json'
+                                                            },
+                                                            body: JSON.stringify(UserData),
+                                                        })
+                                                        .then(response => response.json())
+                                                        .then(result => {
 
-                                                fetch("/push", {
-                                                    method: "POST",
-                                                    headers: {
-                                                        "Content-Type": "application/json"
-                                                    },
-                                                    body: JSON.stringify({
-                                                        "type": "newdevice",
-                                                        "fingerprint": fingerprint,
-                                                        "email": UserData.email,
-                                                        "device": UserData.device,
-                                                        "publickey": UserData.publickey
-                                                    })
-                                                });
+
+                                                        })
+                                                        .catch(error => {
+                                                            console.error("Ошибка сети:", error);
+                                                        });
+                                                })
+                                                if (result.success) {
+                                                    const ws = new WebSocket(
+                                                        "wss://" + window.location.hostname + ":8000/ws?device_id=" + formData.email + "newdevice"
+                                                    );
+
+                                                    ws.onopen = () => {
+                                                        console.log("WebSocket connected");
+                                                    };
+
+                                                    ws.onmessage = (event) => {
+                                                        console.log("Received:", event.data);
+                                                    };
+
+                                                    ws.onclose = () => {
+                                                        console.log("WebSocket closed");
+                                                    };
+
+                                                }
 
 
                                                 ///console.log(`mykey ${UserData.privatekey}`);
@@ -678,6 +703,45 @@
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 timezoneOffset: new Date().getTimezoneOffset(),
             };
+        }
+
+        function WEbSKsend(userdata) {
+            fetch("/push", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(
+                        userdata
+                    ),
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success === "error") {
+                        alert("❌ Ошибка на Websocket server");
+                        return {
+                            success: false
+                        }
+                    }
+                    if (result.success === true) {
+                        showStep(0);
+                        document.querySelectorAll(".Main_delay").forEach(e => {
+                            e.style.display = "flex";
+                        })
+                        return {
+                            success: true
+                        }
+                    }
+
+                })
+                .catch(error => {
+                    console.error("❌ Ошибка соединения с Websocket server");
+                    alert("❌ Ошибка соединения ");
+                    return {
+                        success: false
+                    }
+
+                });
         }
     </script>
 </body>

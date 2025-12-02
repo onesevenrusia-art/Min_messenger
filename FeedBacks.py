@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 import json
 from datetime import datetime, timedelta
 
-engine = create_engine('sqlite:///Why_delete.db')
+engine = create_engine('sqlite:///Databases/Why_delete.db')
 Base = declarative_base()
 
 class Feedbacks(Base):
@@ -30,7 +30,7 @@ class Feedbacks(Base):
 Base.metadata.create_all(engine)
 
 class Feedback_Manager:
-    def __init__(self, database_url='sqlite:///Why_delete.db'):
+    def __init__(self, database_url='sqlite:///Databases/Why_delete.db'):
         self.engine = create_engine(database_url)
         self.Session = sessionmaker(bind=self.engine)
     

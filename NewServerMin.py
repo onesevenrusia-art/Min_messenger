@@ -9,7 +9,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import requests
-import vrotayadb
+import MainUsersDB
 import FeedBacks
 import os
 import smtplib
@@ -32,7 +32,7 @@ challenges_del={}
 challenges_prof={}
 
 feedbacksdb = FeedBacks.Feedback_Manager()
-usersdb = vrotayadb.UserManager()
+usersdb = MainUsersDB.UserManager()
 
 
 app = Flask(__name__)
@@ -249,16 +249,18 @@ def key():
 @app.route("/interkey2", methods=["POST"])
 def dostype_2():
     data = request.get_json()
-    if DoctypeKeys[data["email"]]["attempents"]<1:
-        del DoctypeKeys[data["email"]]
-        usersdb.block_user(data["email"],hours=1)
-        return jsonify({"success":"blocked"})
+
     if data["email"] in DoctypeKeys:
+        if DoctypeKeys[data["email"]]["attempents"]<1:
+            del DoctypeKeys[data["email"]]
+            usersdb.block_user(data["email"],hours=1)
+            return jsonify({"success":"blocked"})
         if data["key"]==DoctypeKeys[data["email"]]["code"]:
             print("ok input")
             del DoctypeKeys[data["email"]]
             ip = request.environ['REMOTE_ADDR']
-            DevicesKeys[data["email"]]=ip
+            DevicesKeys[data["email"]]={"fingerprint":data["fingerprint"],
+                                        "ip":ip}
             return jsonify({"success":True})
         else:
             print("errorinput")
@@ -482,17 +484,23 @@ def GetUserInfo():
 def Wss_Push_Notify():
     data = request.get_json()
     ip = request.environ['REMOTE_ADDR']
-    print(data,ip)
+    print(data,DevicesKeys)
     if data["type"] == "newdevice":
         if data["email"] in DevicesKeys:
-            if data["fingerprint"]==str(DevicesKeys[data["email"]]):
+            if ip==str(DevicesKeys[data["email"]]["ip"]) and DevicesKeys[data["email"]]["fingerprint"] == data["fingerprint"]:
+                print("=")
                 DevicesKeys[data["email"]]={"publickey":data["publickey"],"fingerprint":data["fingerprint"],"device":data["device"],"status":"waiting"}
                 data["ip"]=ip
                 r = requests.post("https://127.0.0.1:8000/notify",json=data,verify=False)
-                print(r)
+                print("❌ ",r)
                 return r.json()
+    return {"success":"error"}
 
 
+@app.route("/CancelAuthNewDevice",methods=["POST"])
+def CancelNewDevice():
+    data=request.get_json()
+    ip = request.environ['REMOTE_ADDR']   
 
 if __name__ == '__main__':    
     app.run( host='0.0.0.0',  port=5000, debug=True, 
