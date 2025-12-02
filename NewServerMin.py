@@ -436,7 +436,7 @@ def returnUserChatList():
         print("yes")
         return jsonify({"chats":json.loads(chats)})
     else:
-        return jsonify({"chats":[{"avatar":'\static\images\logo.png',"name":'MIN-поддержка'}, {"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'russia'},{"avatar":0b0,"name":'polyaki'}]})
+        return jsonify({"chats":[{"avatar":'\static\images\logo.png',"name":'MIN-поддержка'}, {"avatar":None,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'russia'},{"avatar":0b0,"name":'polyaki'}]})
 
 
 @app.route("/SearchUserBy",methods=["POST"])
@@ -488,21 +488,29 @@ def Wss_Push_Notify():
     if data["type"] == "newdevice":
         if data["email"] in DevicesKeys:
             if ip==str(DevicesKeys[data["email"]]["ip"]) and DevicesKeys[data["email"]]["fingerprint"] == data["fingerprint"]:
-                print("=")
                 DevicesKeys[data["email"]]={"publickey":data["publickey"],"fingerprint":data["fingerprint"],"device":data["device"],"status":"waiting"}
                 data["ip"]=ip
                 r = requests.post("https://127.0.0.1:8000/notify",json=data,verify=False)
-                print("❌ ",r)
-                return r.json()
-    return {"success":"error"}
+                print("❌ ",r.json())
+                return jsonify(r.json())
+    return jsonify({"success":"error"})
 
 
 @app.route("/CancelAuthNewDevice",methods=["POST"])
 def CancelNewDevice():
     data=request.get_json()
     ip = request.environ['REMOTE_ADDR']   
+    if data["type"] == "newdevice":
+        if data["email"] in DevicesKeys:
+            if ip==str(DevicesKeys[data["email"]]["ip"]) and DevicesKeys[data["email"]]["fingerprint"] == data["fingerprint"]:
+                r = requests.post("https://127.0.0.1:8000/cancel",json=data,verify=False)
+                print(r)
+
+
+
+
 
 if __name__ == '__main__':    
     app.run( host='0.0.0.0',  port=5000, debug=True, 
             ssl_context=('cert.pem',"key.pem"),
-            use_reloader=False)
+            use_reloader=False) 

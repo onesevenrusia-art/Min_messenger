@@ -201,9 +201,12 @@
     }, {
         name: 'fone',
         url: "{{ url_for('static', filename='images/bgmes.jpg') }}"
+    },{
+        name: 'UniknownChat2',
+        url: 'static/images/UniknownChat.jpg'
     }];
 
-    function loadAllImages() {
+    async function loadAllImages() {
         images.forEach(image => {
             // Проверяем есть ли в localStorage
             const saved = localStorage.getItem(image.name);
@@ -234,8 +237,10 @@
             }
         });
     }
+    (async function () {
+        await loadAllImages();    
+    })();
 
-    loadAllImages();
     const Data = JSON.parse(DataUser);
     document.getElementById("fon").src = localStorage.getItem("fone");
     const ChatBox = document.getElementById("chatbox")
@@ -273,6 +278,10 @@
         .then(result => {
             const chats = result.chats;
             chats.forEach(chat => {
+                console.log(chat.avatar);
+                if (chat.avatar === null){
+                    chat.avatar = localStorage.getItem("UniknownChat2");
+                }
                 ChatBox.innerHTML += `
                 <div class=${'chatinfo'}>
                     <img src="${chat.avatar}" class=${'chat-avatar'} alt="${0} ">

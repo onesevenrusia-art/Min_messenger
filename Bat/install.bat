@@ -7,6 +7,8 @@ pip install psycopg2
 pip install uvicorn
 pip install fastapi
 pip install sqlalchemy
+pip install cryptography
+pip install  requests
 
 echo ✅ Библиотеки установлены!
 pause

@@ -230,3 +230,9 @@ body {
     background-color: #f3f3f3;
     margin: auto;
 }
+#cancelauth{
+    background-color: red; color:wheat; margin-top:5px
+}
+#cancelauth:hover{
+    background-color: rgba(255, 0, 0, 0.601); color:wheat;
+}

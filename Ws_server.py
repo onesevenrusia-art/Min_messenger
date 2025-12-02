@@ -5,7 +5,7 @@ app = FastAPI()
 
 # Подключённые клиенты: device_id -> WebSocket
 clients = {}
-
+wait_for = {}
 
 # ===============================
 #   WebSocket /ws (будет WSS)
@@ -20,10 +20,11 @@ async def websocket_endpoint(ws: WebSocket):
         return
 
     print(f"[WS] Connected: {device_id}")
-    clients[device_id] = {"ws":ws,"msgoffline":[]}
+    clients[device_id] = {"ws":ws}
     try:
-        for message in clients[device_id]["msgoffline"]:
-            await clients[device_id]["ws"].send_json(message)
+        if device_id in wait_for:
+            for message in wait_for[device_id]:
+                await clients[device_id]["ws"].send_json(message)
     except:
             pass
     try:
@@ -55,11 +56,34 @@ async def notify(request: Request):
                     "success":False}
         
     else:
-        clients[device_id]["msgoffline"].append(data)
+        if device_id not in wait_for:
+            wait_for[device_id]=[]
+        wait_for[device_id].append(data)
+
         return {
             "success":True,
             "status": "offline"
             }
+
+@app.post("/cancel")
+async def cancel(request: Request):
+    data = await request.json()
+    print(request.client.host)
+    device_id = data["email"]
+    if device_id in clients:
+        try:
+            if device_id in clients:
+                for m in clients[device_id]["msgoffline"]:
+                    if m["type"]=="newdevice":
+                        clients[device_id]["msgoffline"].pop(m ,None)
+
+            await clients[device_id+'newdevice']["ws"].close()
+            return {"success":True,
+                    "status": "sent"}
+        except:pass
+    return {"status": "error",
+                    "success":False}
+        
 
 
 if __name__ == "__main__":

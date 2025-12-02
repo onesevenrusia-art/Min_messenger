@@ -97,7 +97,7 @@
     <div style="display: none;" class="Main_delay">
         <div class="delay_form">
             <p style="margin-top:10px;margin-bottom:15px">На другом устройстве придёт уведомление - подтвердите его</p>
-            <button id="cancelauth" style="background-color: red; color:wheat; margin-top:5px">Отмена</button>
+            <button id="cancelauth" >Отмена</button>
         </div>
     </div>
     <script>
@@ -359,9 +359,12 @@
                                                     fingerprint: fingerprint,
                                                     type: "newdevice"
                                                 };
-                                                const res = WEbSKsend(UserData);
-                                                document.getElementById("cancelauth").addEventListener("click", function {
-                                                    fetch("/CancelAuthNewDevice", {
+                                                let res;
+                                                (async function () {
+                                                    res = WEbSKsend(UserData);
+                                                })();
+                                                console.log(res);
+                                                document.getElementById("cancelauth").addEventListener("click", function(){                                                    fetch("/CancelAuthNewDevice", {
                                                             method: 'POST',
                                                             headers: {
                                                                 'Content-Type': 'application/json'
@@ -370,31 +373,18 @@
                                                         })
                                                         .then(response => response.json())
                                                         .then(result => {
-
+                                                            showStep(1);
+                                                            document.querySelectorAll(".Main_delay").forEach(e => {
+                                                                    e.style.display = "flex";
+                                                                })
 
                                                         })
                                                         .catch(error => {
                                                             console.error("Ошибка сети:", error);
-                                                        });
-                                                })
-                                                if (result.success) {
-                                                    const ws = new WebSocket(
-                                                        "wss://" + window.location.hostname + ":8000/ws?device_id=" + formData.email + "newdevice"
-                                                    );
+                                                        });});
 
-                                                    ws.onopen = () => {
-                                                        console.log("WebSocket connected");
-                                                    };
 
-                                                    ws.onmessage = (event) => {
-                                                        console.log("Received:", event.data);
-                                                    };
 
-                                                    ws.onclose = () => {
-                                                        console.log("WebSocket closed");
-                                                    };
-
-                                                }
 
 
                                                 ///console.log(`mykey ${UserData.privatekey}`);
@@ -705,7 +695,7 @@
             };
         }
 
-        function WEbSKsend(userdata) {
+        async function WEbSKsend(userdata) {
             fetch("/push", {
                     method: 'POST',
                     headers: {
@@ -717,26 +707,24 @@
                 })
                 .then(response => response.json())
                 .then(result => {
+                    console.log(result);
                     if (result.success === "error") {
                         alert("❌ Ошибка на Websocket server");
-                        return {
-                            success: false
-                        }
+                        showStep(1);
+
                     }
                     if (result.success === true) {
-                        showStep(0);
+                        //showStep(0);
                         document.querySelectorAll(".Main_delay").forEach(e => {
                             e.style.display = "flex";
-                        })
-                        return {
-                            success: true
-                        }
-                    }
+                        })}
+                    
 
                 })
                 .catch(error => {
-                    console.error("❌ Ошибка соединения с Websocket server");
-                    alert("❌ Ошибка соединения ");
+                    console.log("❌ Ошибка соединения с Websocket server",error);
+                    alert(`❌ Ошибка соединения ${error}`);
+                    showStep(1);
                     return {
                         success: false
                     }
