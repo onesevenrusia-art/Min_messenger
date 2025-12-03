@@ -142,8 +142,16 @@
     </div>
     <div style="display: none;" class="newdevice">
         <div class="deletebox">
-            <p>Новое устройство хочет войти</p>
+            <p style="font-size: 30px;">Новое устройство хочет войти</p>
             <button class="pdp">Подробнее</button>
+        </div>
+    </div>
+
+    <div style="display: none;" class="more">
+        <p id="moreinfo"></p>
+        <div class="btnboxauth">
+            <button id="yesi">Да это я</button>
+            <button id="noi">Нет не я</button>
         </div>
     </div>
 
@@ -207,7 +215,7 @@
     }, {
         name: 'fone',
         url: "{{ url_for('static', filename='images/bgmes.jpg') }}"
-    },{
+    }, {
         name: 'UniknownChat2',
         url: 'static/images/UniknownChat.jpg'
     }];
@@ -243,8 +251,8 @@
             }
         });
     }
-    (async function () {
-        await loadAllImages();    
+    (async function() {
+        await loadAllImages();
     })();
     async function askNotificationPermission() {
         const permission = await Notification.requestPermission();
@@ -252,8 +260,8 @@
     }
     askNotificationPermission();
     if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("static/js/sw.js")
-        .then(() => console.log("SW registered"));
+        navigator.serviceWorker.register("/sw.js")
+            .then(() => console.log("SW registered"));
     }
     const Data = JSON.parse(DataUser);
     document.getElementById("fon").src = localStorage.getItem("fone");
@@ -270,20 +278,24 @@
     };
 
     ws.onmessage = (event) => {
-        console.log("Received:", event.data);
-        if (data.tyme === "newdevice"){
-            document.querySelectorAll(".newdevice").forEach(e => {e.style.display = "flex"})
+        const datae = JSON.parse(event.data)
+        if (datae.type === "newdevice") {
+            document.querySelectorAll(".newdevice").forEach(e => {
+                e.style.display = "flex";
+            })
         }
-        navigator.serviceWorker.ready.then(reg => {
-        reg.active.postMessage({
-            type: "notify",
-            title: "Новое уведомление",
-            body: data.message || "Есть событие",
-            data: data
-        });
-    });
+        try {
+            navigator.serviceWorker.ready.then(reg => {
+                reg.active.postMessage({
+                    type: "notify",
+                    title: "Новое уведомление",
+                    body: data.message || "Есть событие",
+                    data: datae
+                });
+            });
+        } catch {}
     };
-    
+
     ws.onclose = () => {
         console.log("WebSocket closed");
     };
@@ -304,7 +316,7 @@
             const chats = result.chats;
             chats.forEach(chat => {
                 console.log(chat.avatar);
-                if (chat.avatar === null){ 
+                if (chat.avatar === null) {
                     chat.avatar = localStorage.getItem("UniknownChat2");
                 }
                 ChatBox.innerHTML += `

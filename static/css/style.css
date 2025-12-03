@@ -213,7 +213,7 @@ body {
     position: absolute;
     left: 0;
     top: 0;
-    background-color: rgba(0, 0, 0, 0.007);
+    background-color: rgba(0, 0, 0, 0.692);
     width: 100%;
     height: 100%;
     justify-content: center;
@@ -230,9 +230,14 @@ body {
     background-color: #f3f3f3;
     margin: auto;
 }
-#cancelauth{
-    background-color: red; color:wheat; margin-top:5px
+
+#cancelauth {
+    background-color: red;
+    color: wheat;
+    margin-top: 5px
 }
-#cancelauth:hover{
-    background-color: rgba(255, 0, 0, 0.601); color:wheat;
+
+#cancelauth:hover {
+    background-color: rgba(255, 0, 0, 0.601);
+    color: wheat;
 }

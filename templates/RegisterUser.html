@@ -97,7 +97,7 @@
     <div style="display: none;" class="Main_delay">
         <div class="delay_form">
             <p style="margin-top:10px;margin-bottom:15px">На другом устройстве придёт уведомление - подтвердите его</p>
-            <button id="cancelauth" >Отмена</button>
+            <button id="cancelauth">Отмена</button>
         </div>
     </div>
     <script>
@@ -123,6 +123,13 @@
 
                 })();
 
+                // Переменные для хранения обработчиков
+                let currentInputHandler = null;
+                let currentClickHandler = null;
+                let loginEmailHandler = null;
+                let loginSendHandler = null;
+                let attemptsLeft = 3;
+
                 function Authorisation() {
                     const authBox = document.getElementById('authBox');
                     const registerBox = document.getElementById('registerBox');
@@ -133,12 +140,7 @@
                     const nameInput = document.getElementById('name');
                     const emailInput = document.getElementById('email');
                     const backBtnCode = document.getElementById('backBtnCode');
-                    //   document.getElementById()
                     const inputbtn = document.getElementById("inputbtn");
-
-                    let currentInputHandler = null;
-                    let currentClickHandler = null;
-                    let attemptsLeft = 3;
 
                     function showStep(stepNumber) {
                         document.getElementById('authBox').style.display = 'none';
@@ -163,6 +165,98 @@
                         }
                     }
 
+                    // Очистка обработчиков login формы
+                    function cleanupLoginForm() {
+                        const email = document.getElementById("inpytregememail");
+                        const send = document.getElementById("sendcode1");
+
+                        if (loginEmailHandler && email) {
+                            email.removeEventListener("input", loginEmailHandler);
+                            loginEmailHandler = null;
+                        }
+                        if (loginSendHandler && send) {
+                            send.removeEventListener("click", loginSendHandler);
+                            loginSendHandler = null;
+                        }
+
+                        // Очищаем поле email
+                        if (email) email.value = "";
+                        if (send) send.disabled = true;
+                    }
+
+                    // Настройка обработчика для кнопки "Войти"
+                    if (inputbtn) {
+                        // Удаляем старый обработчик если есть
+                        inputbtn.removeEventListener("click", handleLoginClick);
+
+                        function handleLoginClick() {
+                            showStep(5);
+                            cleanupLoginForm();
+
+                            const email = document.getElementById("inpytregememail");
+                            const send = document.getElementById("sendcode1");
+
+                            // Настраиваем новые обработчики
+                            loginEmailHandler = function() {
+                                const isEmailValid = email.value.trim().length > 0 &&
+                                    email.value.includes('@');
+                                send.disabled = !isEmailValid;
+                            };
+
+                            loginSendHandler = function() {
+                                fetch("/doctypeinput", {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify({
+                                            email: email.value
+                                        }),
+                                    })
+                                    .then(response => response.json())
+                                    .then(result => {
+                                        console.log(result);
+
+                                        switch (result.state) {
+                                            case "errorfind":
+                                                document.getElementById("p-in").innerText = "Вы не зарегистрированы в MIN!";
+                                                send.disabled = true;
+                                                break;
+                                            case "errorpost":
+                                                document.getElementById("p-in").innerText = "Ошибка отправки на email";
+                                                send.disabled = true;
+                                                break;
+                                            case "ok":
+                                                showStep(3);
+                                                passbox(0, {
+                                                    email: email.value.trim()
+                                                }, "");
+                                                break;
+                                            case "blocked":
+                                                document.getElementById("p-in").innerText = `Попытки входа для вас заблокированы\n до разблокировки ${result.time} минут.`;
+                                                send.disabled = true;
+                                                break;
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error("Ошибка сети:", error);
+                                    });
+                            };
+
+                            // Вешаем новые обработчики
+                            email.addEventListener("input", loginEmailHandler);
+                            send.addEventListener("click", loginSendHandler);
+
+                            // Обработчик кнопки "Назад" в форме логина
+                            document.getElementById("bkin").addEventListener("click", function() {
+                                showStep(1);
+                                cleanupLoginForm();
+                            });
+                        }
+
+                        inputbtn.addEventListener("click", handleLoginClick);
+                    }
+
                     registerBtn.addEventListener('click', function(e) {
                         e.preventDefault();
                         showStep(2);
@@ -177,73 +271,8 @@
                         e.preventDefault();
                         showStep(1);
                         attemptsLeft = 3;
+                        cleanupPassbox();
                     });
-
-                    inputbtn.addEventListener("click", function() {
-                        showStep(5);
-                        const email = document.getElementById("inpytregememail");
-                        const send = document.getElementById("sendcode1");
-                        const attemptsLeft = 3;
-                        email.addEventListener("input", function() {
-                            const isEmailValid = email.value.trim().length > 0 &&
-                                email.value.includes('@');
-                            send.disabled = !(isEmailValid);
-                        });
-                        send.addEventListener("click", function() {
-
-                            fetch("/doctypeinput", {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json'
-                                    },
-                                    body: JSON.stringify({
-                                        email: email.value
-                                    }),
-                                })
-                                .then(response => response.json())
-                                .then(result => {
-                                    if (result.state !== "ok") {
-                                        console.log(result);
-                                    }
-                                    console.log(result);
-                                    showStep(5);
-
-                                    switch (result.state) {
-                                        case "errorfind":
-                                            document.getElementById("p-in").innerText = "Вы не зарегестрированы в MIN!";
-                                            send.disabled;
-                                            console.log("notreg");
-                                            break;
-                                        case "errorpost":
-                                            document.getElementById("p-in").innerText = "Ошибка отправки на email";
-                                            send.disabled;
-                                            break;
-                                        case "ok":
-                                            showStep(3);
-                                            passbox(0, {
-                                                email: email.value.trim()
-                                            }, "");
-                                            break;
-                                        case "blocked":
-                                            document.getElementById("p-in").innerText = `Попытки входа для вас заблокированы\n до разблокировки ${result.time} минут.`;
-                                            send.disabled;
-                                            break;
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error("Ошибка сети:", error);
-                                });
-                        });
-                        document.getElementById("bkin").addEventListener("click", function() {
-                            showStep(1);
-                        });
-                    });
-
-
-
-
-
-
 
                     function checkFormValidity() {
                         const isNameValid = nameInput.value.trim().length > 0;
@@ -252,23 +281,38 @@
                         nextBtn.disabled = !(isNameValid && isEmailValid);
                     }
 
+                    function cleanupPassbox() {
+                        const passwordinput = document.getElementById("keycode");
+                        const sendcodeBtn = document.getElementById("sendcode");
+
+                        if (currentInputHandler && passwordinput) {
+                            passwordinput.removeEventListener("input", currentInputHandler);
+                            currentInputHandler = null;
+                        }
+                        if (currentClickHandler && sendcodeBtn) {
+                            sendcodeBtn.removeEventListener("click", currentClickHandler);
+                            currentClickHandler = null;
+                        }
+
+                        // Очищаем поля
+                        if (passwordinput) passwordinput.value = "";
+                        if (sendcodeBtn) sendcodeBtn.disabled = true;
+                    }
+
                     function passbox(st, formData, logs, flag = false) {
+                        cleanupPassbox(); // Очищаем старые обработчики
+
                         const passwordinput = document.getElementById("keycode");
                         const sendcodeBtn = document.getElementById("sendcode");
                         const mesElement = document.getElementById("mes");
                         const logsElement = document.getElementById("logs");
+
                         const UserData = {
                             email: formData.email,
                             device: JSON.parse(localStorage.getItem("userdata2")).device,
                             publickey: JSON.parse(localStorage.getItem("userdata2")).publickey,
                             privatekey: JSON.parse(localStorage.getItem("userdata2")).privatekey,
                         };
-                        if (currentInputHandler) {
-                            passwordinput.removeEventListener("input", currentInputHandler);
-                        }
-                        if (currentClickHandler) {
-                            sendcodeBtn.removeEventListener("click", currentClickHandler);
-                        }
 
                         if (st === 0) {
                             mesElement.innerText = `Код подтверждения был отправлен на ваш email\n${formData.email}.\n⚠️ Внимание: код мог быть отправлен в спам.`;
@@ -281,6 +325,7 @@
                             currentClickHandler = function(e) {
                                 e.preventDefault();
                                 if (flag) {
+                                    // Регистрация
                                     fetch("/interkeydostype", {
                                             method: 'POST',
                                             headers: {
@@ -298,14 +343,11 @@
                                         .then(response => response.json())
                                         .then(result => {
                                             if (result.success) {
-
                                                 localStorage.clear();
-                                                console.log(`mykey ${UserData}`);
                                                 localStorage.setItem('Userdata', JSON.stringify(UserData));
                                                 console.log("✅ Данные сохранены в localStorage");
                                                 alert("Регистрация прошла успешно.");
                                                 window.location.href = 'messenger.html';
-                                                return true;
                                             } else {
                                                 attemptsLeft--;
                                                 if (attemptsLeft > 0) {
@@ -313,7 +355,6 @@
                                                 } else {
                                                     logsElement.innerText = "Превышено количество попыток";
                                                     sendcodeBtn.disabled = true;
-                                                    return false;
                                                 }
                                             }
                                         })
@@ -322,6 +363,7 @@
                                             logsElement.innerText = "Ошибка соединения с сервером";
                                         });
                                 } else {
+                                    // Вход
                                     const fingerprint = generateKeyFingerprint(JSON.parse(localStorage.getItem("userdata2")).publickey)
                                     console.log(fingerprint);
                                     fetch("/interkey2", {
@@ -343,15 +385,6 @@
                                                 logsElement.innerText = "Ошибка соединения с сервером";
                                             }
                                             if (result.success === true) {
-                                                ////
-                                                ////
-                                                ////
-                                                ////
-                                                ////  ТУТ ПОВТОРНЫЙ ВХОД УЖЕЗАРЕГИСТРИРОВАННОГО ПОЛЬЗОВАТЕЛЯ
-                                                ////
-                                                ////
-                                                ////
-                                                ////
                                                 const UserData = {
                                                     email: formData.email,
                                                     device: getDeviceInfo(),
@@ -359,12 +392,15 @@
                                                     fingerprint: fingerprint,
                                                     type: "newdevice"
                                                 };
-                                                let res;
-                                                (async function () {
-                                                    res = WEbSKsend(UserData);
-                                                })();
-                                                console.log(res);
-                                                document.getElementById("cancelauth").addEventListener("click", function(){                                                    fetch("/CancelAuthNewDevice", {
+
+                                                WEbSKsend(UserData);
+
+                                                // Настраиваем обработчик отмены ОДИН РАЗ
+                                                const cancelBtn = document.getElementById("cancelauth");
+                                                cancelBtn.removeEventListener("click", handleCancelAuth);
+
+                                                function handleCancelAuth() {
+                                                    fetch("/CancelAuthNewDevice", {
                                                             method: 'POST',
                                                             headers: {
                                                                 'Content-Type': 'application/json'
@@ -375,24 +411,15 @@
                                                         .then(result => {
                                                             showStep(1);
                                                             document.querySelectorAll(".Main_delay").forEach(e => {
-                                                                    e.style.display = "flex";
-                                                                })
-
+                                                                e.style.display = "none";
+                                                            });
                                                         })
                                                         .catch(error => {
                                                             console.error("Ошибка сети:", error);
-                                                        });});
+                                                        });
+                                                }
 
-
-
-
-
-                                                ///console.log(`mykey ${UserData.privatekey}`);
-                                                ///localStorage.clear();
-                                                ///localStorage.setItem('Userdata', JSON.stringify(UserData));
-                                                ///console.log("✅ Данные сохранены в localStorage");
-                                                ///alert("Регистрация прошла успешно.");
-                                                ///window.location.href = 'messenger.html';
+                                                cancelBtn.addEventListener("click", handleCancelAuth);
                                                 return true;
                                             }
                                             if (result.success === false) {
@@ -402,10 +429,8 @@
                                                 } else {
                                                     logsElement.innerText = "Превышено количество попыток, возможность войти заблокирована на 1 час";
                                                     sendcodeBtn.disabled = true;
-                                                    return false;
                                                 }
                                             }
-
                                         })
                                         .catch(error => {
                                             console.error("Ошибка сети:", error);
@@ -481,6 +506,8 @@
                 Authorisation();
             }
         });
+
+        // Остальные функции остаются без изменений...
 
         // Генерация ключей
         async function generateKeyPair() {
@@ -717,12 +744,13 @@
                         //showStep(0);
                         document.querySelectorAll(".Main_delay").forEach(e => {
                             e.style.display = "flex";
-                        })}
-                    
+                        })
+                    }
+
 
                 })
                 .catch(error => {
-                    console.log("❌ Ошибка соединения с Websocket server",error);
+                    console.log("❌ Ошибка соединения с Websocket server", error);
                     alert(`❌ Ошибка соединения ${error}`);
                     showStep(1);
                     return {

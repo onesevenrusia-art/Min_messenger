@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, jsonify, render_template, send_from_directory, Response
 from flask_cors import CORS
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
@@ -194,8 +194,10 @@ def send_static(path):
     return send_from_directory('static', path)
 
 @app.route('/sw.js')
-def send_swjs(path):
-    return send_from_directory('static', path)
+def send_swjs():
+    with open("sw.js","r+",encoding="utf-8") as f:
+        js = f.read()
+    return Response(js, mimetype="application/javascript")
 
 
 @app.route('/UsersPhotos/<path:path>')
@@ -507,9 +509,11 @@ def CancelNewDevice():
     ip = request.environ['REMOTE_ADDR']   
     if data["type"] == "newdevice":
         if data["email"] in DevicesKeys:
-            if ip==str(DevicesKeys[data["email"]]["ip"]) and DevicesKeys[data["email"]]["fingerprint"] == data["fingerprint"]:
+            print(DevicesKeys)
+            if DevicesKeys[data["email"]]["fingerprint"] == data["fingerprint"]:
                 r = requests.post("https://127.0.0.1:8000/cancel",json=data,verify=False)
                 print(r)
+    return jsonify({})
 
 
 

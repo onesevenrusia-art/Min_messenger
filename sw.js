@@ -3,8 +3,8 @@ self.addEventListener("message", (event) => {
         self.registration.showNotification(event.data.title, {
             body: event.data.body,
             data: event.data.data,
-            icon: "/icon.png",
-            badge: "/badge.png"
+            icon: "/static/images/favicon.ico",
+            badge: "/static/images/favicon.ico"
         });
     }
 });
