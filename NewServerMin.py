@@ -193,6 +193,11 @@ def index3():
 def send_static(path):
     return send_from_directory('static', path)
 
+@app.route('/sw.js')
+def send_swjs(path):
+    return send_from_directory('static', path)
+
+
 @app.route('/UsersPhotos/<path:path>')
 def send_userphoto(path):
     print("path")

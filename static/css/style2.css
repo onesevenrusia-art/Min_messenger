@@ -700,3 +700,14 @@
         transform: scale(1.1);
         transition: transform 0.2s;
     }
+    .pdp{
+        background-color: dodgerblue;
+        color: #ccc;
+        border: 1px solid gray;
+        border-radius: 15px;
+        min-height: 30px;
+        font-size: 23px;
+    }
+    .pdp:hover{
+        background-color: blueviolet;
+    }
