@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style_test.css') }}">
+</head>
+
+<body>
+    <button id="start">start</button>
+    <div class="newdevice">
+            <p style="font-size: 30px;">Новое устройство хочет войти</p>
+            <button id="pdp">Подробнее</button>
+    </div>
+
+    <div style="display: flex;" class="more">
+        <p id="moreinfo"></p>
+        <div class="btnboxauth">
+            <button class="yes" id="yesi">Да это я</button>
+            <button class="no" id="noi">Нет не я</button>
+        </div>
+    </div>
+</body>
+<script>
+    document.getElementById("start").addEventListener("click",function(){
+        document.querySelectorAll(".newdevice").forEach(e => {
+            e.style.display = "flex"
+             e.classList.add("run");
+            })
+    })
+    document.getElementById("pdp").addEventListener("click",function(){
+        document.querySelectorAll(".newdevice").forEach(e => {
+            e.style.display="none";
+        })
+        document.querySelectorAll(".more").forEach(e => {
+
+            e.classList.add("run");
+        })
+    });
+</script>
+</html>

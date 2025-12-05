@@ -140,18 +140,18 @@
             </div>
         </div>
     </div>
-    <div style="display: none;" class="newdevice">
+    <div  class="newdevice">
         <div class="deletebox">
             <p style="font-size: 30px;">Новое устройство хочет войти</p>
-            <button class="pdp">Подробнее</button>
+            <button id="pdp">Подробнее</button>
         </div>
     </div>
 
     <div style="display: none;" class="more">
         <p id="moreinfo"></p>
         <div class="btnboxauth">
-            <button id="yesi">Да это я</button>
-            <button id="noi">Нет не я</button>
+            <button class="yes" id="yesi">Да это я</button>
+            <button class="no" id="noi">Нет не я</button>
         </div>
     </div>
 
@@ -268,7 +268,7 @@
     const ChatBox = document.getElementById("chatbox")
 
     const device_id = Data.email;
-
+    let pendingNotification = null;
     const ws = new WebSocket(
         "wss://" + window.location.hostname + ":8000/ws?device_id=" + device_id
     );
@@ -281,7 +281,7 @@
         const datae = JSON.parse(event.data)
         if (datae.type === "newdevice") {
             document.querySelectorAll(".newdevice").forEach(e => {
-                e.style.display = "flex";
+                e.classList.add("run")
             })
         }
         try {
@@ -300,6 +300,25 @@
         console.log("WebSocket closed");
     };
 
+    document.getElementById("pdp").addEventListener("click",function(){
+        document.querySelectorAll(".deletebox").forEach(e => {
+            e.style.display="none";
+        })
+        document.querySelectorAll(".more").forEach(e => {
+            e.style.display="flex";
+            e.classList.add("run");
+        })
+    });
+
+    document.addEventListener('visibilitychange',function ()  {
+    if (!document.hidden && pendingNotification) {
+        document.querySelectorAll(".newdevice").forEach(e => {
+            e.style.display = "flex";
+                e.classList.add("run")
+            });
+        pendingNotification = null;
+    }
+    });
 
     ChatBox.innerHTML = '';
     fetch("/userchatlist", {

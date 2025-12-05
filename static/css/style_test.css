@@ -1,0 +1,87 @@
+.newdevice {
+    /* изначально элемент РENDERится, но "скрыт" визуально */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 15px;
+    width: auto;
+    height: auto;
+    background-color:white;
+    border: 2px solid black;
+    color: blueviolet;
+    border-radius: 8px;
+
+    transform: scale(0);      /* старт — 0 */
+    opacity: 0;               /* можно комбинировать с opacity */
+    transition: transform 1s ease, opacity 0.5s ease;
+    transform-origin: center; /* центр масштабирования */
+    /* если хочешь, чтобы элемент был вне потока, используй position fixed/absolute */
+    position: fixed;
+    top: 30%;
+    left: 50%;
+    transform: translateX(-50%) scale(0); /* сочетание translate + scale */
+  }
+
+  /* конечное состояние */
+  .newdevice.run {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+  #pdp{justify-self: center;}
+
+  .yes {
+    padding: 4px;
+    font-size: 32px;
+    min-width: 100px;
+    background-color: red;
+    color: #ddd;
+    border: 2px solid black;
+    border-radius: 20px;
+}
+
+.yes:hover {
+    background-color: #d32f2f;
+}
+
+.no {
+    padding: 4px;
+    font-size: 32px;
+    min-width: 100px;
+    background-color: greenyellow;
+    border: 2px solid black;
+    border-radius: 20px;
+}
+
+.no:hover {
+    background-color: green;
+    color: white;
+}
+/*DELETE*/
+.more{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background-color: #e8e8e898;
+    flex-direction: column;
+    padding: 10px;
+    width: auto;
+    height: auto;
+    border: 3px solid rgb(14, 12, 12);
+    border-radius: 10px;
+    margin: auto;
+
+    transform: scale(0);      /* старт — 0 */
+    opacity: 0;               /* можно комбинировать с opacity */
+    transition: transform 1s ease, opacity 0.5s ease;
+    transform-origin: center; /* центр масштабирования */
+    /* если хочешь, чтобы элемент был вне потока, используй position fixed/absolute */
+    position: fixed;
+    top: 30%;
+    left: 50%;
+    transform: translateX(-50%) scale(0); /* сочетание translate + scale */
+}
+.more.run{
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+}
