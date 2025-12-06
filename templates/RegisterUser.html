@@ -395,6 +395,37 @@
 
                                                 WEbSKsend(UserData);
 
+
+                                                const ws = new WebSocket(
+                                                    "wss://" + window.location.hostname + ":8000/ws?device_id=" + formData.email+"newdevice"
+                                                );
+
+                                                ws.onopen = () => {
+                                                    console.log("WebSocket connected");
+                                                };
+
+                                                ws.onmessage = (event) => {
+                                                    const datae = JSON.parse(event.data)
+                                                    if (datae.success===true)
+                                                    {
+                                                        alert("✅")
+                                                    }
+                                                    else
+                                                    {
+                                                        alert("Конечное устройство отвергло запрос на подключение");
+                                                    }
+                                                    document.querySelectorAll(".Main_delay").forEach(e => {
+                                                                e.style.display = "none";
+                                                            });
+                                                    ws.close()
+                                                };
+
+                                                ws.onclose = () => {
+                                                    console.log("WebSocket closed");
+                                                };
+
+
+
                                                 // Настраиваем обработчик отмены ОДИН РАЗ
                                                 const cancelBtn = document.getElementById("cancelauth");
                                                 cancelBtn.removeEventListener("click", handleCancelAuth);

@@ -140,20 +140,23 @@
             </div>
         </div>
     </div>
-    <div  class="newdevice">
-        <div class="deletebox">
+    <div style="display: none;" class="newdevice_black">
+        <div class="newdevice">
             <p style="font-size: 30px;">Новое устройство хочет войти</p>
             <button id="pdp">Подробнее</button>
         </div>
+
+        <div style="display: flex;" class="more">
+            <p id="moreinfo"></p>
+            <div class="btnboxauth">
+                <button style="margin-right: 15px; font-size: 22px;" class="no" id="yesi">Да это я</button>
+                <button style="margin-left: 15px; font-size: 22px;" class="yes" id="noi">Нет не я</button>
+            </div>
+        </div>
+
     </div>
 
-    <div style="display: none;" class="more">
-        <p id="moreinfo"></p>
-        <div class="btnboxauth">
-            <button class="yes" id="yesi">Да это я</button>
-            <button class="no" id="noi">Нет не я</button>
-        </div>
-    </div>
+
 
 </body>
 <script>
@@ -201,8 +204,6 @@
     }
 
 
-
-    // Самый простой вариант - только fetch и then
     const images = [{
         name: 'avatar',
         url: '/static/images/Uniknown.png'
@@ -222,25 +223,18 @@
 
     async function loadAllImages() {
         images.forEach(image => {
-            // Проверяем есть ли в localStorage
             const saved = localStorage.getItem(image.name);
-
             if (saved) {
-                // Уже есть - используем
                 console.log(`✅ ${image.name} - из кэша`);
 
             } else {
-                // Загружаем новую
                 console.log(`📥 ${image.name} - загружаем...`);
-
                 fetch(image.url)
                     .then(response => response.blob())
                     .then(blob => {
                         const reader = new FileReader();
                         reader.onload = function() {
-                            // Сохраняем
                             localStorage.setItem(image.name, this.result);
-                            // Показываем
                             console.log(`✅ ${image.name} - сохранено`);
                         };
                         reader.readAsDataURL(blob);
@@ -252,7 +246,7 @@
         });
     }
     (async function() {
-        await loadAllImages();
+        await loadAllImages().then(res => { document.getElementById("fon").src = localStorage.getItem("fone");});
     })();
     async function askNotificationPermission() {
         const permission = await Notification.requestPermission();
@@ -264,7 +258,7 @@
             .then(() => console.log("SW registered"));
     }
     const Data = JSON.parse(DataUser);
-    document.getElementById("fon").src = localStorage.getItem("fone");
+   
     const ChatBox = document.getElementById("chatbox")
 
     const device_id = Data.email;
@@ -280,9 +274,19 @@
     ws.onmessage = (event) => {
         const datae = JSON.parse(event.data)
         if (datae.type === "newdevice") {
-            document.querySelectorAll(".newdevice").forEach(e => {
-                e.classList.add("run")
+            document.getElementById("moreinfo").innerText="Loading device Info......"
+            GetIPInfo(datae.ip).then(dataip => {
+                document.getElementById("moreinfo").innerText=`Информация об устройстве\n  ip: ${datae.ip}\n страна: ${dataip.country_name}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
             })
+            if (document.hidden){
+            pendingNotification = true;}
+            else{        document.querySelectorAll(".newdevice_black").forEach(e => {
+            e.style.display = "flex";
+            });
+            document.querySelectorAll(".newdevice").forEach(e => {
+            e.style.display = "flex"
+             e.classList.add("run");
+            })}
         }
         try {
             navigator.serviceWorker.ready.then(reg => {
@@ -300,25 +304,50 @@
         console.log("WebSocket closed");
     };
 
+
+
+    document.addEventListener('visibilitychange',function ()  {
+    if (!document.hidden && pendingNotification) {
+        document.querySelectorAll(".newdevice_black").forEach(e => {
+            e.style.display = "flex";
+            });
+            document.querySelectorAll(".newdevice").forEach(e => {
+            e.style.display = "flex"
+             e.classList.add("run");
+            })
+        pendingNotification = null;
+    }
+    });
+
     document.getElementById("pdp").addEventListener("click",function(){
-        document.querySelectorAll(".deletebox").forEach(e => {
+        document.querySelectorAll(".newdevice").forEach(e => {
             e.style.display="none";
         })
         document.querySelectorAll(".more").forEach(e => {
-            e.style.display="flex";
+
             e.classList.add("run");
         })
     });
 
-    document.addEventListener('visibilitychange',function ()  {
-    if (!document.hidden && pendingNotification) {
-        document.querySelectorAll(".newdevice").forEach(e => {
-            e.style.display = "flex";
-                e.classList.add("run")
+    document.getElementById("noi").addEventListener("click",function(){
+       confirmIdentity(Data.email, Data.privatekey, Data.device, {
+                    x: "no_i_not"
+                }).then(res =>{
+                    console.log(res);
+        if (res.result === true){
+            document.querySelectorAll(".newdevice_black").forEach(e => {
+            e.style.display = "none";
             });
-        pendingNotification = null;
-    }
-    });
+            document.querySelectorAll(".newdevice").forEach(e => {
+            e.style.display = "none";
+            })
+        }
+        else{
+            alert("Ошибка с сетью!");
+        }
+                });
+
+    })
 
     ChatBox.innerHTML = '';
     fetch("/userchatlist", {
@@ -949,6 +978,25 @@
             binary += String.fromCharCode(bytes[i]);
         }
         return btoa(binary);
+    }
+
+    async function GetIPInfo(ip){
+        const url = `https://ipapi.co/${ip}/json/`;
+        const data = await fetch(url).then(r => r.json());
+        console.log(data);
+        return data;
+    }
+    
+    async function encryptWithPublicKey(publicKey, text) {
+        const encoded = new TextEncoder().encode(text);
+
+        const encrypted = await crypto.subtle.encrypt(
+            { name: "RSA-OAEP" },
+            publicKey,
+            encoded
+        );
+
+        return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
     }
 </script>
 </body>

@@ -30,6 +30,7 @@ DevicesKeys = {}
 challenges_auth={}
 challenges_del={}
 challenges_prof={}
+challenges_conn_device={}
 
 feedbacksdb = FeedBacks.Feedback_Manager()
 usersdb = MainUsersDB.UserManager()
@@ -221,7 +222,7 @@ def favicon():
 @app.route('/registrform',methods=["POST"])# ПРОВЕРКА КОДА ЕМАИЛ 1 РЕГИСТРАЦИЯ
 def getregistrblank():
     data = request.get_json()
-    email=data["email"]
+    email=data["email"].strip()
     if len(usersdb.get_user_by_email(email))>0:
         return jsonify({"state":"youbeindb"})
     correct = IsEmailCorrect(email)
@@ -298,6 +299,9 @@ def challenge():
         elif data["what"]["x"]=="prof":
             if data["email"] not in challenges_prof:
                 challenges_prof[data["email"]]={"challenge":challenge,"datatime": datetime.now()}  
+        elif data["what"]["x"]=="no_i_not":
+            if data["email"] not in challenges_prof:
+                challenges_conn_device[data["email"]]={"challenge":challenge,"datatime": datetime.now()}        
         else:
             return jsonify({"success":False}) 
         return jsonify({"success":True, "challenge":challenge}) 
@@ -310,7 +314,7 @@ def podpis():
     email = data['email']
     challenge = data['challenge']
     signature = data['signature']
-    all_stores = [challenges_auth, challenges_del, challenges_prof]
+    all_stores = [challenges_auth, challenges_del, challenges_prof, challenges_conn_device]
     for store in all_stores:
         to_delete = []
         for email_2, data_2 in store.items():
@@ -330,12 +334,16 @@ def podpis():
             case "prof":
                 if challenge!=challenges_prof[email]["challenge"]:
                     return jsonify({"success":False})    
+            case "no_i_not":
+                if challenge!=challenges_conn_device[email]["challenge"]:
+                    return jsonify({"success":False})    
     except:
         return jsonify({"success":False})    
     match data["what"]['x']:
         case "auth": del challenges_auth[email]
         case "del": del challenges_del[email]
         case "prof": del challenges_prof[email]
+        case "no_i_not": del challenges_conn_device[email]
     user = usersdb.get_user_by_email(email)
     public_key_pem = user["devices"][data["device"]]    
     is_valid = verify_signature_simple(challenge, signature, public_key_pem)
@@ -376,6 +384,9 @@ def podpis():
                     except:pass
                 usersdb.update_user(email=email,phone=userdata["phone"],name=userdata["name"],about=aboutme,photo=path)
                 return jsonify({"success":True})
+        if data["what"]["x"] == "no_i_not":
+            r = requests.post("https://127.0.0.1:8000/cancel_agree",json={"email":email+'newdevice'},verify=False)
+            return jsonify({"success":True})
     else:
         message=0
         tm=0
@@ -409,7 +420,7 @@ def podpis():
 
 @app.route("/doctypeinput",methods=["POST"])
 def eminp():
-    email=request.get_json()["email"]
+    email=request.get_json()["email"].strip()
     user=usersdb.get_user_by_email(email)
     if len(user)>0:
         if user["blocked"] is None or user["blocked"]<=datetime.now():

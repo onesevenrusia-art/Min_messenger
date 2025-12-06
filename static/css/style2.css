@@ -717,7 +717,7 @@
         background-color: blueviolet;
     }
     
-    .newdevice {
+    .newdevice_black {
         display: flex;
         position: absolute;
         left: 0;
@@ -728,33 +728,71 @@
         justify-content: center;
         justify-items: center;
         z-index: 10;
-        transform: scale(0);
-        opacity: 0;
+    }
+
+
+    .newdevice {
+      
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        padding: 15px;
+        width: auto;
+        height: auto;
+        background-color:white;
+        border: 2px solid black;
+        color: blueviolet;
+        border-radius: 8px;
+    
+        transform: scale(0);      
+        opacity: 0;               
         transition: transform 1s ease, opacity 0.5s ease;
         transform-origin: center; 
+        
+        position: fixed;
+        top: 30%;
+        left: 50%;
         transform: translateX(-50%) scale(0);
-    }
-    .newdevice.run{
+      }
+    
+  
+      .newdevice.run {
         transform: translateX(-50%) scale(1);
         opacity: 1;
-    }
+      }
+    
+
     .more{
         display: flex;
         flex-direction: column;
         justify-content: center;
-        background-color: #e8e8e8;
+        background-color: #e8e8e8dc;
+        flex-direction: column;
         padding: 10px;
         width: auto;
         height: auto;
         border: 3px solid rgb(14, 12, 12);
         border-radius: 10px;
         margin: auto;
+    
+        transform: scale(0); 
+        opacity: 0;          
         transition: transform 1s ease, opacity 0.5s ease;
         transform-origin: center; 
+       
         position: fixed;
-        transform: translateX(-50%) scale(0);
+        top: 30%;
+        left: 50%;
+        transform: translateX(-50%) scale(0); 
     }
     .more.run{
         transform: translateX(-50%) scale(1);
         opacity: 1;
+    }
+    .btnboxauth{
+        display: flex;
+        justify-content: space-between;
+        padding: 5px;
+        top:auto;
     }

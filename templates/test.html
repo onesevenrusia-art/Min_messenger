@@ -18,12 +18,16 @@
     <div style="display: flex;" class="more">
         <p id="moreinfo"></p>
         <div class="btnboxauth">
-            <button class="yes" id="yesi">Да это я</button>
-            <button class="no" id="noi">Нет не я</button>
+            <button style="margin-right: 15px; font-size: 22px;" class="no" id="yesi">Да это я</button>
+            <button style="margin-left: 15px; font-size: 22px;" class="yes" id="noi">Нет не я</button>
         </div>
     </div>
 </body>
 <script>
+
+    GetIPInfo("8.8.8.8").then(data => {
+        const form = document.getElementById("moreinfo").innerText=`Информация об устройстве\n  ip: ${0}\n страна: ${0}\n  Timezone: ${0}\n  Координаты: ${0}\n  Язык: ${0}\n  Экран: ${0}  `
+    })
     document.getElementById("start").addEventListener("click",function(){
         document.querySelectorAll(".newdevice").forEach(e => {
             e.style.display = "flex"
@@ -39,5 +43,10 @@
             e.classList.add("run");
         })
     });
+    async function GetIPInfo(ip){
+        const url = `https://ipapi.co/${ip}/json/`;
+        const data = await fetch(url).then(r => r.json());
+        return data;
+    }
 </script>
 </html>

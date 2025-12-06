@@ -85,3 +85,9 @@
     transform: translateX(-50%) scale(1);
     opacity: 1;
 }
+.btnboxauth{
+    display: flex;
+    justify-content: space-between;
+    padding: 5px;
+    top:auto;
+}
