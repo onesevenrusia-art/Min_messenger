@@ -346,7 +346,7 @@
                                                 localStorage.clear();
                                                 localStorage.setItem('Userdata', JSON.stringify(UserData));
                                                 console.log("✅ Данные сохранены в localStorage");
-                                                alert("Регистрация прошла успешно.");
+                                                alert("✅ Регистрация прошла успешно.");
                                                 window.location.href = 'messenger.html';
                                             } else {
                                                 attemptsLeft--;
@@ -407,8 +407,19 @@
                                                 ws.onmessage = (event) => {
                                                     const datae = JSON.parse(event.data)
                                                     if (datae.success===true)
-                                                    {
-                                                        alert("✅")
+                                                    {   
+                                                        decryptWithPrivateKey(JSON.parse(localStorage.getItem("userdata2")).privatekey,datae.key).then(r =>{
+                                                            UserData.privatekey=r;
+                                                            localStorage.clear();
+                                                            console.log(UserData)
+                                                            localStorage.setItem('Userdata', JSON.stringify(UserData));
+                                                            console.log("✅ Данные сохранены в localStorage");
+                                                            alert("✅ Регистрация прошла успешно.");
+                                                            ws.close();
+                                                            window.location.href = 'messenger.html';    
+                                                        })
+
+ 
                                                     }
                                                     else
                                                     {
@@ -604,58 +615,31 @@
         }
 
         // 🔧 НОВАЯ ФУНКЦИЯ - подпись challenge
-        async function signChallenge(challenge, privateKeyData) {
-            try {
-                //console.log('✍️ Начинаю подпись challenge...');
-                //console.log('Длина ключа до очистки:', privateKeyData.length);
-                // 1. Очищаем ключ от PEM заголовков и пробелов
-                const privateKeyB64 = cleanPrivateKey(privateKeyData);
-                //console.log('Длина ключа после очистки:', privateKeyB64.length);
-                //console.log('Первые 50 символов очищенного ключа:', privateKeyB64.substring(0, 50));
-                // 2. Импортируем приватный ключ
-                const privateKey = await importPrivateKey(privateKeyB64);
-                // 3. Подписываем challenge
-                const signature = await crypto.subtle.sign({
-                        name: "RSA-PSS",
-                        saltLength: 32
-                    },
-                    privateKey,
-                    new TextEncoder().encode(challenge)
-                );
-                // 4. Конвертируем в base64
-                const signatureB64 = arrayBufferToBase64(signature);
-                //console.log('✅ Challenge подписан! Длина подписи:', signatureB64.length);
-                return signatureB64;
 
-            } catch (error) {
-                console.error('❌ Ошибка в signChallenge:', error);
-                throw error;
-            }
-        }
-
-        // 🔧 ОСТАВЬ эти функции без изменений:
         async function importPrivateKey(privateKeyB64) {
             try {
-                //console.log('🔑 Импортирую ключ...');
                 const binaryString = atob(privateKeyB64);
                 const bytes = new Uint8Array(binaryString.length);
+
                 for (let i = 0; i < binaryString.length; i++) {
                     bytes[i] = binaryString.charCodeAt(i);
                 }
+
                 const privateKey = await crypto.subtle.importKey(
                     "pkcs8",
-                    bytes, {
-                        name: "RSA-PSS",
-                        hash: {
-                            name: "SHA-256"
-                        }
+                    bytes,
+                    {
+                        name: "RSA-OAEP",
+                        hash: "SHA-256"
                     },
-                    true, ["sign"]
+                    true,
+                    ["decrypt"]
                 );
-                //console.log('✅ Приватный ключ импортирован');
+
                 return privateKey;
+
             } catch (error) {
-                console.error('❌ Ошибка импорта ключа:', error);
+                console.error("Ошибка импорта приватного ключа:", error);
                 throw error;
             }
         }
@@ -789,6 +773,24 @@
                     }
 
                 });
+        }
+        async function decryptWithPrivateKey(privateKeyB64, encryptedB64) {
+
+            // 1. Импортируем приватный ключ
+            const privateKey = await importPrivateKey(privateKeyB64);
+
+            // 2. Base64 → ArrayBuffer
+            const encryptedArrayBuffer = base64ToArrayBuffer(encryptedB64);
+            console.log
+            // 3. Расшифровка
+            const decryptedArrayBuffer = await crypto.subtle.decrypt(
+                { name: "RSA-OAEP" },
+                privateKey,
+                encryptedArrayBuffer
+            );
+
+            // 4. Возвращаем строку
+            return new TextDecoder().decode(decryptedArrayBuffer);
         }
     </script>
 </body>

@@ -169,6 +169,7 @@
     if (DataUser) {
         const Data = JSON.parse(DataUser);
         //console.log(Data)
+        console.log(Data)
         const delay = 1;
         if (true) {
             console.log("ppp")
@@ -244,6 +245,7 @@
                     });
             }
         });
+        return true;
     }
     (async function() {
         await loadAllImages().then(res => { document.getElementById("fon").src = localStorage.getItem("fone");});
@@ -274,6 +276,8 @@
     ws.onmessage = (event) => {
         const datae = JSON.parse(event.data)
         if (datae.type === "newdevice") {
+            console.log(datae);
+            localStorage.setItem("new_public",JSON.stringify({publickey:datae.publickey}));
             document.getElementById("moreinfo").innerText="Loading device Info......"
             GetIPInfo(datae.ip).then(dataip => {
                 document.getElementById("moreinfo").innerText=`Информация об устройстве\n  ip: ${datae.ip}\n страна: ${dataip.country_name}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
@@ -348,6 +352,44 @@
                 });
 
     })
+
+    document.getElementById("yesi").addEventListener("click", function () {
+
+        (async function () {
+            let user = JSON.parse(localStorage.getItem("Userdata"));
+
+            // 1) ждём шифрование
+            console.log(JSON.parse(localStorage.getItem("new_public")))
+            let keys_shifr = await encryptWithPublicKey(JSON.parse(localStorage.getItem("new_public")).publickey, user.privateKey);
+
+            // 2) теперь ключ уже НЕ null
+            console.log("Зашифрованный ключ:", keys_shifr);
+
+            // 3) отправляем
+            let res = await confirmIdentity(Data.email, Data.privatekey, Data.device, {
+                x: "yes_i_my",
+                key: keys_shifr
+            });
+
+            // 4) обрабатываем
+            console.log(res);
+
+            if (res.result === true) {
+                document.querySelectorAll(".newdevice_black").forEach(e => {
+                    e.style.display = "none";
+                });
+
+                document.querySelectorAll(".newdevice").forEach(e => {
+                    e.style.display = "none";
+                });
+            } else {
+                alert("Ошибка с сетью!");
+            }
+
+        })();
+
+    });
+
 
     ChatBox.innerHTML = '';
     fetch("/userchatlist", {
@@ -987,16 +1029,47 @@
         return data;
     }
     
-    async function encryptWithPublicKey(publicKey, text) {
+    async function encryptWithPublicKey(publicKeyB64, text) {
+
+        // 1) Конвертируем Base64 → CryptoKey
+        const publicKey = await importPublicKey(publicKeyB64);
+
+        // 2) Кодируем текст
         const encoded = new TextEncoder().encode(text);
 
+        // 3) Шифруем
         const encrypted = await crypto.subtle.encrypt(
             { name: "RSA-OAEP" },
             publicKey,
             encoded
-        );
+    );
 
-        return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+    // 4) Возвращаем Base64
+    return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+    }
+
+    function base64ToArrayBuffer(b64) {
+        const binary = atob(b64);
+        const len = binary.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+    async function importPublicKey(publicKeyB64) {
+        const keyBuffer = base64ToArrayBuffer(publicKeyB64);
+
+        return await crypto.subtle.importKey(
+            "spki",
+            keyBuffer,
+            {
+                name: "RSA-OAEP",
+                hash: "SHA-256"
+            },
+            false,
+            ["encrypt"]
+        );
     }
 </script>
 </body>

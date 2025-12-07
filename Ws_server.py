@@ -91,7 +91,31 @@ async def cancelb2(request: Request):
     device_id = data["email"]
     if device_id in clients:
         try:
-            await clients[device_id]["ws"].send_json({"success":False})
+            await clients[device_id]["ws"].send_json({"type":"new_device","success":False})
+            del clients[device_id]
+            print(888,"ok")
+            return {"type":"new_device","success":False}
+        except:
+            print(888,"error")
+            pass
+    else:
+        print(888,"not in")
+        if device_id not in wait_for:
+            wait_for[device_id]=[]
+        wait_for[device_id].append({"type":"new_device","success":False})        
+        return {"success":True,
+                    "status": "sent"}
+    return {"status": "error",
+                    "success":False}
+
+@app.post("/i_agree")
+async def keys_sent(request: Request):
+    data = await request.json()
+    print(888)
+    device_id = data["email"]
+    if device_id in clients:
+        try:
+            await clients[device_id]["ws"].send_json({"type":"new_device","success":True,"key":data["key"]})
             del clients[device_id]
             print(888,"ok")
             return {"success":True,
@@ -103,7 +127,7 @@ async def cancelb2(request: Request):
         print(888,"not in")
         if device_id not in wait_for:
             wait_for[device_id]=[]
-        wait_for[device_id].append(data)        
+        wait_for[device_id].append({"type":"new_device","success":True,"key":data["key"]})        
         return {"success":True,
                     "status": "sent"}
     return {"status": "error",

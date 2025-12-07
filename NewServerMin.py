@@ -299,8 +299,8 @@ def challenge():
         elif data["what"]["x"]=="prof":
             if data["email"] not in challenges_prof:
                 challenges_prof[data["email"]]={"challenge":challenge,"datatime": datetime.now()}  
-        elif data["what"]["x"]=="no_i_not":
-            if data["email"] not in challenges_prof:
+        elif data["what"]["x"]=="no_i_not" or data["what"]["x"]=="yes_i_my" :
+            if data["email"] not in challenges_conn_device:
                 challenges_conn_device[data["email"]]={"challenge":challenge,"datatime": datetime.now()}        
         else:
             return jsonify({"success":False}) 
@@ -337,6 +337,9 @@ def podpis():
             case "no_i_not":
                 if challenge!=challenges_conn_device[email]["challenge"]:
                     return jsonify({"success":False})    
+            case "yes_i_my":
+                if challenge!=challenges_conn_device[email]["challenge"]:
+                    return jsonify({"success":False})    
     except:
         return jsonify({"success":False})    
     match data["what"]['x']:
@@ -344,6 +347,7 @@ def podpis():
         case "del": del challenges_del[email]
         case "prof": del challenges_prof[email]
         case "no_i_not": del challenges_conn_device[email]
+        case "yes_i_my": del challenges_conn_device[email]
     user = usersdb.get_user_by_email(email)
     public_key_pem = user["devices"][data["device"]]    
     is_valid = verify_signature_simple(challenge, signature, public_key_pem)
@@ -387,6 +391,11 @@ def podpis():
         if data["what"]["x"] == "no_i_not":
             r = requests.post("https://127.0.0.1:8000/cancel_agree",json={"email":email+'newdevice'},verify=False)
             return jsonify({"success":True})
+        if data["what"]["x"] == "yes_i_my":
+            r = requests.post("https://127.0.0.1:8000/i_agree",json={"email":email+'newdevice',"key":data["what"]["key"]},verify=False)
+            if r.json()["success"]==True:
+                return jsonify({"success":True})
+            else:return jsonify({"success":False})
     else:
         message=0
         tm=0
