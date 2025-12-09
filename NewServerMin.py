@@ -203,8 +203,11 @@ def send_swjs():
 
 @app.route('/UsersPhotos/<path:path>')
 def send_userphoto(path):
-    print("path")
     return send_from_directory('UsersPhotos', path)
+
+@app.route('/static/js/<path:path>')
+def send_JavaScript(path):
+    return send_from_directory('static/js', path)
 
 @app.route('/favicon.ico')
 def favicon():
@@ -246,7 +249,7 @@ def key():
     data = request.get_json()
     if data["key"]==DoctypeKeys[data["email"]]["code"]:
         print(f'adding user {data["name"]} .........')
-        d={data["device"]:data["publickey"]}
+        d={data["device"]:{"publickey":data["publickey"],"publickeycrypt":data["publickeycrypt"]}}
         usersdb.add_user(email=data["email"], userid=usersdb.get_max_userid()["id"]+1, name=data["name"], phone=data["phone"], devices=str(d))  
         del DoctypeKeys[data["email"]]
         return jsonify({"success":True})
@@ -349,7 +352,7 @@ def podpis():
         case "no_i_not": del challenges_conn_device[email]
         case "yes_i_my": del challenges_conn_device[email]
     user = usersdb.get_user_by_email(email)
-    public_key_pem = user["devices"][data["device"]]    
+    public_key_pem = user["devices"][data["device"]]["publickey"]    
     is_valid = verify_signature_simple(challenge, signature, public_key_pem)
     if is_valid:
         if data["what"]["x"]=="auth":
@@ -490,7 +493,8 @@ def GetUserInfo():
                     "email":user['email'],
                     "name":user['name'],
                     "photo":user["photo"],
-                    "phone":user['phone'],}
+                    "phone":user['phone'],
+                    "publickeys":user["devices"][next(iter(user["devices"]))]}
     if user["about"]!=None:
         print(user["about"].split("\n"))
         for d in user["about"].split("\n"):

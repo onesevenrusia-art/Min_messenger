@@ -159,6 +159,7 @@
 
 
 </body>
+<script src="/static/js/appCrypto.js"></script>
 <script>
     const photoContainer = document.querySelector('.photo-container');
     const photoAdd = document.querySelector('.photo-add');
@@ -221,7 +222,12 @@
         name: 'UniknownChat2',
         url: 'static/images/UniknownChat.jpg'
     }];
-
+    async function GetIPInfo(ip){
+        const url = `https://ipapi.co/${ip}/json/`;
+        const data = await fetch(url).then(r => r.json());
+        console.log(data);
+        return data;
+    }
     async function loadAllImages() {
         images.forEach(image => {
             const saved = localStorage.getItem(image.name);
@@ -247,9 +253,9 @@
         });
         return true;
     }
-    (async function() {
-        await loadAllImages().then(res => { document.getElementById("fon").src = localStorage.getItem("fone");});
-    })();
+  
+    loadAllImages().then(res => { document.getElementById("fon").src = localStorage.getItem("fone");});
+
     async function askNotificationPermission() {
         const permission = await Notification.requestPermission();
         console.log("Notification permission:", permission);
@@ -279,19 +285,26 @@
             console.log(datae);
             localStorage.setItem("new_public",JSON.stringify({publickey:datae.publickey}));
             document.getElementById("moreinfo").innerText="Loading device Info......"
-            GetIPInfo(datae.ip).then(dataip => {
-                document.getElementById("moreinfo").innerText=`Информация об устройстве\n  ip: ${datae.ip}\n страна: ${dataip.country_name}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
-            })
+            try{
+                GetIPInfo(datae.ip).then(dataip => {
+                    document.getElementById("moreinfo").innerText=`Информация об устройстве\n  ip: ${datae.ip}\n страна: ${dataip.country_name}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
+                })
+            }
+            catch{
+                    document.getElementById("moreinfo").innerText=`Информация об устройстве\n  ip: ${datae.ip}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
+            }
             if (document.hidden){
-            pendingNotification = true;}
-            else{        document.querySelectorAll(".newdevice_black").forEach(e => {
-            e.style.display = "flex";
-            });
-            document.querySelectorAll(".newdevice").forEach(e => {
-            e.style.display = "flex"
-             e.classList.add("run");
-            })}
-        }
+                pendingNotification = true;
+            }
+            else{        
+                document.querySelectorAll(".newdevice_black").forEach(e => {
+                    e.style.display = "flex";
+                });
+                document.querySelectorAll(".newdevice").forEach(e => {
+                        e.style.display = "flex"
+                        e.classList.add("run");
+                })}
+            }
         try {
             navigator.serviceWorker.ready.then(reg => {
                 reg.active.postMessage({
@@ -359,8 +372,8 @@
             let user = JSON.parse(localStorage.getItem("Userdata"));
 
             // 1) ждём шифрование
-            console.log(JSON.parse(localStorage.getItem("new_public")))
-            let keys_shifr = await encryptWithPublicKey(JSON.parse(localStorage.getItem("new_public")).publickey, user.privateKey);
+            let zzz = JSON.parse(localStorage.getItem("new_public"))
+            let keys_shifr = await encryptMessage('Jopasranskaya112345' , zzz );
 
             // 2) теперь ключ уже НЕ null
             console.log("Зашифрованный ключ:", keys_shifr);
@@ -941,136 +954,6 @@
         }
     }
 
-
-    function cleanPrivateKey(privateKeyData) {
-        //console.log('🔧 Очищаю ключ...');
-        if (privateKeyData.includes('-----BEGIN')) {
-            //console.log('📝 Обнаружен PEM формат');
-            return privateKeyData
-                .replace(/-----BEGIN PRIVATE KEY-----/g, '')
-                .replace(/-----END PRIVATE KEY-----/g, '')
-                .replace(/-----BEGIN RSA PRIVATE KEY-----/g, '')
-                .replace(/-----END RSA PRIVATE KEY-----/g, '')
-                .replace(/\s/g, ''); // Убираем ВСЕ пробелы и переносы
-        }
-        return privateKeyData.replace(/\s/g, '');
-    }
-
-    // 🔧 НОВАЯ ФУНКЦИЯ - подпись challenge
-    async function signChallenge(challenge, privateKeyData) {
-        try {
-            //console.log('✍️ Начинаю подпись challenge...');
-            //console.log('Длина ключа до очистки:', privateKeyData.length);
-            // 1. Очищаем ключ от PEM заголовков и пробелов
-            const privateKeyB64 = cleanPrivateKey(privateKeyData);
-            //console.log('Длина ключа после очистки:', privateKeyB64.length);
-            //console.log('Первые 50 символов очищенного ключа:', privateKeyB64.substring(0, 50));
-            // 2. Импортируем приватный ключ
-            const privateKey = await importPrivateKey(privateKeyB64);
-            // 3. Подписываем challenge
-            const signature = await crypto.subtle.sign({
-                    name: "RSA-PSS",
-                    saltLength: 32
-                },
-                privateKey,
-                new TextEncoder().encode(challenge)
-            );
-            // 4. Конвертируем в base64
-            const signatureB64 = arrayBufferToBase64(signature);
-            //console.log('✅ Challenge подписан! Длина подписи:', signatureB64.length);
-            return signatureB64;
-
-        } catch (error) {
-            console.error('❌ Ошибка в signChallenge:', error);
-            throw error;
-        }
-    }
-
-    // 🔧 ОСТАВЬ эти функции без изменений:
-    async function importPrivateKey(privateKeyB64) {
-        try {
-            //console.log('🔑 Импортирую ключ...');
-            const binaryString = atob(privateKeyB64);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-            const privateKey = await crypto.subtle.importKey(
-                "pkcs8",
-                bytes, {
-                    name: "RSA-PSS",
-                    hash: {
-                        name: "SHA-256"
-                    }
-                },
-                true, ["sign"]
-            );
-            //console.log('✅ Приватный ключ импортирован');
-            return privateKey;
-        } catch (error) {
-            console.error('❌ Ошибка импорта ключа:', error);
-            throw error;
-        }
-    }
-
-    function arrayBufferToBase64(buffer) {
-        const bytes = new Uint8Array(buffer);
-        let binary = '';
-        for (let i = 0; i < bytes.byteLength; i++) {
-            binary += String.fromCharCode(bytes[i]);
-        }
-        return btoa(binary);
-    }
-
-    async function GetIPInfo(ip){
-        const url = `https://ipapi.co/${ip}/json/`;
-        const data = await fetch(url).then(r => r.json());
-        console.log(data);
-        return data;
-    }
-    
-    async function encryptWithPublicKey(publicKeyB64, text) {
-
-        // 1) Конвертируем Base64 → CryptoKey
-        const publicKey = await importPublicKey(publicKeyB64);
-
-        // 2) Кодируем текст
-        const encoded = new TextEncoder().encode(text);
-
-        // 3) Шифруем
-        const encrypted = await crypto.subtle.encrypt(
-            { name: "RSA-OAEP" },
-            publicKey,
-            encoded
-    );
-
-    // 4) Возвращаем Base64
-    return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
-    }
-
-    function base64ToArrayBuffer(b64) {
-        const binary = atob(b64);
-        const len = binary.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-            bytes[i] = binary.charCodeAt(i);
-        }
-        return bytes.buffer;
-    }
-    async function importPublicKey(publicKeyB64) {
-        const keyBuffer = base64ToArrayBuffer(publicKeyB64);
-
-        return await crypto.subtle.importKey(
-            "spki",
-            keyBuffer,
-            {
-                name: "RSA-OAEP",
-                hash: "SHA-256"
-            },
-            false,
-            ["encrypt"]
-        );
-    }
 </script>
 </body>
 
