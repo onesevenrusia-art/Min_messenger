@@ -102,16 +102,15 @@
     </div>
     <script src="/static/js/appCrypto.js"></script>
     <script>
-
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             const DataUser = localStorage.getItem('Userdata');
             console.log(DataUser)
             if (DataUser) {
                 window.location.href = "messenger.html";
 
             } else {
-                // Всё что нужно - одна функция
-                (async function() {
+
+                await (async function(showStep) {
                     const keys = await generateKeyPair();
 
                     const userData2 = {
@@ -124,12 +123,12 @@
                     const keyscrypt = await generateEncryptionKeyPair();
 
 
-                    userData2.publickeycrypt=keyscrypt.publicKey;
-                    userData2.privatekeycrypt=keyscrypt.privateKey;
+                    userData2.publickeycrypt = keyscrypt.publicKey;
+                    userData2.privatekeycrypt = keyscrypt.privateKey;
                     console.log("saved keys ✅")
                     localStorage.setItem('userdata222', JSON.stringify(userData2));
-                })();
-                const MyKeys=JSON.parse(localStorage.getItem("userdata222"));
+                })()
+                const MyKeys = JSON.parse(localStorage.getItem("userdata222"));
                 console.log(MyKeys);
 
                 // Переменные для хранения обработчиков
@@ -138,6 +137,7 @@
                 let loginEmailHandler = null;
                 let loginSendHandler = null;
                 let attemptsLeft = 3;
+
                 function Authorisation() {
                     const authBox = document.getElementById('authBox');
                     const registerBox = document.getElementById('registerBox');
@@ -327,6 +327,7 @@
                                 e.preventDefault();
                                 if (flag) {
                                     // Регистрация
+
                                     fetch("/interkeydostype", {
                                             method: 'POST',
                                             headers: {
@@ -346,7 +347,8 @@
                                         .then(result => {
                                             if (result.success) {
                                                 localStorage.clear();
-                                                localStorage.setItem('Userdata', JSON.stringify(UserData));
+                                                MyKeys.email = formData.email;
+                                                localStorage.setItem('Userdata', JSON.stringify(MyKeys));
                                                 console.log("✅ Данные сохранены в localStorage");
                                                 alert("✅ Регистрация прошла успешно.");
                                                 window.location.href = 'messenger.html';
@@ -400,7 +402,7 @@
 
 
                                                 const ws = new WebSocket(
-                                                    "wss://" + window.location.hostname + ":8000/ws?device_id=" + formData.email+"newdevice"
+                                                    "wss://" + window.location.hostname + ":8000/ws?device_id=" + formData.email + "newdevice"
                                                 );
 
                                                 ws.onopen = () => {
@@ -409,10 +411,9 @@
 
                                                 ws.onmessage = (event) => {
                                                     const datae = JSON.parse(event.data)
-                                                    if (datae.success===true)
-                                                    {   
-                                                        console.log(datae.key,MyKeys.privatekeycrypt);
-                                                        decryptMessage(datae.key,MyKeys.privatekeycrypt).then(resulted_key => {
+                                                    if (datae.success === true) {
+                                                        console.log(datae.key, MyKeys.privatekeycrypt);
+                                                        decryptMessage(datae.key, MyKeys.privatekeycrypt).then(resulted_key => {
                                                             //resulted_key=JSON.parse(resulted_key);
                                                             console.log(resulted_key);
                                                             fetch("/GetUserInfo", {
@@ -420,41 +421,42 @@
                                                                     headers: {
                                                                         'Content-Type': 'application/json'
                                                                     },
-                                                                    body: JSON.stringify({email:formData.email}),
+                                                                    body: JSON.stringify({
+                                                                        email: formData.email
+                                                                    }),
                                                                 })
                                                                 .then(response => response.json())
                                                                 .then(result => {
-                                                                    //const UserData = {
-                                                                    //    publickey: result.publickeys.publickey,
-                                                                    //    privatekey: resulted_key.publickey,
-                                                                    //    publickeycrypt: result.publickeys.publickeycrypt,
-                                                                    //    privatekeycrypt: resulted_key.publickeycrypt,
-                                                                    //    email: formData.email,
-                                                                    //    davice: generateDeviceId()
-                                                                    //}
-//
-                                                                    //localStorage.clear();
-                                                                    //console.log(UserData)
-                                                                    //localStorage.setItem('Userdata', JSON.stringify(UserData));
-                                                                    //console.log("✅ Данные сохранены в localStorage");
-                                                                    //alert("✅ Регистрация прошла успешно.");
-                                                                    //ws.close();
-                                                                    //window.location.href = 'messenger.html';              
+
+                                                                    const UserData = {
+                                                                            publickey: result.publickeys.publickey,
+                                                                            privatekey: resulted_key.publickey,
+                                                                            publickeycrypt: result.publickeys.publickeycrypt,
+                                                                            privatekeycrypt: resulted_key.publickeycrypt,
+                                                                            email: formData.email,
+                                                                            davice: generateDeviceId()
+                                                                        }
+                                                                        //
+                                                                        //localStorage.clear();
+                                                                        //console.log(UserData)
+                                                                        //localStorage.setItem('Userdata', JSON.stringify(UserData));
+                                                                        //console.log("✅ Данные сохранены в localStorage");
+                                                                        //alert("✅ Регистрация прошла успешно.");
+                                                                        //ws.close();
+                                                                        //window.location.href = 'messenger.html';              
                                                                 })
                                                                 .catch(error => {
                                                                     console.error("Ошибка сети:", error);
                                                                 });
-                             
+
                                                         })
- 
-                                                    }
-                                                    else
-                                                    {
+
+                                                    } else {
                                                         alert("Конечное устройство отвергло запрос на подключение");
                                                     }
                                                     document.querySelectorAll(".Main_delay").forEach(e => {
-                                                                e.style.display = "none";
-                                                            });
+                                                        e.style.display = "none";
+                                                    });
                                                     ws.close()
                                                 };
 
@@ -688,8 +690,6 @@
             }
             return token.join("");
         }
-
-
     </script>
 </body>
 

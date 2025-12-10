@@ -1,117 +1,28 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Тест шифрования</title>
 </head>
+
 <body>
     <h1>Тест RSA шифрования</h1>
     <button onclick="runTest()">Запустить тест</button>
     <div id="result"></div>
-
+    <script src="static\js\appCrypto.js"></script>
     <script>
-        // 1. Вспомогательные функции
-        function arrayBufferToBase64(buffer) {
-            const bytes = new Uint8Array(buffer);
-            let binary = '';
-            for (let i = 0; i < bytes.byteLength; i++) {
-                binary += String.fromCharCode(bytes[i]);
-            }
-            return btoa(binary);
-        }
-
-        function base64ToArrayBuffer(base64) {
-            const binaryString = atob(base64);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-            return bytes.buffer;
-        }
-
-        // 2. Генерация ключей шифрования
-        async function generateEncryptionKeyPair() {
-            const keyPair = await crypto.subtle.generateKey(
-                {
-                    name: "RSA-OAEP",
-                    modulusLength: 2048,
-                    publicExponent: new Uint8Array([1, 0, 1]),
-                    hash: "SHA-256",
-                },
-                true,
-                ["encrypt", "decrypt"]
-            );
-
-            const exportedPublicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey);
-            const exportedPrivateKey = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
-
-            return {
-                publicKey: arrayBufferToBase64(exportedPublicKey),
-                privateKey: arrayBufferToBase64(exportedPrivateKey)
-            };
-        }
-
-        // 3. Импорт ключей
-        async function importPublicKey(publicKeyB64) {
-            const keyData = base64ToArrayBuffer(publicKeyB64);
-            return await crypto.subtle.importKey(
-                "spki",
-                keyData,
-                { name: "RSA-OAEP", hash: "SHA-256" },
-                true,
-                ["encrypt"]
-            );
-        }
-
-        async function importPrivateKey(privateKeyB64) {
-            const keyData = base64ToArrayBuffer(privateKeyB64);
-            return await crypto.subtle.importKey(
-                "pkcs8",
-                keyData,
-                { name: "RSA-OAEP", hash: "SHA-256" },
-                true,
-                ["decrypt"]
-            );
-        }
-
-        // 4. Шифрование
-        async function encryptMessage(message, publicKeyB64) {
-            const publicKey = await importPublicKey(publicKeyB64);
-            const encoder = new TextEncoder();
-            const data = encoder.encode(message);
-            
-            const encryptedData = await crypto.subtle.encrypt(
-                { name: "RSA-OAEP" },
-                publicKey,
-                data
-            );
-            
-            return arrayBufferToBase64(encryptedData);
-        }
-
-        // 5. Расшифровка
-        async function decryptMessage(encryptedMessageB64, privateKeyB64) {
-            const privateKey = await importPrivateKey(privateKeyB64);
-            const encryptedData = base64ToArrayBuffer(encryptedMessageB64);
-            
-            const decryptedData = await crypto.subtle.decrypt(
-                { name: "RSA-OAEP" },
-                privateKey,
-                encryptedData
-            );
-            
-            const decoder = new TextDecoder();
-            return decoder.decode(decryptedData);
-        }
-
-        // 6. Основной тест
         async function runTest() {
             const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = '<p>🔄 Запуск теста...</p>';
-            
+
             try {
                 // Шаг 1: Генерация ключей
                 resultDiv.innerHTML += '<p>🔐 Генерирую ключи шифрования...</p>';
-                const keys = await generateEncryptionKeyPair();
+                const keys = {
+                        publicKey: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnVgJ8pMSAQdaEn8B+o4smM8/c1f9Vy9KEr19H8wp3k3euRZjs+A6c6Or9KiHdOeMZgRkvq/x2RMdg3fpV7pU2Dv1xWIblm0PaSFynURvnPCJVf+xIvHGrNeQMugY4KI58GoNMGeB/ckFH0Gtq2b4Ry5FPSxbLlRFIXoMNZBxnkrRgkIpGkBi7Si3pOF2tBwSfAbIHU/Du94tIAda1+o2LHGevKAZYjTfT5xMcvHDT1HJu9mEy1QPcyt+59cgc0gmAq61NjnNEmj3ay0sgcPK+Cz0yBxkeZy71Z9aIE3KC6P6OjEzHjsIbyjGijAZrbWOY+GJ6ZBKzHsvq4S0AhmNwQIDAQAB",
+                        privateKey: "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCdWAnykxIBB1oSfwH6jiyYzz9zV/1XL0oSvX0fzCneTd65FmOz4Dpzo6v0qId054xmBGS+r/HZEx2Dd+lXulTYO/XFYhuWbQ9pIXKdRG+c8IlV/7Ei8cas15Ay6Bjgojnwag0wZ4H9yQUfQa2rZvhHLkU9LFsuVEUhegw1kHGeStGCQikaQGLtKLek4Xa0HBJ8BsgdT8O73i0gB1rX6jYscZ68oBliNN9PnExy8cNPUcm72YTLVA9zK37n1yBzSCYCrrU2Oc0SaPdrLSyBw8r4LPTIHGR5nLvVn1ogTcoLo/o6MTMeOwhvKMaKMBmttY5j4YnpkErMey+rhLQCGY3BAgMBAAECggEAIXI0cx72JcfVSrc6yXLtYfI0D6W1kZHY0hD7hwXUJJAy9u8edH8GjcxN4izs1lneC1WFwM8PvtAEZwzXSjGulWRxguqu6JP4QaW9glaozxiGaQR4N/BjBhywZ1HU7/MsE8HHWfG2vSa88v74FsZFooPgbfd+zmNVap9R9xTkQfxZ+qvRFDthib8D9e7qKZ1oHd3oIOGMsVitBRkL+yV6i+6iXEIC7aJd3K8mjLGRzi0c+uOPImretVdEPSQuZwZH/Wrz1YgN7633svKS28INTP8Cehcx07S/7E4HVvyJEKkE0PiJRPGchpc0MS63u0e981to3RMrhn0TxHxgqfr3LQKBgQDV94CIdYcq9G77YO01wtVl1dCb13O8jaI/8yrGK35IVrGPPRvFOoSzVTvqVQSh9HXKtuOitvfUTbUpu/u1yvFeMdr1qWQQF996LpVWnljHvFugT9YLXvB8TcyqSyNn8w4WX8cc2JWEzC9UFBvh7YvsezW7HpUsQ0TgN4p2VdKGrwKBgQC8QPFM2MG2dAUs6bqWTxhML+eYlit1Sw9Io157M1A92yr8m/mVmXf8gttfFnHofCifVYMfcDkl/cnONVmUBNBzG0n1T2xlkUxAoh33sdJzn0Ox/CFzM0lV4Aewybgsc7r28kKlp0N31dhM3+jepOIuZMvaGpFoajf6V5Ve6LlOjwKBgGyy9htdCbQqxY7zaM7dEihP/VCOnf92PK0cTeirA9agJEhOlSMXXX71mCCt3FKirIy1aOOq7DBw4c437+IlHYXq8f/HdEwwtJmPvNJqU1P1Pt8sb+MK8kVUCNuinHQcqFV5huACr8LtMEYYiSm30lPrLBrJqKL58a2uyargYrmFAoGARfWQdvF6k7ZsEfPOPnuoWO/YjnEIN2+sf18PBpPcNxCS2guQ5hKBb5qlsaGitTYm1oet0eofosm8zGAxKPvdB1nV008vxlMH1mEo59ryjbtbKfK775bYoww9b2qXghWEHq+LKwqM3STgXDk9zjfSQlF9HFGRRg9rPCJ+RSYRb2sCgYEAt/Vjka7/V7e40KoMwhNGv+Z8qGxqU+Q4OkeZGYsMD/KW6hUnQmbgaRaLAuhVX6iWTwXDhe/1QWKDTTnBpoRZCwHrcghlh0I/WWnAxurAb3w5ZaZgmmw6gSSw2rL6k89hsJ25QHYTKT5OZbMK1XSXWEPq2AqFLeA84W2KMBjcdEQ="
+                    } //await generateEncryptionKeyPair();
+                console.log(keys)
                 resultDiv.innerHTML += `<p>✅ Ключи сгенерированы (публичный: ${keys.publicKey.length} символов)</p>`;
 
                 // Шаг 2: Тестовое сообщение
@@ -120,7 +31,7 @@
 
                 // Шаг 3: Шифрование
                 resultDiv.innerHTML += '<p>🔒 Шифрую сообщение...</p>';
-                const encrypted = await encryptMessage(originalMessage, keys.publicKey);
+                const encrypted = await encryptMessage("Jopasranskaya112345", keys.publicKey);
                 resultDiv.innerHTML += `<p>✅ Сообщение зашифровано (${encrypted.length} символов)</p>`;
 
                 // Шаг 4: Расшифровка
@@ -142,4 +53,5 @@
         }
     </script>
 </body>
+
 </html>

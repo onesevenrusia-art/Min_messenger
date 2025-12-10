@@ -222,7 +222,7 @@
         name: 'UniknownChat2',
         url: 'static/images/UniknownChat.jpg'
     }];
-    async function GetIPInfo(ip){
+    async function GetIPInfo(ip) {
         const url = `https://ipapi.co/${ip}/json/`;
         const data = await fetch(url).then(r => r.json());
         console.log(data);
@@ -253,8 +253,10 @@
         });
         return true;
     }
-  
-    loadAllImages().then(res => { document.getElementById("fon").src = localStorage.getItem("fone");});
+
+    loadAllImages().then(res => {
+        document.getElementById("fon").src = localStorage.getItem("fone");
+    });
 
     async function askNotificationPermission() {
         const permission = await Notification.requestPermission();
@@ -262,11 +264,11 @@
     }
     askNotificationPermission();
     if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/sw.js")
+        navigator.serviceWorker.register("/static/js/sw.js")
             .then(() => console.log("SW registered"));
     }
     const Data = JSON.parse(DataUser);
-   
+
     const ChatBox = document.getElementById("chatbox")
 
     const device_id = Data.email;
@@ -283,28 +285,29 @@
         const datae = JSON.parse(event.data)
         if (datae.type === "newdevice") {
             console.log(datae);
-            localStorage.setItem("new_public",JSON.stringify({publickey:datae.publickey}));
-            document.getElementById("moreinfo").innerText="Loading device Info......"
-            try{
+            localStorage.setItem("new_public", JSON.stringify({
+                publickey: datae.publickey
+            }));
+            document.getElementById("moreinfo").innerText = "Loading device Info......"
+            try {
                 GetIPInfo(datae.ip).then(dataip => {
-                    document.getElementById("moreinfo").innerText=`Информация об устройстве\n  ip: ${datae.ip}\n страна: ${dataip.country_name}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
+                    document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n страна: ${dataip.country_name}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
                 })
+            } catch {
+                document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
             }
-            catch{
-                    document.getElementById("moreinfo").innerText=`Информация об устройстве\n  ip: ${datae.ip}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
-            }
-            if (document.hidden){
+            if (document.hidden) {
                 pendingNotification = true;
-            }
-            else{        
+            } else {
                 document.querySelectorAll(".newdevice_black").forEach(e => {
                     e.style.display = "flex";
                 });
                 document.querySelectorAll(".newdevice").forEach(e => {
-                        e.style.display = "flex"
-                        e.classList.add("run");
-                })}
+                    e.style.display = "flex"
+                    e.classList.add("run");
+                })
             }
+        }
         try {
             navigator.serviceWorker.ready.then(reg => {
                 reg.active.postMessage({
@@ -323,22 +326,22 @@
 
 
 
-    document.addEventListener('visibilitychange',function ()  {
-    if (!document.hidden && pendingNotification) {
-        document.querySelectorAll(".newdevice_black").forEach(e => {
-            e.style.display = "flex";
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden && pendingNotification) {
+            document.querySelectorAll(".newdevice_black").forEach(e => {
+                e.style.display = "flex";
             });
             document.querySelectorAll(".newdevice").forEach(e => {
-            e.style.display = "flex"
-             e.classList.add("run");
+                e.style.display = "flex"
+                e.classList.add("run");
             })
-        pendingNotification = null;
-    }
+            pendingNotification = null;
+        }
     });
 
-    document.getElementById("pdp").addEventListener("click",function(){
+    document.getElementById("pdp").addEventListener("click", function() {
         document.querySelectorAll(".newdevice").forEach(e => {
-            e.style.display="none";
+            e.style.display = "none";
         })
         document.querySelectorAll(".more").forEach(e => {
 
@@ -346,46 +349,41 @@
         })
     });
 
-    document.getElementById("noi").addEventListener("click",function(){
-       confirmIdentity(Data.email, Data.privatekey, Data.device, {
-                    x: "no_i_not"
-                }).then(res =>{
-                    console.log(res);
-        if (res.result === true){
-            document.querySelectorAll(".newdevice_black").forEach(e => {
-            e.style.display = "none";
-            });
-            document.querySelectorAll(".newdevice").forEach(e => {
-            e.style.display = "none";
-            })
-        }
-        else{
-            alert("Ошибка с сетью!");
-        }
+    document.getElementById("noi").addEventListener("click", function() {
+        confirmIdentity(Data.email, Data.privatekey, Data.device, {
+            x: "no_i_not"
+        }).then(res => {
+            console.log(res);
+            if (res.result === true) {
+                document.querySelectorAll(".newdevice_black").forEach(e => {
+                    e.style.display = "none";
                 });
+                document.querySelectorAll(".newdevice").forEach(e => {
+                    e.style.display = "none";
+                })
+            } else {
+                alert("Ошибка с сетью!");
+            }
+        });
 
     })
 
-    document.getElementById("yesi").addEventListener("click", function () {
+    document.getElementById("yesi").addEventListener("click", function() {
 
-        (async function () {
+        (async function() {
             let user = JSON.parse(localStorage.getItem("Userdata"));
 
-            // 1) ждём шифрование
             let zzz = JSON.parse(localStorage.getItem("new_public"))
-            let keys_shifr = await encryptMessage('Jopasranskaya112345' , zzz );
 
-            // 2) теперь ключ уже НЕ null
-            console.log("Зашифрованный ключ:", keys_shifr);
+            let keys_shifr = await encryptMessage(JSON.stringify({
+                privatekey: user.privatekey,
+                privatekeycrypt: user.privatekeycrypt
+            }), zzz.publickey);
 
-            // 3) отправляем
             let res = await confirmIdentity(Data.email, Data.privatekey, Data.device, {
                 x: "yes_i_my",
                 key: keys_shifr
             });
-
-            // 4) обрабатываем
-            console.log(res);
 
             if (res.result === true) {
                 document.querySelectorAll(".newdevice_black").forEach(e => {
@@ -953,7 +951,6 @@
             };
         }
     }
-
 </script>
 </body>
 
