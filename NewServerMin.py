@@ -194,9 +194,9 @@ def index3():
 def send_static(path):
     return send_from_directory('static', path)
 
-@app.route('/sw.js')
+@app.route('/static/js/sw.js')
 def send_swjs():
-    with open("sw.js","r+",encoding="utf-8") as f:
+    with open("static\js\sw.js","r+",encoding="utf-8") as f:
         js = f.read()
     return Response(js, mimetype="application/javascript")
 
@@ -395,8 +395,10 @@ def podpis():
             r = requests.post("https://127.0.0.1:8000/cancel_agree",json={"email":email+'newdevice'},verify=False)
             return jsonify({"success":True})
         if data["what"]["x"] == "yes_i_my":
+            
             r = requests.post("https://127.0.0.1:8000/i_agree",json={"email":email+'newdevice',"key":data["what"]["key"]},verify=False)
             if r.json()["success"]==True:
+                usersdb.add_device(email,data["what"]["device"],{})
                 return jsonify({"success":True})
             else:return jsonify({"success":False})
     else:

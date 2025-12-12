@@ -38,12 +38,12 @@
 
 
     <div class="mesenger_body">
-        <div id="chatbox">
-        </div>
-        <div class="chat">
+        <div id="chatbox"></div>
+        <div class="wind">
+            <div id="chat"></div>
             <div class="input_msg">
-                <input id="input_message">
-                <button id="send_btn">Send</button>
+                <textarea id="input_message"></textarea>
+                <button id="send">Send</button>
             </div>
         </div>
     </div>
@@ -98,16 +98,13 @@
             <p style="font-size: 30px; margin-bottom: 6px; margin-top:7px">Мой профиль</p>
             <div class="photo-container" style="position: relative; display: inline-block;">
                 <img id="my_photo" src="">
-                <!-- Иконка добавления фото -->
                 <div class="photo-add" style="position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.7); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
                     <span style="color: white; font-size: 18px;">+</span>
                 </div>
-                <!-- Иконка удаления фото -->
                 <div class="photo-delete" style="position: absolute; top: 5px; left: 5px; background: rgba(255,0,0,0.7); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; display: none;">
                     <span style="color: white; font-size: 18px;">×</span>
                 </div>
             </div>
-            <!-- Скрытый input для выбора файла -->
             <input type="file" id="photo_upload" accept="image/*" style="display: none;">
             <div style="display: flex; align-items: center; margin:5px">
                 <p style="font-size: 22px; margin-right: 10px">Имя:</p>
@@ -229,7 +226,7 @@
         return data;
     }
     async function loadAllImages() {
-        images.forEach(image => {
+        await images.forEach(image => {
             const saved = localStorage.getItem(image.name);
             if (saved) {
                 console.log(`✅ ${image.name} - из кэша`);
@@ -285,6 +282,9 @@
         const datae = JSON.parse(event.data)
         if (datae.type === "newdevice") {
             console.log(datae);
+            localStorage.setItem("newdeviceadd", JSON.stringify({
+                d: datae.mydevice
+            }))
             localStorage.setItem("new_public", JSON.stringify({
                 publickey: datae.publickey
             }));
@@ -374,7 +374,10 @@
             let user = JSON.parse(localStorage.getItem("Userdata"));
 
             let zzz = JSON.parse(localStorage.getItem("new_public"))
-
+            console.log(JSON.stringify({
+                privatekey: user.privatekey,
+                privatekeycrypt: user.privatekeycrypt
+            }), zzz.publickey);
             let keys_shifr = await encryptMessage(JSON.stringify({
                 privatekey: user.privatekey,
                 privatekeycrypt: user.privatekeycrypt
@@ -382,7 +385,8 @@
 
             let res = await confirmIdentity(Data.email, Data.privatekey, Data.device, {
                 x: "yes_i_my",
-                key: keys_shifr
+                key: keys_shifr,
+                device: JSON.parse(localStorage.getItem("newdeviceadd")).d
             });
 
             if (res.result === true) {

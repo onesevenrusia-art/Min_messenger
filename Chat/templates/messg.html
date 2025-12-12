@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/messages.css') }}">
+</head>
+
+<body>
+
+    <img id="fon" src="static\images\Mountains.jpg" alt="Фон">
+    <div class="Main">
+        <div id="chat"></div>
+        <div class="input_msg">
+            <textarea id="input_message"></textarea>
+            <button id="send">Send</button>
+        </div>
+    </div>
+
+</body>
+<script src="static\js\appCrypto.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", async function() {
+        const chat = document.getElementById("chat");
+        const key_pair = await generateEncryptionKeyPair();
+        const ws = new WebSocket(
+            "wss://" + window.location.hostname + ":8000/ws"
+        );
+
+        ws.onopen = () => {
+            console.log("WebSocket connected");
+        };
+
+        ws.onmessage = (event) => {
+            const datae = JSON.parse(event.data);
+            console.log(datae)
+            chat.innerHTML += `
+                        <div class="message" style='right;0'>
+                            <p id="name">${datae.ip}</p>
+                            <p id="text">${datae.message}</p>
+                            <p id="time">${datae.time}</p>
+                        </div>
+                `
+        };
+        ws.onclose = () => {
+            console.log("WebSocket closed");
+        };
+        document.getElementById("send").addEventListener("click", function() {
+            const message = document.getElementById("input_message").value.trim();
+            if (message !== "") {
+                const time = new Date()
+                ws.send(JSON.stringify({
+                    "message": message,
+                    "time": `${time.getHours()}:${time.getMinutes()}`
+                }));
+                chat.innerHTML += `
+                            <div class="message">
+                                <p id="name">Я</p>
+                                <p id="text">${message}</p>
+                                <p id="time">${time.getHours()}:${time.getMinutes()}</p>
+                            </div>
+                    `
+                document.getElementById("input_message").value = "";
+            }
+
+        })
+    });
+</script>
+
+</html>

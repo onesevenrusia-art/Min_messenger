@@ -368,6 +368,7 @@
                                         });
                                 } else {
                                     // Вход
+                                    const Mydevice = generateDeviceId();
                                     const fingerprint = generateKeyFingerprint(JSON.parse(localStorage.getItem("userdata222")).publickey)
                                     console.log(fingerprint);
                                     fetch("/interkey2", {
@@ -395,7 +396,8 @@
                                                     device: getDeviceInfo(),
                                                     publickey: MyKeys.publickeycrypt,
                                                     fingerprint: fingerprint,
-                                                    type: "newdevice"
+                                                    type: "newdevice",
+                                                    mydevice: Mydevice
                                                 };
 
                                                 WEbSKsend(UserData);
@@ -412,6 +414,7 @@
                                                 ws.onmessage = (event) => {
                                                     const datae = JSON.parse(event.data)
                                                     if (datae.success === true) {
+
                                                         console.log(datae.key, MyKeys.privatekeycrypt);
                                                         decryptMessage(datae.key, MyKeys.privatekeycrypt).then(resulted_key => {
                                                             //resulted_key=JSON.parse(resulted_key);
@@ -422,7 +425,8 @@
                                                                         'Content-Type': 'application/json'
                                                                     },
                                                                     body: JSON.stringify({
-                                                                        email: formData.email
+                                                                        email: formData.email,
+                                                                        device: Mydevice
                                                                     }),
                                                                 })
                                                                 .then(response => response.json())
@@ -434,16 +438,16 @@
                                                                             publickeycrypt: result.publickeys.publickeycrypt,
                                                                             privatekeycrypt: resulted_key.publickeycrypt,
                                                                             email: formData.email,
-                                                                            davice: generateDeviceId()
+                                                                            davice: Mydevice
                                                                         }
                                                                         //
-                                                                        //localStorage.clear();
-                                                                        //console.log(UserData)
-                                                                        //localStorage.setItem('Userdata', JSON.stringify(UserData));
-                                                                        //console.log("✅ Данные сохранены в localStorage");
-                                                                        //alert("✅ Регистрация прошла успешно.");
-                                                                        //ws.close();
-                                                                        //window.location.href = 'messenger.html';              
+                                                                    localStorage.clear();
+                                                                    console.log(UserData)
+                                                                    localStorage.setItem('Userdata', JSON.stringify(UserData));
+                                                                    //console.log("✅ Данные сохранены в localStorage");
+                                                                    alert("✅ Регистрация прошла успешно.");
+                                                                    ws.close();
+                                                                    window.location.href = 'messenger.html';
                                                                 })
                                                                 .catch(error => {
                                                                     console.error("Ошибка сети:", error);

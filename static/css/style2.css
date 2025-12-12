@@ -11,18 +11,12 @@
     
     .long-text {
         word-wrap: break-word;
-        /* Переносит длинные слова если нужно */
         overflow-wrap: break-word;
-        /* То же самое, современнее */
         word-break: keep-all;
-        /* Не разрывать слова произвольно */
         white-space: normal;
-        /* Разрешить переносы по пробелам */
         line-height: 1.5;
-        /* Гарантия что не выйдет за экран */
         max-width: 100%;
         overflow: hidden;
-        /* Современный стандарт */
     }
     
     .background-container {
@@ -57,7 +51,6 @@
         padding: 10px;
         padding-inline-end: 2px;
         position: relative;
-        /* ← ключевое для позиционирования .by */
     }
     
     .by {
@@ -146,7 +139,6 @@
         display: flex;
         align-items: center;
         margin-right: 15px;
-        /* Переносим margin с кнопки сюда */
     }
     
     .optionsmenu {
@@ -165,38 +157,23 @@
     
     .optionsmenu a {
         display: block;
-        /* Блочный элемент */
         padding: 6px 8px;
-        /* Отступы как у кнопки */
         text-decoration: none;
-        /* Без подчеркивания */
         color: black;
-        /* Цвет текста */
         background: #f8f8f8;
-        /* Фон как у кнопки */
         border: 1px solid #ddd;
-        /* Рамка как у кнопки */
         border-radius: 4px;
-        /* Закругленные углы */
         margin: 4px;
-        /* Отступ между кнопками */
         text-align: center;
-        /* Текст по центру */
         cursor: pointer;
-        /* Курсор-рука */
         width: 90%;
-        /* Ширина почти на всю меню */
         transition: background 0.2s ease;
-        /* Плавный переход */
     }
     
     .optionsmenu a:hover {
         background: #e8e8e8;
-        /* Темнее при наведении */
         border-color: #ccc;
-        /* Рамка темнее */
     }
-    /* Красная кнопка "Удалить аккаунт" */
     
     .optionsmenu a[style*="color: red"] {
         background: #ffebee;
@@ -211,7 +188,6 @@
     
     .swimopt:hover .optionsmenu {
         display: flex;
-        /* Показываем при наведении */
     }
     /*Shape*/
     /*Shape*/
@@ -254,12 +230,9 @@
         width: 54px;
         height: 54px;
         border-radius: 50%;
-        /* Круглый */
         object-fit: cover;
-        /* Заполняет круг */
         margin-right: 12px;
         flex-shrink: 0;
-        /* Не сжимается */
     }
     
     .chat-name {
@@ -270,7 +243,6 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        /* Многоточие если длинное имя */
     }
     /*chatbox*/
     /*chatbox*/
@@ -284,57 +256,74 @@
     /*input*/
     /*input*/
     
-    .input_msg {
-        display: flex;
-        justify-content: space-around;
-        background-color: rgba(255, 255, 255, 0.5);
-        width: 100%;
-        margin-block-end: 1%;
-        padding: 1%;
-    }
-    
     #input_message {
-        margin-left: 5%;
-        margin-right: 3%;
-        border-radius: 8%;
-        background-color: rgb(126, 126, 126);
+        margin-top: 25px;
+        margin-bottom: 15px;
+        margin-left: 5px;
+        padding-left: 12px;
+        border-radius: 15px;
+        background-color: rgb(235, 211, 179);
+        color: black;
+        font-size: 23px;
         border: 2px solid black;
-        width: 100%;
-        height: 100%;
-        padding: 2px;
-        font-size: 25px;
+        width: auto;
+        height: 40px;
+        overflow-y: auto;
+        align-items: center;
     }
     
-    #send_btn {
+    #send {
         margin-right: 3%;
+        margin-left: 3px;
         background-color: black;
         color: white;
-        border-radius: 7%;
-        border: solid #ccc;
-        font-size: 25px;
+        border-radius: 8px;
+        border: 1px solid aqua;
+        font-size: 20px;
+        padding: 3px;
     }
     
-    #send_btn:hover {
+    #send:hover {
         background-color: white;
         color: black;
     }
+    
+    .input_msg {
+        position: fixed;
+        display: flex;
+        width: 100%;
+        background-color: rgba(0, 0, 0, 0);
+        align-items: center;
+        justify-content: space-between;
+        bottom: 5px;
+        margin-right: 4px;
+    }
     /*input*/
     /*input*/
     /*input*/
     /*input*/
     /*input*/
+    
+    .chat {
+        display: flex;
+        background-color: #21212100;
+        flex-direction: column;
+        justify-content: start;
+        width: 100%;
+        height: 100%;
+    }
     
     .mesenger_body {
         display: flex;
         flex-direction: row;
     }
     
-    .chat {
+    .wind {
         display: none;
         flex-direction: column;
         background-color: rgba(0, 0, 0, 0);
         width: 100%;
-        justify-content: end;
+        justify-content: start;
     }
     
     @media (min-width: 480px) {
@@ -345,12 +334,18 @@
         .WhatCreate {
             max-width: 42%;
         }
-        .chat {
+        .wind {
             display: flex;
             width: 67%;
         }
         .deletebox {
             width: 94vw;
+        }
+        .input_msg {
+            width: 67%;
+        }
+        .chat {
+            width: 67%;
         }
     }
     /*SEARCH BLOCK*/
@@ -423,9 +418,7 @@
         height: 100%;
         z-index: 1001;
         justify-content: center;
-        /* центрирование по горизонтали */
         align-items: center;
-        /* центрирование по вертикали */
     }
     
     .WhatCreate {
@@ -491,11 +484,8 @@
     
     .formdata {
         display: flex;
-        /* Включаем flexbox */
         align-items: center;
-        /* Выравниваем по вертикали */
         gap: 20px;
-        /* Расстояние между блоками */
         margin-bottom: 5%;
         margin-top: 1%;
         font-size: 17px;
@@ -710,7 +700,6 @@
         font-size: 23px;
         margin-top: 25px;
         margin-bottom: 25px;
-        
     }
     
     #pdp:hover {
@@ -729,10 +718,8 @@
         justify-items: center;
         z-index: 10;
     }
-
-
+    
     .newdevice {
-      
         display: flex;
         align-items: center;
         justify-content: center;
@@ -740,30 +727,26 @@
         padding: 15px;
         width: auto;
         height: auto;
-        background-color:white;
+        background-color: white;
         border: 2px solid black;
         color: blueviolet;
         border-radius: 8px;
-    
-        transform: scale(0);      
-        opacity: 0;               
+        transform: scale(0);
+        opacity: 0;
         transition: transform 1s ease, opacity 0.5s ease;
-        transform-origin: center; 
-        
+        transform-origin: center;
         position: fixed;
         top: 30%;
         left: 50%;
         transform: translateX(-50%) scale(0);
-      }
+    }
     
-  
-      .newdevice.run {
+    .newdevice.run {
         transform: translateX(-50%) scale(1);
         opacity: 1;
-      }
+    }
     
-
-    .more{
+    .more {
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -775,24 +758,24 @@
         border: 3px solid rgb(14, 12, 12);
         border-radius: 10px;
         margin: auto;
-    
-        transform: scale(0); 
-        opacity: 0;          
+        transform: scale(0);
+        opacity: 0;
         transition: transform 1s ease, opacity 0.5s ease;
-        transform-origin: center; 
-       
+        transform-origin: center;
         position: fixed;
         top: 30%;
         left: 50%;
-        transform: translateX(-50%) scale(0); 
+        transform: translateX(-50%) scale(0);
     }
-    .more.run{
+    
+    .more.run {
         transform: translateX(-50%) scale(1);
         opacity: 1;
     }
-    .btnboxauth{
+    
+    .btnboxauth {
         display: flex;
         justify-content: space-between;
         padding: 5px;
-        top:auto;
+        top: auto;
     }

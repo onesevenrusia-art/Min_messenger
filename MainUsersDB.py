@@ -312,6 +312,16 @@ class UserManager:
             return {"error": str(e)}
         finally:
             session.close()
+            
+    def add_device(self,email,devicename,devicedata):
+        session = self.Session()
+        device = self.get_user_by_email(email)
+        if len(device)>0:
+            device=device["device"]
+            device[devicename]=devicedata
+            self.update_user(email,device=device)
+        session.commit()
+
 #db = UserManager()
 #db.add_user("onesevenrusia@gmail.com",0,"Alex","79157683304")
 #data={'key': '902440', 'email': 'adk@gmail.com', 'name': 'nodejs', 'phone': ''}
