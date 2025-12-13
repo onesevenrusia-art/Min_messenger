@@ -96,12 +96,94 @@
 
 
 
+        // ===========================================
+        // НОВЫЕ ФУНКЦИИ ДЛЯ ГИБРИДНОГО ШИФРОВАНИЯ
+        // ===========================================
 
+        // 4. ГИБРИДНОЕ ШИФРОВАНИЕ (для больших данных)
+        async function hybridEncrypt(message, publicKeyB64) {
+            // 1. Генерируем случайный AES ключ для этого сообщения
+            const aesKey = await crypto.subtle.generateKey({
+                    name: "AES-GCM",
+                    length: 256
+                },
+                true, // extractable
+                ["encrypt", "decrypt"]
+            );
 
+            // 2. Генерируем случайный IV (Initialization Vector)
+            const iv = crypto.getRandomValues(new Uint8Array(12)); // 12 байт для GCM
 
+            // 3. Шифруем сообщение AES-GCM
+            const encoder = new TextEncoder();
+            const data = encoder.encode(message);
 
+            const encryptedData = await crypto.subtle.encrypt({
+                    name: "AES-GCM",
+                    iv: iv
+                },
+                aesKey,
+                data
+            );
 
+            // 4. Экспортируем AES ключ и шифруем его RSA
+            const exportedAesKey = await crypto.subtle.exportKey("raw", aesKey);
+            const publicKey = await importPublicKey(publicKeyB64);
+            const encryptedAesKey = await crypto.subtle.encrypt({
+                    name: "RSA-OAEP"
+                },
+                publicKey,
+                exportedAesKey
+            );
 
+            // 5. Возвращаем всё вместе
+            return {
+                encryptedKey: arrayBufferToBase64(encryptedAesKey), // Зашифрованный AES ключ
+                encryptedData: arrayBufferToBase64(encryptedData), // Зашифрованные данные
+                iv: arrayBufferToBase64(iv), // IV для AES-GCM
+                algorithm: "AES-GCM-256+RSA-OAEP-2048" // Метка алгоритма
+            };
+        }
+
+        // 5. ГИБРИДНАЯ РАСШИФРОВКА
+        async function hybridDecrypt(encryptedPackage, privateKeyB64) {
+            // 1. Расшифровываем AES ключ с помощью RSA
+            const privateKey = await importPrivateKey(privateKeyB64);
+            const encryptedKeyBuffer = base64ToArrayBuffer(encryptedPackage.encryptedKey);
+
+            const aesKeyBytes = await crypto.subtle.decrypt({
+                    name: "RSA-OAEP"
+                },
+                privateKey,
+                encryptedKeyBuffer
+            );
+
+            // 2. Импортируем AES ключ
+            const aesKey = await crypto.subtle.importKey(
+                "raw",
+                aesKeyBytes, {
+                    name: "AES-GCM"
+                },
+                false, // not extractable
+                ["decrypt"]
+            );
+
+            // 3. Расшифровываем данные AES-GCM
+            const iv = base64ToArrayBuffer(encryptedPackage.iv);
+            const encryptedData = base64ToArrayBuffer(encryptedPackage.encryptedData);
+
+            const decryptedData = await crypto.subtle.decrypt({
+                    name: "AES-GCM",
+                    iv: new Uint8Array(iv)
+                },
+                aesKey,
+                encryptedData
+            );
+
+            // 4. Декодируем текст
+            const decoder = new TextDecoder();
+            return decoder.decode(decryptedData);
+        }
 
 
         async function generateKeyPair() {
@@ -214,3 +296,5 @@
         window.importPrivateKey = importPrivateKey;
         window.importPrivateKeyChallengs = importPrivateKeyChallengs;
         window.importPublicKey = importPublicKey;
+        window.hybridEncrypt = hybridEncrypt
+        window.hybridDecrypt = hybridDecrypt

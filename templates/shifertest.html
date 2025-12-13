@@ -9,13 +9,15 @@
     <h1>Тест RSA шифрования</h1>
     <button onclick="runTest()">Запустить тест</button>
     <div id="result"></div>
+    <input id="inp">
     <script src="static\js\appCrypto.js"></script>
     <script>
-        async function runTest() {
+        async function runTest(message) {
             const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = '<p>🔄 Запуск теста...</p>';
 
             try {
+                const message = document.getElementById("inp").value.trim();
                 // Шаг 1: Генерация ключей
                 resultDiv.innerHTML += '<p>🔐 Генерирую ключи шифрования...</p>';
                 const keys = {
@@ -26,12 +28,12 @@
                 resultDiv.innerHTML += `<p>✅ Ключи сгенерированы (публичный: ${keys.publicKey.length} символов)</p>`;
 
                 // Шаг 2: Тестовое сообщение
-                const originalMessage = "Секретное сообщение 123!";
+                const originalMessage = message
                 resultDiv.innerHTML += `<p>📝 Оригинальное сообщение: "${originalMessage}"</p>`;
 
                 // Шаг 3: Шифрование
                 resultDiv.innerHTML += '<p>🔒 Шифрую сообщение...</p>';
-                const encrypted = await encryptMessage("Jopasranskaya112345", keys.publicKey);
+                const encrypted = await encryptMessage(message, keys.publicKey);
                 resultDiv.innerHTML += `<p>✅ Сообщение зашифровано (${encrypted.length} символов)</p>`;
 
                 // Шаг 4: Расшифровка
