@@ -317,12 +317,15 @@ class UserManager:
         session = self.Session()
         device = self.get_user_by_email(email)
         if len(device)>0:
-            device=device["device"]
+            print(device)
+            device=device["devices"]
             device[devicename]=devicedata
+            print(f"[DB] {device}")
             self.update_user(email,device=device)
+        else:
+            raise ValueError("not find user")
         session.commit()
-
-#db = UserManager()
+db = UserManager()
 #db.add_user("onesevenrusia@gmail.com",0,"Alex","79157683304")
 #data={'key': '902440', 'email': 'adk@gmail.com', 'name': 'nodejs', 'phone': ''}
 #userid=int(db.get_max_userid()["id"])
@@ -332,3 +335,8 @@ class UserManager:
 #
 #print(db.get_all_users())
 #print(db.get_user_by_id(0))
+db.add_device("onesevenrusia@gmail.com","chrome-V3oz8OOWJ1c7qfqV8o8U79i22_E",{})
+"""
+[DB] {'chrome-jlv4h1cD7#EJ0_Wo7oJb6BKfeqO3ktQzE5': {'publickey': 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApEcqQM+VXu1c3Ix946LyxmSHA8BiFf54DJzVn305LwHysjBziTqAzxEnZPWXGeNV6RvBFlSaT4EsIhqNnc/t4uvXWc5oyXG+julExMvVfirtkxKCFbHgNKZb3QXKAkl35pSekhsFBXI+l5j4yw8dAxfk1SgOcc/ZNIgdO92dnndwZoAwCWbEDyEUy7VEYOyorjAmsE3AMP8ON0fjyS6Vdg47O43LUpsT+wVlja8GUUYQ1hhc1VOi1sRAiSg+sfi5IE2IIjR1H0H3PnFvBqkSQLIGUtSHc0ssBZqIAoiRD0FMfvPnsDznXSbMOShE5y8uwJxHifRe9xHBUUbOz+wogwIDAQAB', 'publickeycrypt': 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiRPvAB4y6OhrdDOjlJYEJ3RvCL0VN9WRGr9X0VIuOWOgHjRgdWVwPzjnenrLFaS6RPCUOiawJ5VuoRhUVxehdWA4vYLL8eaIaqBkmjv8YvozIdymnqk1f/4mmmnvRiAIJtMu5gRQh0XmzQE3XnupqSKb7Z8fcENI5TuWYFdNhuDhot+e5GWwj/AMO0yJyo1nlcORxuRtPLiB38OoEPp8JAcfZq1eTJpz5XK37KPoVSa9PQB8mTTRFvWSyIK22cLTJ+RSuJ/HuaYXNR6z+YhpDo6W1iSvVRFITFQjJCPch4nm38Yc8eO4GZDCTShzzYd1ShvQwREpDHfiq8epR0n64wIDAQAB'}, 
+'chrome-V3oz8OOWJ1c7qfqV8o8U79i22_E': {}}
+"""

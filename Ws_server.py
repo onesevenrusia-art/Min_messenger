@@ -25,6 +25,8 @@ async def websocket_endpoint(ws: WebSocket):
         if device_id in wait_for:
             for message in wait_for[device_id]:
                 await clients[device_id]["ws"].send_json(message)
+                wait_for[device_id].remove(message)
+            
     except:
             pass
     try:
@@ -132,6 +134,8 @@ async def keys_sent(request: Request):
                     "status": "sent"}
     return {"status": "error",
                     "success":False}
+
+
 
 if __name__ == "__main__":
     uvicorn.run(

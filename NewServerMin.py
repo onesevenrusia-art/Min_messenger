@@ -317,12 +317,13 @@ def podpis():
     email = data['email']
     challenge = data['challenge']
     signature = data['signature']
+
     all_stores = [challenges_auth, challenges_del, challenges_prof, challenges_conn_device]
     for store in all_stores:
         to_delete = []
         for email_2, data_2 in store.items():
             time_passed = datetime.now() - data_2["datatime"]
-            if time_passed.total_seconds() > 25:  # Старше 15 секунд
+            if time_passed.total_seconds() > 25:
                 to_delete.append(email_2)
         for email_2 in to_delete:
             del store[email_2]
@@ -352,7 +353,12 @@ def podpis():
         case "no_i_not": del challenges_conn_device[email]
         case "yes_i_my": del challenges_conn_device[email]
     user = usersdb.get_user_by_email(email)
-    public_key_pem = user["devices"][data["device"]]["publickey"]    
+    print(data,user)
+    if data["device"] not in user["devices"]:
+        print("Device not in db")
+        return jsonify({"success":False})  
+    public_key_pem = user["devices"][next(iter(user["devices"]))]
+    public_key_pem=public_key_pem["publickey"]
     is_valid = verify_signature_simple(challenge, signature, public_key_pem)
     if is_valid:
         if data["what"]["x"]=="auth":
@@ -398,10 +404,12 @@ def podpis():
             
             r = requests.post("https://127.0.0.1:8000/i_agree",json={"email":email+'newdevice',"key":data["what"]["key"]},verify=False)
             if r.json()["success"]==True:
+                print("Adding device.....")
                 usersdb.add_device(email,data["what"]["device"],{})
                 return jsonify({"success":True})
             else:return jsonify({"success":False})
     else:
+        print("false podpis")
         message=0
         tm=0
         match data["what"]["x"]:
@@ -497,6 +505,7 @@ def GetUserInfo():
                     "photo":user["photo"],
                     "phone":user['phone'],
                     "publickeys":user["devices"][next(iter(user["devices"]))]}
+    print(dt)
     if user["about"]!=None:
         print(user["about"].split("\n"))
         for d in user["about"].split("\n"):

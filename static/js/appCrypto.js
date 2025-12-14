@@ -296,5 +296,5 @@
         window.importPrivateKey = importPrivateKey;
         window.importPrivateKeyChallengs = importPrivateKeyChallengs;
         window.importPublicKey = importPublicKey;
-        window.hybridEncrypt = hybridEncrypt
-        window.hybridDecrypt = hybridDecrypt
+        window.hybridEncrypt = hybridEncrypt;
+        window.hybridDecrypt = hybridDecrypt;

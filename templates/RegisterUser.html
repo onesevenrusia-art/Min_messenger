@@ -309,7 +309,6 @@
 
                     function passbox(st, formData, logs, flag = false) {
                         cleanupPassbox(); // Очищаем старые обработчики
-                        console.log(MyKeys)
                         const passwordinput = document.getElementById("keycode");
                         const sendcodeBtn = document.getElementById("sendcode");
                         const mesElement = document.getElementById("mes");
@@ -370,7 +369,7 @@
                                     // Вход
                                     const Mydevice = generateDeviceId();
                                     const fingerprint = generateKeyFingerprint(JSON.parse(localStorage.getItem("userdata222")).publickey)
-                                    console.log(fingerprint);
+                                    //console.log(fingerprint);
                                     fetch("/interkey2", {
                                             method: 'POST',
                                             headers: {
@@ -390,7 +389,6 @@
                                                 logsElement.innerText = "Ошибка соединения с сервером";
                                             }
                                             if (result.success === true) {
-                                                console.log(MyKeys)
                                                 const UserData = {
                                                     email: formData.email,
                                                     device: getDeviceInfo(),
@@ -415,10 +413,11 @@
                                                     const datae = JSON.parse(event.data)
                                                     if (datae.success === true) {
 
-                                                        console.log(datae.key, MyKeys.privatekeycrypt);
-                                                        decryptMessage(datae.key, MyKeys.privatekeycrypt).then(resulted_key => {
+                                                        //console.log(datae.key, MyKeys.privatekeycrypt);
+                                                        hybridDecrypt(datae.key, MyKeys.privatekeycrypt).then(resulted_key => {
+                                                            resulted_key=JSON.parse(resulted_key)
                                                             //resulted_key=JSON.parse(resulted_key);
-                                                            console.log(resulted_key);
+                                                            
                                                             fetch("/GetUserInfo", {
                                                                     method: 'POST',
                                                                     headers: {
@@ -426,25 +425,25 @@
                                                                     },
                                                                     body: JSON.stringify({
                                                                         email: formData.email,
-                                                                        device: Mydevice
                                                                     }),
                                                                 })
                                                                 .then(response => response.json())
                                                                 .then(result => {
-
-                                                                    const UserData = {
+                                                                    //console.log(result.publickeys);
+                                                                    console.log(resulted_key,Mydevice);
+                                                                    const UserData_new = {
                                                                             publickey: result.publickeys.publickey,
-                                                                            privatekey: resulted_key.publickey,
+                                                                            privatekey: resulted_key.privatekey,
                                                                             publickeycrypt: result.publickeys.publickeycrypt,
-                                                                            privatekeycrypt: resulted_key.publickeycrypt,
+                                                                            privatekeycrypt: resulted_key.privatekeycrypt,
                                                                             email: formData.email,
-                                                                            davice: Mydevice
+                                                                            device: Mydevice
                                                                         }
                                                                         //
                                                                     localStorage.clear();
-                                                                    console.log(UserData)
-                                                                        //localStorage.setItem('Userdata', JSON.stringify(UserData));
-                                                                        //console.log("✅ Данные сохранены в localStorage");
+                                                                    console.log(UserData_new)
+                                                                    localStorage.setItem('Userdata', JSON.stringify(UserData_new));
+                                                                    console.log("✅ Данные сохранены в localStorage");
                                                                     alert("✅ Регистрация прошла успешно.");
                                                                     ws.close();
                                                                     window.location.href = 'messenger.html';
@@ -582,15 +581,9 @@
             }
         });
 
-        // Остальные функции остаются без изменений...
 
-        // Генерация ключей
-
-        // Генерация deviceId
         function generateDeviceId() {
             let browser = 'web';
-
-            // Определяем браузер
             const ua = navigator.userAgent.toLowerCase();
             if (ua.includes('chrome')) browser = 'chrome';
             else if (ua.includes('firefox')) browser = 'firefox';
@@ -679,12 +672,10 @@
                 });
         }
 
-        // Ваша функция генерации токена
         function generateToken() {
             const simv = "qwertyuioplkjhgfdsazxcvbnm@#_1234567890";
             const token = [];
             const length = Math.floor(Math.random() * (35 - 27 + 1)) + 27;
-
             for (let i = 0; i < length; i++) {
                 if (Math.random() > 0.5) {
                     token.push(simv[Math.floor(Math.random() * simv.length)].toUpperCase());
