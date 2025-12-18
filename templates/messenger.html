@@ -166,7 +166,6 @@
     const DataUser = localStorage.getItem('Userdata');
     if (DataUser) {
         const Data = JSON.parse(DataUser);
-        //console.log(Data)
         console.log(Data)
         const delay = 1;
         if (true) {
@@ -191,7 +190,6 @@
                 }
                 if (result.result === true) {
                     console.log('🎉 Вход выполнен!');
-
                 }
             }
 
@@ -199,7 +197,6 @@
 
     } else {
         window.location.href = '/';
-
     }
 
 
@@ -214,11 +211,12 @@
         url: "static/images/notfind.png"
     }, {
         name: 'fone',
-        url: "{{ url_for('static', filename='images/bgmes.jpg') }}"
+        url: "static/images/bgmes.jpg"
     }, {
         name: 'UniknownChat2',
         url: 'static/images/UniknownChat.jpg'
     }];
+
     async function GetIPInfo(ip) {
         const url = `https://ipapi.co/${ip}/json/`;
         const data = await fetch(url).then(r => r.json());

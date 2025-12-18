@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Download application</title>
+</head>
+
+<body>
+    <h1>Тест загрузки</h1>
+    <p id="result">null</p>
+    <button id="check">check extension</button>
+</body>
+<script>
+    let Extension = false;
+    document.addEventListener("message", function(e) {
+        if (e.data.type === "CryptoExtension") {
+            external = true;
+            document.getElementById("result").innerText = Extension;
+        }
+    })
+    document.getElementById("check").addEventListener("click", function() {
+        window.postMessage({
+            type: "ping_CryptoExtension"
+        }, "*")
+        setTimeout(() => {
+            if (!Extension) {
+                document.getElementById("result").innerText = Extension;
+            }
+        }, 500)
+    })
+</script>
+
+</html>

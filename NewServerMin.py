@@ -471,9 +471,12 @@ def eminp():
 @app.route("/userchatlist",methods=["POST"])
 def returnUserChatList():
     email = request.get_json()["email"]
-    chats=list(usersdb.get_user_by_email(email)["chats"])
+    user=usersdb.get_user_by_email(email)
+    if len(user)>0:
+        chats=list(user["chats"])
+    else:
+        return jsonify({"chats":"error"})
     if len(chats)!=0:
-        print("yes")
         return jsonify({"chats":json.loads(chats)})
     else:
         return jsonify({"chats":[{"avatar":'\static\images\logo.png',"name":'MIN-поддержка'}, {"avatar":None,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'russia'},{"avatar":0b0,"name":'polyaki'}]})
