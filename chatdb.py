@@ -1,40 +1,53 @@
-from sqlalchemy import create_engine, Column, String, Boolean, Text, CheckConstraint, Integer,DateTime, func
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
+from datetime import datetime
 import json
-from datetime import datetime, timedelta
 
-engine = create_engine('sqlite:///Main.db')
 Base = declarative_base()
 
-class Chat(Base):
-    __tablename__ = 'Chats'
-
-    chatid = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    participants = Column(Text)
-    about = Column(Text(1024))
-    photo = Column(String(255))
-    created = Column(DateTime, default=None)
-    message = relationship("Message", back_populates="chat")
-
+# --- Пользователи ---
 class User(Base):
-    __tablename__ = 'Users'
+    __tablename__ = 'users'
     
-    email = Column(String(255), primary_key=True)
-    userid = Column(Integer, nullable=False, unique=True)
+    id = Column(Integer, primary_key=True)
+    email = Column(String(255), unique=True, nullable=False)
     name = Column(String(100), nullable=False)
     phone = Column(String(20))
-    about = Column(Text(1024))
+    about = Column(Text)
     photo = Column(String(255))
     blocked = Column(DateTime, default=None)
-    devices = Column(Text)
-    chats = Column(Text)
-    message = relationship("Message", back_populates="user")
+    
+    messages = relationship("Message", back_populates="user")  # связь с сообщениями
 
+# --- Чаты ---
+class Chat(Base):
+    __tablename__ = 'chats'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    participants = Column(Text)  # можно хранить список email в JSON
+    about = Column(Text)
+    photo = Column(String(255))
+    created = Column(DateTime, default=datetime.utcnow)
+    
+    messages = relationship("Message", back_populates="chat")  # связь с сообщениями
+
+# --- Сообщения ---
 class Message(Base):
-    __tablename__ = 'Messages'
+    __tablename__ = 'messages'
+    
+    id = Column(Integer, primary_key=True)
+    chat_id = Column(Integer, ForeignKey('chats.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    content = Column(Text, nullable=False)
+    created = Column(DateTime, default=datetime.utcnow)
+    
+    chat = relationship("Chat", back_populates="messages")
+    user = relationship("User", back_populates="messages")
 
-    messageid = Column(Integer, primary_key=True)
-    type = Column(String(100), nullable=False)
-    participants = Column(Text)
+# --- Создание БД ---
+engine = create_engine('sqlite:///Databases/Main.db')
+Base.metadata.create_all(engine)
+Session = sessionmaker(bind=engine)
+session = Session()
