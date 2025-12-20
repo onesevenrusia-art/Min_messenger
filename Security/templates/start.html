@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Установка Crypto Extension</title>
+</head>
+
+<body>
+    <h1>Crypto Extension</h1>
+
+    <p id="status">Проверяем, установлено ли расширение...</p>
+
+    <!-- Кнопка скачать ZIP -->
+    <a id="download-btn" href="/downloads/crypto_extension.zip" download>
+    Скачать расширение (ZIP)
+  </a>
+
+    <script>
+        const status = document.getElementById("status");
+
+        // Функция проверки расширения через ping
+        function checkExtension() {
+            return new Promise((resolve) => {
+                const id = crypto.randomUUID();
+
+                function listener(event) {
+                    if (!event.data || typeof event.data !== "object") return;
+                    if (event.data.type === "isCryptoExtension") {
+                        window.removeEventListener("message", listener);
+                        resolve(true);
+                    }
+                }
+
+                window.addEventListener("message", listener);
+
+                // Отправляем ping
+                window.postMessage({
+                    type: "ping_CryptoExtension",
+                    id
+                }, "*");
+
+                // Таймаут на случай, если расширение не установлено
+                setTimeout(() => {
+                    window.removeEventListener("message", listener);
+                    resolve(false);
+                }, 1500);
+            });
+        }
+
+        // Проверяем при загрузке страницы
+        checkExtension().then((installed) => {
+            if (installed) {
+                status.textContent = "Расширение установлено ✅";
+                document.getElementById("download-btn").style.display = "none";
+            } else {
+                status.textContent = "Расширение не установлено. Скачайте и установите его.";
+                document.getElementById("download-btn").style.display = "inline-block";
+            }
+        });
+    </script>
+</body>
+
+</html>

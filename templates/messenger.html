@@ -317,13 +317,14 @@
                     data: datae
                 });
             });
-        } catch {}
+        } catch {
+            alert();
+        }
     };
 
     ws.onclose = () => {
         console.log("WebSocket closed");
     };
-
 
 
     document.addEventListener('visibilitychange', function() {
@@ -338,6 +339,7 @@
             pendingNotification = null;
         }
     });
+
 
     document.getElementById("pdp").addEventListener("click", function() {
         document.querySelectorAll(".newdevice").forEach(e => {
@@ -365,7 +367,6 @@
                 alert("Ошибка с сетью!");
             }
         });
-
     })
 
     document.getElementById("yesi").addEventListener("click", function() {
@@ -890,6 +891,8 @@
         return Promise.resolve(null);
     }
 
+
+
     async function confirmIdentity(email, privateKey, device_name, purpose = 'auth') {
         try {
             //console.log(`🔐 Запрашиваю подтверждение для: ${email}`);
@@ -952,6 +955,12 @@
             };
         }
     }
+    document.getElementById("create_chatbtn").addEventListener("click", function() {
+        ws.send(JSON.stringify({
+            type: "newchat",
+            email:
+        }))
+    });
 </script>
 </body>
 
