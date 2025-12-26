@@ -9,7 +9,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import requests
-import MainUsersDB
+import MessengerDataBase
 import FeedBacks
 import os
 import smtplib
@@ -33,7 +33,7 @@ challenges_prof={}
 challenges_conn_device={}
 
 feedbacksdb = FeedBacks.Feedback_Manager()
-usersdb = MainUsersDB.UserManager()
+Database = MessengerDataBase.DataBaseManager()
 
 
 app = Flask(__name__)
@@ -226,7 +226,7 @@ def favicon():
 def getregistrblank():
     data = request.get_json()
     email=data["email"].strip()
-    if len(usersdb.get_user_by_email(email))>0:
+    if Database.get_user_by_email(email) is not None:
         return jsonify({"state":"youbeindb"})
     correct = IsEmailCorrect(email)
     #return jsonify({"state":"ok"})
@@ -249,10 +249,42 @@ def key():
     data = request.get_json()
     if data["key"]==DoctypeKeys[data["email"]]["code"]:
         print(f'adding user {data["name"]} .........')
-        d={data["device"]:{"publickey":data["publickey"],"publickeycrypt":data["publickeycrypt"]}}
-        usersdb.add_user(email=data["email"], userid=usersdb.get_max_userid()["id"]+1, name=data["name"], phone=data["phone"], devices=str(d))  
+        #d={data["device"]:{"publickey":data["publickey"],"publickeycrypt":data["publickeycrypt"]}}
+        #usersdb.add_user(email=data["email"], userid=usersdb.get_max_userid()["id"]+1, name=data["name"], phone=data["phone"], devices=str(d))  
         del DoctypeKeys[data["email"]]
-        return jsonify({"success":True})
+        id=None
+        res=Database.add_user(email=data["email"],
+                        name=data["name"],
+                        phone=data["phone"],
+                        )
+        if res["success"]:
+
+            Database.add_device(user_id=res["user_id"],
+                                name=data["device"],
+                                platform=data["platform"],
+                                publickey=data["publickey"],
+                                publickeycrypt=data["publickeycrypt"])
+            user_id=res["user_id"]
+            res=Database.add_chat(
+                name="MIN поддержка",
+                user_ids=[res["user_id"]],
+                about="Технический чат",
+                photo="static/images/logo.png"
+            )
+            if res["success"]:
+                Database.add_message(
+                    chat_id=res["chat_id"],
+                    user_id=user_id,
+                    datatype="txt",
+                    content="успешно создан чат"
+                )
+        else:
+            return jsonify({"success":False,
+                           "error":"db"})
+
+        
+        return jsonify({"success":True,
+                        "user_id":user_id})
     else:
         DoctypeKeys[data["email"]]["attempents"]-=1
         return jsonify({"success":False})
@@ -264,7 +296,8 @@ def dostype_2():
     if data["email"] in DoctypeKeys:
         if DoctypeKeys[data["email"]]["attempents"]<1:
             del DoctypeKeys[data["email"]]
-            usersdb.block_user(data["email"],hours=1)
+            #usersdb.block_user(data["email"],hours=1)
+            Database.block_user(data["email"],hours=1)
             return jsonify({"success":"blocked"})
         if data["key"]==DoctypeKeys[data["email"]]["code"]:
             print("ok input")
@@ -280,7 +313,8 @@ def dostype_2():
             if DoctypeKeys[data["email"]]["attempents"]<1:
                 print("blocked user from")
                 del DoctypeKeys[data["email"]]
-                usersdb.block_user(data["email"],hours=1)
+                #usersdb.block_user(data["email"],hours=1)
+                Database.block_user(data["email"],hours=1)
                 return jsonify({"success":False})
             return jsonify({"success":False})      
     else:
@@ -290,8 +324,8 @@ def dostype_2():
 @app.route("/challenge", methods=["POST"])
 def challenge():
     data=request.get_json()
-    user=usersdb.get_user_by_email(data["email"])
-    if len(user) > 0:
+    user=Database.get_user_by_email(data["email"])
+    if user is not None:
         challenge=os.urandom(32).hex()
         if data["what"]["x"]=="auth":
             if data["email"] not in challenges_auth:
@@ -352,12 +386,11 @@ def podpis():
         case "prof": del challenges_prof[email]
         case "no_i_not": del challenges_conn_device[email]
         case "yes_i_my": del challenges_conn_device[email]
-    user = usersdb.get_user_by_email(email)
-    print(data,user)
-    if data["device"] not in user["devices"]:
-        print("Device not in db")
+    user = Database.get_user_by_email(email)
+    if data["device"] not in [item['name'] for item in user["devices"]]:
+        print(f"Device not in db ")
         return jsonify({"success":False})  
-    public_key_pem = user["devices"][next(iter(user["devices"]))]
+    public_key_pem = list(filter(lambda x: x["publickey"] is not None, user["devices"]))[0]
     public_key_pem=public_key_pem["publickey"]
     is_valid = verify_signature_simple(challenge, signature, public_key_pem)
     if is_valid:
@@ -370,9 +403,9 @@ def podpis():
                 if "why" in data["what"]:
                     feedbacksdb.add_userFeedBack(email,data["what"]["why"])
                 try:
-                    os.remove(usersdb.get_user_by_email(email)["photo"]) 
+                    os.remove(user["photo"]) 
                 except:pass
-                usersdb.delete_user(email)
+                Database.delete_User()
                 print(f"Deleted user {email}")
                 return jsonify({"success":True})
             print("blocked")
@@ -381,7 +414,7 @@ def podpis():
         if data["what"]["x"] == "prof":
             if user["blocked"] is None or user["blocked"]<=datetime.now():
                 userdata=data["what"]["data"]
-                path = save_photo_to_folder(user["userid"],userdata["photo"])
+                path = save_photo_to_folder(user["id"],userdata["photo"])
                 aboutme=""
                 if userdata["age"] is not None:
                     aboutme+=f"Возраст: {userdata['age']}\n"
@@ -395,7 +428,8 @@ def podpis():
                     try:
                         os.remove(user["photo"]) 
                     except:pass
-                usersdb.update_user(email=email,phone=userdata["phone"],name=userdata["name"],about=aboutme,photo=path)
+                #usersdb.update_user(email=email,phone=userdata["phone"],name=userdata["name"],about=aboutme,photo=path)
+                Database.update_user(email=email,phone=userdata["phone"],name=userdata["name"],about=aboutme,photo=path)
                 return jsonify({"success":True})
         if data["what"]["x"] == "no_i_not":
             r = requests.post("https://127.0.0.1:8000/cancel_agree",json={"email":email+'newdevice'},verify=False)
@@ -405,7 +439,13 @@ def podpis():
             r = requests.post("https://127.0.0.1:8000/i_agree",json={"email":email+'newdevice',"key":data["what"]["key"]},verify=False)
             if r.json()["success"]==True:
                 print("Adding device.....")
-                usersdb.add_device(email,data["what"]["device"],{})
+                #usersdb.add_device(email,data["what"]["device"],{})
+                Database.add_device(user_id=user["id"],
+                                    name=data["what"]["device"],
+                                    publickey=None,
+                                    publickeycrypt=None,
+                                    platform=data["what"]["platform"])
+
                 return jsonify({"success":True})
             else:return jsonify({"success":False})
     else:
@@ -433,7 +473,7 @@ def podpis():
 """
         if message!=0:
             SendCode(email,message)
-            usersdb.block_user(email,tm)
+            Database.block_user(email,tm)
         return jsonify({"success":False})        
         
 
@@ -443,8 +483,8 @@ def podpis():
 @app.route("/doctypeinput",methods=["POST"])
 def eminp():
     email=request.get_json()["email"].strip()
-    user=usersdb.get_user_by_email(email)
-    if len(user)>0:
+    user=Database.get_user_by_email(email)
+    if user is not None:
         if user["blocked"] is None or user["blocked"]<=datetime.now():
             state = SendCode(email)
             if type(state) == str:
@@ -470,16 +510,12 @@ def eminp():
 
 @app.route("/userchatlist",methods=["POST"])
 def returnUserChatList():
-    email = request.get_json()["email"]
-    user=usersdb.get_user_by_email(email)
-    if len(user)>0:
-        chats=list(user["chats"])
-    else:
-        return jsonify({"chats":"error"})
-    if len(chats)!=0:
-        return jsonify({"chats":json.loads(chats)})
-    else:
-        return jsonify({"chats":[{"avatar":'\static\images\logo.png',"name":'MIN-поддержка'}, {"avatar":None,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'russia'},{"avatar":0b0,"name":'polyaki'}]})
+    id = request.get_json()["id"]
+    chats=Database.get_user_chats(id)
+    print(chats)
+    if chats is not None:
+        return chats
+    return jsonify({"chats":[{"avatar":'\static\images\logo.png',"name":'MIN-поддержка'}, {"avatar":None,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'123abcname'},{"avatar":0b0,"name":'russia'},{"avatar":0b0,"name":'polyaki'}]})
 
 
 @app.route("/SearchUserBy",methods=["POST"])
@@ -488,26 +524,27 @@ def SearchUserBy():
     typeS = data["type"]
     what = data["request"]
     back = {"sucess":True, "userlist":[]}
-    res=usersdb.search_users_by(what,typeS)
-    back["sucess"]=len(res)>0
-    back["userlist"]=[{"id":i['userid'],"name":i['name'],"photo":i["photo"]} for i in res]
+    res=Database.search_users_by(what,typeS)
+    print(res)
+    back["sucess"]=len(res)>0 
+    back["userlist"]=[{"id":i['id'],"name":i['name'],"photo":i["photo"]} for i in res]
     return jsonify(back)
 
 @app.route("/GetUserInfo",methods=["POST"])
 def GetUserInfo():
     data = request.get_json()
     if 'id' in data:
-        user=usersdb.get_user_by_id(data["id"])
+        user=Database.get_user_by_id(data["id"])
     else:
-        user=usersdb.get_user_by_email(data["email"])
+        user=Database.get_user_by_email(data["email"])
     
-
-    dt = {"id":user['userid'],
+    print(user)
+    dt = {"userid":user['id'],
                     "email":user['email'],
                     "name":user['name'],
                     "photo":user["photo"],
                     "phone":user['phone'],
-                    "publickeys":user["devices"][next(iter(user["devices"]))]}
+                    "publickeys":{"publickey":user["devices"][0]["publickey"],"publickeycrypt":user["devices"][0]["publickeycrypt"]}}
     print(dt)
     if user["about"]!=None:
         print(user["about"].split("\n"))

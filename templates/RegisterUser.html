@@ -104,6 +104,16 @@
     <script>
         document.addEventListener('DOMContentLoaded', async function() {
             const DataUser = localStorage.getItem('Userdata');
+            var platform = "Unknown OS";
+            if (navigator.appVersion.indexOf("Win") != -1) 
+                platform = "Windows";
+
+            if (navigator.appVersion.indexOf("Mac") != -1) 
+                platform = "MacOS";
+
+            if (navigator.appVersion.indexOf("Linux") != -1) 
+                platform = "Linux";
+
             console.log(DataUser)
             if (DataUser) {
                 window.location.href = "messenger.html";
@@ -338,6 +348,7 @@
                                                 "name": formData.name,
                                                 "phone": formData.phone,
                                                 "device": MyKeys.device,
+                                                "platform": platform,
                                                 "publickey": MyKeys.publickey,
                                                 "publickeycrypt": MyKeys.publickeycrypt,
                                             }),
@@ -347,6 +358,7 @@
                                             if (result.success) {
                                                 localStorage.clear();
                                                 MyKeys.email = formData.email;
+                                                MyKeys.my_id = result.user_id;
                                                 localStorage.setItem('Userdata', JSON.stringify(MyKeys));
                                                 console.log("✅ Данные сохранены в localStorage");
                                                 alert("✅ Регистрация прошла успешно.");
@@ -395,7 +407,8 @@
                                                     publickey: MyKeys.publickeycrypt,
                                                     fingerprint: fingerprint,
                                                     type: "newdevice",
-                                                    mydevice: Mydevice
+                                                    mydevice: Mydevice,
+                                                    platform: platform
                                                 };
 
                                                 WEbSKsend(UserData);
@@ -437,7 +450,8 @@
                                                                             publickeycrypt: result.publickeys.publickeycrypt,
                                                                             privatekeycrypt: resulted_key.privatekeycrypt,
                                                                             email: formData.email,
-                                                                            device: Mydevice
+                                                                            device: Mydevice,
+                                                                            my_id: result.userid
                                                                         }
                                                                         //
                                                                     localStorage.clear();

@@ -57,7 +57,7 @@ class Message(Base):
     id = Column(Integer, primary_key=True)
     chat_id = Column(Integer, ForeignKey('chats.id'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    internal_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    internal_id = Column(Integer, nullable=False)
     datatype = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     created = Column(DateTime, default=datetime.now())
@@ -228,7 +228,7 @@ class DataBaseManager:
             user = session.query(User).filter(User.email == email).first()
             if not user or not user.blocked:
                 return False
-            if user.blocked < datetime.utcnow():
+            if user.blocked < datetime.now():
                 user.blocked = None
                 session.commit()
                 return False
@@ -324,7 +324,7 @@ class DataBaseManager:
         try:
             r=self.get_max_objectid(Message)
             if r["success"]:r=r["id"]+1
-            last_seq = session.query(func.max(Message.seq)).filter(Message.chat_id == chat_id).scalar()
+            last_seq = session.query(func.max(Message.internal_id)).filter(Message.chat_id == chat_id).scalar()
             if type(last_seq) != int: return
             msg = Message(id=r, chat_id=chat_id, user_id=user_id, internal_id=last_seq+1, datatype=datatype, content=content, created=created)
             session.add(msg)
@@ -414,3 +414,11 @@ class DataBaseManager:
             session.close()
 
     
+db = DataBaseManager()
+db.add_user(email="onesevenrusia@gmail.com",
+            name="Alex",
+            phone="79157683304",
+            devices="{'chrome-R7FI#Mya0wjoD4Q28qC65s2OT9v1': {'publickey': 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA00hEeIsdgPBWusBehAWkN254iyhBMBNooWcrZ3os1x2WNnGyz9d87Mqr4d5oYp4ZfAoNj8/Cn3TocJLYcUSkQR62rIInJ04okncYqfrMSLh7CywJvecFxPkkoy0F48RLTQG6EKriesp0w878nL9BERIGHQiBNYNvCfEoywu6Y7zmC+7J1eVm63h5ULtM406heL07TZ3tk89L67X0cp6V04Rm7O3pDWWFenlX9YXwEbHwQzGu2yYhusV2ZY1rgWPPT3Dw9kfc5jckHo/PQE/6C75K54akmbZChwkkwLskz2Z0RwIvh/x6ubmmB7RaBe7BP4sGVoRy8DfStLsh022+awIDAQAB', 'publickeycrypt': 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwiqX2qsDGVg6PSpfdIdfvDkgia0tptrL0BrHldyIpExj6TVR+cKMdAx1PVBChLCBt6lwAfFJJTpNaejkVuGn+Ji/QxEBQ/IsHo8dp+HnDfznG9Z0MFQSK6PzbGLZf/TAQPMFCbTlnSkH1+2qfiMR11aiYWpiala9dE2/scGz+R5NnXd6x8fGdorqBODiyDDms1CpLFbFOcYmL+XbESIONhojlutNKWTpl3y6M53zH/FQwSsHSsasqBk1lK0lvinxcUgEtb+Jdyf5ZDpE0ed4SizOkfQ+WpcieLFNoeE23FsGNKuuMvR4PLFkhrFyZUnGCv+PUEf/+iz5FUtn4l9nTwIDAQAB'}, 'chrome-5WCvq0nc9kwRaee1KK7mb#z56d3qt0L8': {}}")
+
+db.add_chat("Tehno - 2",[0,1])
+db.add_message(1,1,"txt","hello")

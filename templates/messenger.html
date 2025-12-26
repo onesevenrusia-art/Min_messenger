@@ -171,7 +171,7 @@
         if (true) {
             console.log("ppp")
             if (navigator.onLine) {
-                const result = confirmIdentity(Data.email, Data.privatekey, Data.device, {
+                const result = confirmIdentity(Data.my_id,Data.email, Data.privatekey, Data.device, {
                     x: "auth"
                 });
                 console.log(result);
@@ -352,7 +352,7 @@
     });
 
     document.getElementById("noi").addEventListener("click", function() {
-        confirmIdentity(Data.email, Data.privatekey, Data.device, {
+        confirmIdentity(Data.my_id,Data.email, Data.privatekey, Data.device, {
             x: "no_i_not"
         }).then(res => {
             console.log(res);
@@ -381,7 +381,7 @@
             })
             let keys_shifr = await hybridEncrypt(dts, keysencrypt.publickey);
 
-            let res = await confirmIdentity(Data.email, Data.privatekey, Data.device, {
+            let res = await confirmIdentity(Data.my_id,Data.email, Data.privatekey, Data.device, {
                 x: "yes_i_my",
                 key: keys_shifr,
                 device: JSON.parse(localStorage.getItem("newdeviceadd")).d
@@ -411,12 +411,13 @@
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                email: JSON.parse(localStorage.getItem("Userdata")).email
+                id: JSON.parse(localStorage.getItem("Userdata")).my_id
             }),
         })
         .then(response => response.json())
         .then(result => {
-            const chats = result.chats;
+            const chats = result;
+            console.log(chats)
             chats.forEach(chat => {
                 console.log(chat.avatar);
                 if (chat.avatar === null) {
@@ -424,7 +425,7 @@
                 }
                 ChatBox.innerHTML += `
                 <div class=${'chatinfo'}>
-                    <img src="${chat.avatar}" class=${'chat-avatar'} alt="${0} ">
+                    <img src="${chat.photo}" class=${'chat-avatar'} alt="${0} ">
                     <b class=${'chat-name'}>${chat.name}</b> 
                 </div>
             `;
@@ -655,7 +656,7 @@
     document.getElementById("yesdelete2").addEventListener("click", function(e) {
         let tx = document.getElementById("txa").value.trim();
         const Data = JSON.parse(localStorage.getItem("Userdata"));
-        const result = confirmIdentity(Data.email, Data.privatekey, Data.device, {
+        const result = confirmIdentity(Data.my_id, Data.email, Data.privatekey, Data.device, {
             x: "del",
             "why": tx
         });
@@ -718,6 +719,8 @@
                         document.getElementById("DR").value = result.DR;
                     }
                     if (result.pol !== null) {
+                        maleCheck.checked = false;
+                        femaleCheck.checked = false;
                         switch (result.pol) {
                             case "Муж":
                                 maleCheck.checked = true;
@@ -764,7 +767,7 @@
         }
         console.log(about);
         // Добавляем await для confirmIdentity
-        const result = await confirmIdentity(strg.email, strg.privatekey, strg.device, {
+        const result = await confirmIdentity(Data.my_id,strg.email, strg.privatekey, strg.device, {
             x: "prof",
             data: about
         });
@@ -893,7 +896,7 @@
 
 
 
-    async function confirmIdentity(email, privateKey, device_name, purpose = 'auth') {
+    async function confirmIdentity(id,email, privateKey, device_name, purpose = 'auth') {
         try {
             //console.log(`🔐 Запрашиваю подтверждение для: ${email}`);
             const challengeResponse = await fetch("/challenge", {
@@ -923,6 +926,7 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
+                    id: id,
                     email: email,
                     challenge: challenge,
                     signature: signature,
@@ -958,7 +962,7 @@
     document.getElementById("create_chatbtn").addEventListener("click", function() {
         ws.send(JSON.stringify({
             type: "newchat",
-            email:
+            email: null
         }))
     });
 </script>

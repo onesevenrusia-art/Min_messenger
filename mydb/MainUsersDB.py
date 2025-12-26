@@ -91,7 +91,6 @@ class UserManager:
             session.close()
     
     def get_all_users(self):
-        """Получить всех пользователей как list of dict"""
         session = self.Session()
         try:
             users = session.query(User).all()
