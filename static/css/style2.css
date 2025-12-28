@@ -210,7 +210,7 @@
         height: 94vh;
         width: 100%;
         margin: 2px;
-        overflow-y: scroll;
+        overflow-y: auto;
     }
     
     .chatinfo {
@@ -363,7 +363,7 @@
         left: 2%;
         min-width: 22%;
         max-height: 90%;
-        overflow-y: scroll;
+        overflow-y: auto;
         margin-top: 1px;
     }
     

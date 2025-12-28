@@ -158,6 +158,16 @@
 </body>
 <script src="/static/js/appCrypto.js"></script>
 <script>
+    var platform = "Unknown OS";
+    if (navigator.appVersion.indexOf("Win") != -1) 
+        platform = "Windows";
+
+    if (navigator.appVersion.indexOf("Mac") != -1) 
+        platform = "MacOS";
+
+    if (navigator.appVersion.indexOf("Linux") != -1) 
+        platform = "Linux";
+
     const photoContainer = document.querySelector('.photo-container');
     const photoAdd = document.querySelector('.photo-add');
     const photoDelete = document.querySelector('.photo-delete');
@@ -284,7 +294,8 @@
                 d: datae.mydevice
             }))
             localStorage.setItem("new_public", JSON.stringify({
-                publickey: datae.publickey
+                publickey: datae.publickey,
+                platform : datae.platform
             }));
             document.getElementById("moreinfo").innerText = "Loading device Info......"
             try {
@@ -384,7 +395,8 @@
             let res = await confirmIdentity(Data.my_id,Data.email, Data.privatekey, Data.device, {
                 x: "yes_i_my",
                 key: keys_shifr,
-                device: JSON.parse(localStorage.getItem("newdeviceadd")).d
+                device: JSON.parse(localStorage.getItem("newdeviceadd")).d,
+                platform: keysencrypt.platform
             });
 
             if (res.result === true) {
@@ -417,16 +429,14 @@
         .then(response => response.json())
         .then(result => {
             const chats = result;
-            console.log(chats)
             chats.forEach(chat => {
-                console.log(chat.avatar);
-                if (chat.avatar === null) {
-                    chat.avatar = localStorage.getItem("UniknownChat2");
+                if (chat.photo === null) {
+                    chat.photo = localStorage.getItem("UniknownChat2");
                 }
                 ChatBox.innerHTML += `
                 <div class=${'chatinfo'}>
                     <img src="${chat.photo}" class=${'chat-avatar'} alt="${0} ">
-                    <b class=${'chat-name'}>${chat.name}</b> 
+                    <b id=${'chat'+chat.id} class=${'chat-name'}>${chat.name}</b> 
                 </div>
             `;
             });
@@ -507,14 +517,20 @@
         });
     });
     document.addEventListener("click", function(e) {
+        console.log(e.target.className );
         if (e.target.className !== "zzz") {
             document.querySelector("#SearchUser").style.display = "none";
+        if (e.target.className in ["chat-name","chat-avatar","chatinfo"]){
+            if (window.innerHeight < 480){
+                console.log("chat")
+                document.getElementById("chatbox").style.display = "none";
+                document.querySelectorAll(".wind").forEach(e =>{e.style.display="flex"})
+            }
+            }
         }
     })
 
     function SearchBy(type_search) {
-        //console.log('Выбран поиск по имени ${}');
-        // Ваш код для поиска по имени
         UserBox = document.getElementById("SearchUser");
         if (InputSearch.value.trim() != "") {
             fetch("/SearchUserBy", {
@@ -579,7 +595,6 @@
     });
 
     function CreateChat(userId, element) {
-        //console.log(`Обрабатываем пользователя с ID: ${userId}`);
         document.getElementById("MainChatCreator").style.display = "flex";
         fetch("/GetUserInfo", {
                 method: 'POST',
@@ -619,13 +634,31 @@
         document.getElementById("MainChatCreator").style.display = "none";
     });
 
-    document.getElementById("exit").addEventListener("click", function(e) {
+    document.getElementById("exit").addEventListener("click", async function(e) {
         const res = confirm("Вы уверены, что хотите выйти из аккаунта на текущем устройстве ?")
         if (res) {
-            localStorage.clear();
-            window.close();
-            window.location.href = '';
-            return true;
+            let res = await confirmIdentity(Data.my_id,Data.email, Data.privatekey, Data.device, {
+                x: "removedevice",
+                device: Data.device
+            });
+            if (res.result===false && (res.what == "auth")){
+                localStorage.clear();
+                window.close();
+                window.location.href = '';
+                return true;
+            }
+            else if (res.result === true) {
+                if (res.result.answ=="yes")
+                {
+                    localStorage.clear();
+                    window.close();
+                    window.location.href = '';        
+                }
+                else{
+                    alert("Мы не можем удалить ваше единственное устройство иначе доступ к аккаунту будет безвозвратно потерен, подключите новое , а затем выйдите из аккаунта на этом")
+                }
+            }
+
         };
     });
     document.getElementById("deletemyacc").addEventListener("click", function(e) {
@@ -753,7 +786,6 @@
             pol = "Жен";
         }
 
-        // Получаем фото данные - ВАЖНО: await!
         const ph = await getProfilePhotoData();
 
         const about = {
@@ -766,13 +798,11 @@
             photo: ph // base64 строка или null
         }
         console.log(about);
-        // Добавляем await для confirmIdentity
         const result = await confirmIdentity(Data.my_id,strg.email, strg.privatekey, strg.device, {
             x: "prof",
             data: about
         });
 
-        // Обрабатываем результат
         if (result.result === true) {
             console.log('Профиль сохранен!');
             document.querySelector('.MainCreateProfil').style.display = 'none';
@@ -799,21 +829,17 @@
     photoUpload.addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
-            // Проверяем тип файла
             if (!file.type.startsWith('image/')) {
                 alert('Пожалуйста, выберите файл изображения');
                 return;
             }
 
-            // Проверяем размер файла (максимум 5MB)
             if (file.size > 5 * 1024 * 1024) {
                 alert('Размер файла не должен превышать 5MB');
                 return;
             }
 
             currentPhotoFile = file;
-
-            // Показываем превью
             const reader = new FileReader();
             reader.onload = function(e) {
                 myPhoto.src = e.target.result;
@@ -898,7 +924,6 @@
 
     async function confirmIdentity(id,email, privateKey, device_name, purpose = 'auth') {
         try {
-            //console.log(`🔐 Запрашиваю подтверждение для: ${email}`);
             const challengeResponse = await fetch("/challenge", {
                 method: 'POST',
                 headers: {
@@ -941,7 +966,8 @@
                 console.log('✅ Подтверждение успешно');
                 return {
                     result: true,
-                    what: "auth"
+                    what: "auth",
+                    data: verifyResponse
                 };
             } else {
                 console.log('❌ Подтверждение не удалось:', verifyResult.error);

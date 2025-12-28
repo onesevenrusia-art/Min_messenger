@@ -441,6 +441,25 @@ class DataBaseManager:
                 "error": str(e)}
         finally:
             session.close()
+    def update_device(self, id, **kwargs):
+        """[publickey publickeycrypt lastseen]"""
+        session = self.Session()
+        try:
+            device = session.query(Device).filter(Device.id == id).first()
+            if not device:
+                return {"success":False,"error":"id не найден"}
+            allowed_fields = ['publickey', 'publickeycrypt', 'lastseen']
+            for field, value in kwargs.items():
+                if field in allowed_fields and hasattr(device, field):
+                    setattr(device, field, str(value))
+            session.commit()
+            return {"success": True}
+        except Exception as e:
+            session.rollback()
+            return {"success":False,
+                "error": str(e)}
+        finally:
+            session.close()     
 
     def is_user_blocked(self, email):
         """Проверить заблокирован ли пользователь"""

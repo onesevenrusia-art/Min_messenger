@@ -27,6 +27,7 @@ simv="qwertyuioplkjhgfdsazxcvbnm@#_1234567890"
 
 DoctypeKeys={}
 DevicesKeys = {}
+removedevicekeys={}
 challenges_auth={}
 challenges_del={}
 challenges_prof={}
@@ -257,8 +258,9 @@ def key():
                         name=data["name"],
                         phone=data["phone"],
                         )
+        print("adding")
         if res["success"]:
-
+            print("success adding ///")
             Database.add_device(user_id=res["user_id"],
                                 name=data["device"],
                                 platform=data["platform"],
@@ -339,6 +341,9 @@ def challenge():
         elif data["what"]["x"]=="no_i_not" or data["what"]["x"]=="yes_i_my" :
             if data["email"] not in challenges_conn_device:
                 challenges_conn_device[data["email"]]={"challenge":challenge,"datatime": datetime.now()}        
+        elif data["what"]["x"]=="removedevice" :
+            if data["email"] not in removedevicekeys:
+                removedevicekeys[data["email"]]={"challenge":challenge,"datatime": datetime.now()}        
         else:
             return jsonify({"success":False}) 
         return jsonify({"success":True, "challenge":challenge}) 
@@ -352,7 +357,7 @@ def podpis():
     challenge = data['challenge']
     signature = data['signature']
 
-    all_stores = [challenges_auth, challenges_del, challenges_prof, challenges_conn_device]
+    all_stores = [challenges_auth, challenges_del, challenges_prof, challenges_conn_device, removedevicekeys]
     for store in all_stores:
         to_delete = []
         for email_2, data_2 in store.items():
@@ -378,6 +383,9 @@ def podpis():
             case "yes_i_my":
                 if challenge!=challenges_conn_device[email]["challenge"]:
                     return jsonify({"success":False})    
+            case "removedevice":
+                if challenge!=removedevicekeys[email]["challenge"]:
+                    return jsonify({"success":False})                 
     except:
         return jsonify({"success":False})    
     match data["what"]['x']:
@@ -386,6 +394,7 @@ def podpis():
         case "prof": del challenges_prof[email]
         case "no_i_not": del challenges_conn_device[email]
         case "yes_i_my": del challenges_conn_device[email]
+        case "removedevice": del removedevicekeys[email]
     user = Database.get_user_by_email(email)
     if data["device"] not in [item['name'] for item in user["devices"]]:
         print(f"Device not in db ")
@@ -435,10 +444,12 @@ def podpis():
             r = requests.post("https://127.0.0.1:8000/cancel_agree",json={"email":email+'newdevice'},verify=False)
             return jsonify({"success":True})
         if data["what"]["x"] == "yes_i_my":
-            
+            print("agree on new device")
             r = requests.post("https://127.0.0.1:8000/i_agree",json={"email":email+'newdevice',"key":data["what"]["key"]},verify=False)
+            print(r,"adding")
             if r.json()["success"]==True:
                 print("Adding device.....")
+                print(r.json())
                 #usersdb.add_device(email,data["what"]["device"],{})
                 Database.add_device(user_id=user["id"],
                                     name=data["what"]["device"],
@@ -448,6 +459,33 @@ def podpis():
 
                 return jsonify({"success":True})
             else:return jsonify({"success":False})
+        if data["what"]["x"] == "removedevice":
+            dname=data["device"]
+            devices=Database.get_user_devices(data["id"])
+            print("devices",devices)
+            if len(devices)<2:
+                return {"success":True,"answ":"no"}
+            else:
+                flaf=False
+                for d in devices:
+                    if d["name"]==dname:
+                        if d["publickey"] is not None:
+                            id1=d["id"]
+                            pbk=d["publickey"]
+                            pbkcrypt=d["publickeycrypt"]
+                            flaf=True
+                            break
+                if flaf:
+                    for d2 in devices:
+                        if d2["publickey"] is None:
+                            if Database.update_device(id=d2["id"],publickey=pbk,publickeycrypt=pbkcrypt)["success"]:
+                                Database.delete_Device(id1)
+                                return {"success":True,"answ":"yes"}
+                            else:break
+                return {"success":True,"answ":"no"}
+                            
+                        
+                #Database.update_device()
     else:
         print("false podpis")
         message=0
