@@ -4,13 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MIN Messenger - Свободу слову!</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style2.css') }}">
+    <link rel="stylesheet" href="static/css/style2.css">
 </head>
 
 <body>
     <div class="background-container">
         <img id="fon" src="" alt="Фон" class="background-image">
-
     </div>
 
     <div class="shapes">
@@ -40,6 +39,11 @@
     <div class="mesenger_body">
         <div id="chatbox"></div>
         <div class="wind">
+            <div id="chatshape">
+                <button id="shapebackbtn"><<<</button>
+                <img id="shapechatavatar" style="width: 40px; height:40px" class="chat-avatar">
+                <p id="shapechatname"></p>
+            </div>
             <div id="chat"></div>
             <div class="input_msg">
                 <textarea id="input_message"></textarea>
@@ -150,30 +154,44 @@
                 <button style="margin-left: 15px; font-size: 22px;" class="yes" id="noi">Нет не я</button>
             </div>
         </div>
-
     </div>
-
-
 
 </body>
 <script src="/static/js/appCrypto.js"></script>
 <script>
-    var platform = "Unknown OS";
-    if (navigator.appVersion.indexOf("Win") != -1) 
-        platform = "Windows";
-
-    if (navigator.appVersion.indexOf("Mac") != -1) 
-        platform = "MacOS";
-
-    if (navigator.appVersion.indexOf("Linux") != -1) 
-        platform = "Linux";
-
+    var CurrentChat = null;
     const photoContainer = document.querySelector('.photo-container');
     const photoAdd = document.querySelector('.photo-add');
     const photoDelete = document.querySelector('.photo-delete');
     const photoUpload = document.getElementById('photo_upload');
     const myPhoto = document.getElementById('my_photo');
     const DataUser = localStorage.getItem('Userdata');
+    try {
+        Chats = JSON.parse(localStorage.getItem("Chats"))
+        if (Chats === null) {
+            const Chats = [];
+        }
+    } catch {
+        const Chats = [];
+    }
+    const Data = JSON.parse(DataUser);
+    const ChatBox = document.getElementById("chatbox")
+    var platform = "Unknown OS";
+    if (navigator.appVersion.indexOf("Win") != -1)
+        platform = "Windows";
+
+    if (navigator.appVersion.indexOf("Mac") != -1)
+        platform = "MacOS";
+
+    if (navigator.appVersion.indexOf("android") != -1)
+        platform = "android";
+
+    if (navigator.appVersion.indexOf("ios") != -1)
+        platform = "ios";
+
+    if (navigator.appVersion.indexOf("Linux") != -1)
+        platform = "Linux";
+
     if (DataUser) {
         const Data = JSON.parse(DataUser);
         console.log(Data)
@@ -181,7 +199,7 @@
         if (true) {
             console.log("ppp")
             if (navigator.onLine) {
-                const result = confirmIdentity(Data.my_id,Data.email, Data.privatekey, Data.device, {
+                const result = confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
                     x: "auth"
                 });
                 console.log(result);
@@ -262,6 +280,7 @@
     loadAllImages().then(res => {
         document.getElementById("fon").src = localStorage.getItem("fone");
     });
+    LoadChats()
 
     async function askNotificationPermission() {
         const permission = await Notification.requestPermission();
@@ -272,11 +291,8 @@
         navigator.serviceWorker.register("/static/js/sw.js")
             .then(() => console.log("SW registered"));
     }
-    const Data = JSON.parse(DataUser);
 
-    const ChatBox = document.getElementById("chatbox")
-
-    const device_id = Data.email;
+    const device_id = Data.email + "|id" + Data.device_id;
     let pendingNotification = null;
     const ws = new WebSocket(
         "wss://" + window.location.hostname + ":8000/ws?device_id=" + device_id
@@ -295,7 +311,7 @@
             }))
             localStorage.setItem("new_public", JSON.stringify({
                 publickey: datae.publickey,
-                platform : datae.platform
+                platform: datae.platform
             }));
             document.getElementById("moreinfo").innerText = "Loading device Info......"
             try {
@@ -363,7 +379,7 @@
     });
 
     document.getElementById("noi").addEventListener("click", function() {
-        confirmIdentity(Data.my_id,Data.email, Data.privatekey, Data.device, {
+        confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
             x: "no_i_not"
         }).then(res => {
             console.log(res);
@@ -392,7 +408,7 @@
             })
             let keys_shifr = await hybridEncrypt(dts, keysencrypt.publickey);
 
-            let res = await confirmIdentity(Data.my_id,Data.email, Data.privatekey, Data.device, {
+            let res = await confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
                 x: "yes_i_my",
                 key: keys_shifr,
                 device: JSON.parse(localStorage.getItem("newdeviceadd")).d,
@@ -415,36 +431,48 @@
 
     });
 
-
-    ChatBox.innerHTML = '';
-    fetch("/userchatlist", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                id: JSON.parse(localStorage.getItem("Userdata")).my_id
-            }),
-        })
-        .then(response => response.json())
-        .then(result => {
-            const chats = result;
-            chats.forEach(chat => {
-                if (chat.photo === null) {
-                    chat.photo = localStorage.getItem("UniknownChat2");
-                }
-                ChatBox.innerHTML += `
-                <div class=${'chatinfo'}>
-                    <img src="${chat.photo}" class=${'chat-avatar'} alt="${0} ">
-                    <b id=${'chat'+chat.id} class=${'chat-name'}>${chat.name}</b> 
-                </div>
+    function UpdataChats() {
+        ChatBox.innerHTML = '';
+        const chats = JSON.parse(localStorage.getItem("Chats"))
+        chats.forEach(chat => {
+            ChatBox.innerHTML += `
+            <div data-chat-id=${'chat'+chat.id} class=${'chatinfo'}>
+                <img src="${chat.photo}" class=${'chat-avatar'} alt="${0} ">
+                <b class=${'chat-name'}>${chat.name}</b> 
+            </div>
             `;
+        });
+    }
+
+    async function LoadChats() {
+        if (localStorage.getItem("Chats") === null) {
+            console.log(" loading chats...")
+            const response = await fetch("/userchatlist", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    id: JSON.parse(localStorage.getItem("Userdata")).my_id
+                }),
             });
 
-        })
-        .catch(error => {
-            console.error("Ошибка сети:", error);
-        });
+            const chats = await response.json();
+
+            for (const chat of chats) {
+                if (!chat.photo) {
+                    chat.photo = localStorage.getItem("UniknownChat2");
+                } else {
+                    chat.photo = await imageToBase64(chat.photo);
+                }
+
+                Chats.push(chat);
+            }
+            localStorage.setItem("Chats", JSON.stringify(Chats));
+        }
+        UpdataChats();
+    }
+
     document.getElementById("inputsearchuser").addEventListener("focus", function() {
         document.querySelector("#SearchUser").style.display = "flex";
     });
@@ -466,8 +494,6 @@
         menu.style.top = (rect.bottom + 2) + 'px';
         menu.style.left = rect.left + 'px';
         menu.style.minWidth = rect.width + 'px';
-
-        // Запускаем анимацию
         setTimeout(() => menu.classList.add('show'), 10);
         clearTimeout(timeout);
     }
@@ -476,7 +502,7 @@
         menu.classList.remove('show');
         timeout = setTimeout(() => {
             menu.style.display = 'none';
-        }, 200); // Ждем окончания анимации
+        }, 200);
     }
 
     button.addEventListener('mouseenter', showMenu);
@@ -493,12 +519,9 @@
 
     menuLinks.forEach(link => {
         link.addEventListener('click', function(e) {
-            e.preventDefault(); // Отменяем переход по ссылке
-
+            e.preventDefault();
             const linkText = this.textContent;
             console.log(`Нажата ссылка: ${linkText}`);
-
-            // Определяем какая именно ссылка нажата
             switch (linkText) {
                 case 'Name':
                     SearchBy("name");
@@ -511,22 +534,45 @@
                     break;
             }
 
-            // Закрываем меню после выбора
             this.closest('.by').style.display = 'none';
             document.querySelector("#SearchUser").style.display = "flex";
         });
     });
     document.addEventListener("click", function(e) {
-        console.log(e.target.className );
         if (e.target.className !== "zzz") {
             document.querySelector("#SearchUser").style.display = "none";
-        if (e.target.className in ["chat-name","chat-avatar","chatinfo"]){
-            if (window.innerHeight < 480){
-                console.log("chat")
-                document.getElementById("chatbox").style.display = "none";
-                document.querySelectorAll(".wind").forEach(e =>{e.style.display="flex"})
+        }
+        if (e.target.closest(".chatinfo")) {
+            document.getElementById("chatshape").style.display = "flex";
+            CurrentChat = e.target.closest(".chatinfo").dataset.chatId.substring(4);
+            console.log(CurrentChat)
+            for (const chat of Chats) {
+                console.log(chat, CurrentChat, chat.id)
+                if (String(chat.id) === CurrentChat) {
+                    document.getElementById("shapechatavatar").src = chat.photo;
+                    document.getElementById("shapechatname").innerText = chat.name;
+                }
             }
+            if (window.innerHeight < 480) {
+                document.getElementById("chatbox").classList.toggle("hide");
+                document.getElementById("chatbox").style.display = "none"
+                document.querySelectorAll(".wind").forEach(e => {
+                    e.style.display = "flex"
+                    e.style.width = "100%"
+                })
+            } else {
+                document.querySelectorAll(".wind").forEach(e => {
+                    e.style.display = "flex"
+                })
             }
+        }
+    })
+    document.getElementById("shapebackbtn").addEventListener("click", function() {
+        document.querySelectorAll(".wind").forEach(e => {
+            e.style.display = "none"
+        })
+        if (window.innerHeight < 480) {
+            document.getElementById("chatbox").classList.remove("hide");
         }
     })
 
@@ -637,24 +683,22 @@
     document.getElementById("exit").addEventListener("click", async function(e) {
         const res = confirm("Вы уверены, что хотите выйти из аккаунта на текущем устройстве ?")
         if (res) {
-            let res = await confirmIdentity(Data.my_id,Data.email, Data.privatekey, Data.device, {
+            let res = await confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
                 x: "removedevice",
                 device: Data.device
             });
-            if (res.result===false && (res.what == "auth")){
+            console.log(res);
+            if (res.result === false && (res.what == "auth" || res.what == "server")) {
                 localStorage.clear();
                 window.close();
                 window.location.href = '';
                 return true;
-            }
-            else if (res.result === true) {
-                if (res.result.answ=="yes")
-                {
+            } else if (res.result === true) {
+                if (res.result.answ == "yes") {
                     localStorage.clear();
                     window.close();
-                    window.location.href = '';        
-                }
-                else{
+                    window.location.href = '';
+                } else {
                     alert("Мы не можем удалить ваше единственное устройство иначе доступ к аккаунту будет безвозвратно потерен, подключите новое , а затем выйдите из аккаунта на этом")
                 }
             }
@@ -689,7 +733,7 @@
     document.getElementById("yesdelete2").addEventListener("click", function(e) {
         let tx = document.getElementById("txa").value.trim();
         const Data = JSON.parse(localStorage.getItem("Userdata"));
-        const result = confirmIdentity(Data.my_id, Data.email, Data.privatekey, Data.device, {
+        const result = confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
             x: "del",
             "why": tx
         });
@@ -798,7 +842,7 @@
             photo: ph // base64 строка или null
         }
         console.log(about);
-        const result = await confirmIdentity(Data.my_id,strg.email, strg.privatekey, strg.device, {
+        const result = await confirmIdentity(Data.my_id, Data.device_id, strg.email, strg.privatekey, strg.device, {
             x: "prof",
             data: about
         });
@@ -922,7 +966,7 @@
 
 
 
-    async function confirmIdentity(id,email, privateKey, device_name, purpose = 'auth') {
+    async function confirmIdentity(id, device_id, email, privateKey, device_name, purpose = 'auth') {
         try {
             const challengeResponse = await fetch("/challenge", {
                 method: 'POST',
@@ -952,6 +996,7 @@
                 },
                 body: JSON.stringify({
                     id: id,
+                    device_id: device_id,
                     email: email,
                     challenge: challenge,
                     signature: signature,
@@ -985,6 +1030,17 @@
             };
         }
     }
+
+    async function imageToBase64(url) {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        return new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+        });
+    }
+
     document.getElementById("create_chatbtn").addEventListener("click", function() {
         ws.send(JSON.stringify({
             type: "newchat",

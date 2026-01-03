@@ -5,19 +5,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MIN Messenger - Вход и регистрация</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
     <div class="background-container">
-        <img src="{{ url_for('static', filename='images/bg.jpg') }}" alt="Фон" class="background-image">
+        <img src="static\images\bg.jpg" alt="Фон" class="background-image">
     </div>
 
     <div class="container">
         <!-- Основной блок авторизации -->
         <div class="auth-box" id="authBox">
             <div class="logo">
-                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MIN Messenger">
+                <img src="static\images\logo.png" alt="MIN Messenger">
             </div>
             <h1 class="welcome-text">Добро пожаловать в мессенджер MIN!</h1>
 
@@ -31,7 +31,7 @@
         <!-- Блок регистрации (изначально скрыт) -->
         <div class="auth-box register-box" id="registerBox" style="display: none;">
             <div class="logo">
-                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MIN Messenger">
+                <img src="static\images\logo.png" alt="MIN Messenger">
             </div>
             <h2 class="welcome-text">Создание аккаунта</h2>
 
@@ -87,7 +87,7 @@
 
         <div class="auth-box" id="loadingBox" style="display: none;">
             <div class="logo">
-                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MIN Messenger">
+                <img src="static\images\logo.png" alt="MIN Messenger">
             </div>
             <h2>Пожалуйста, подождите</h2>
             <div class="loading-spinner"></div>
@@ -105,13 +105,13 @@
         document.addEventListener('DOMContentLoaded', async function() {
             const DataUser = localStorage.getItem('Userdata');
             var platform = "Unknown OS";
-            if (navigator.appVersion.indexOf("Win") != -1) 
+            if (navigator.appVersion.indexOf("Win") != -1)
                 platform = "Windows";
 
-            if (navigator.appVersion.indexOf("Mac") != -1) 
+            if (navigator.appVersion.indexOf("Mac") != -1)
                 platform = "MacOS";
 
-            if (navigator.appVersion.indexOf("Linux") != -1) 
+            if (navigator.appVersion.indexOf("Linux") != -1)
                 platform = "Linux";
 
             console.log(DataUser)
@@ -359,6 +359,7 @@
                                                 localStorage.clear();
                                                 MyKeys.email = formData.email;
                                                 MyKeys.my_id = result.user_id;
+                                                MyKeys.device_id = result.device_id
                                                 localStorage.setItem('Userdata', JSON.stringify(MyKeys));
                                                 console.log("✅ Данные сохранены в localStorage");
                                                 alert("✅ Регистрация прошла успешно.");
@@ -381,7 +382,7 @@
                                     // Вход
                                     const Mydevice = generateDeviceId();
                                     const fingerprint = generateKeyFingerprint(JSON.parse(localStorage.getItem("userdata222")).publickey)
-                                    //console.log(fingerprint);
+                                        //console.log(fingerprint);
                                     fetch("/interkey2", {
                                             method: 'POST',
                                             headers: {
@@ -415,7 +416,7 @@
 
 
                                                 const ws = new WebSocket(
-                                                    "wss://" + window.location.hostname + ":8000/ws?device_id=" + formData.email + "newdevice"
+                                                    "wss://" + window.location.hostname + ":8000/ws?device_id=" + formData.email.strip() + "#id" + "newdevice"
                                                 );
 
                                                 ws.onopen = () => {
@@ -428,9 +429,9 @@
 
                                                         //console.log(datae.key, MyKeys.privatekeycrypt);
                                                         hybridDecrypt(datae.key, MyKeys.privatekeycrypt).then(resulted_key => {
-                                                            resulted_key=JSON.parse(resulted_key)
-                                                            //resulted_key=JSON.parse(resulted_key);
-                                                            
+                                                            resulted_key = JSON.parse(resulted_key)
+                                                                //resulted_key=JSON.parse(resulted_key);
+
                                                             fetch("/GetUserInfo", {
                                                                     method: 'POST',
                                                                     headers: {
@@ -443,17 +444,17 @@
                                                                 .then(response => response.json())
                                                                 .then(result => {
                                                                     //console.log(result.publickeys);
-                                                                    console.log(resulted_key,Mydevice);
+                                                                    console.log(resulted_key, Mydevice);
                                                                     const UserData_new = {
-                                                                            publickey: result.publickeys.publickey,
-                                                                            privatekey: resulted_key.privatekey,
-                                                                            publickeycrypt: result.publickeys.publickeycrypt,
-                                                                            privatekeycrypt: resulted_key.privatekeycrypt,
-                                                                            email: formData.email,
-                                                                            device: Mydevice,
-                                                                            my_id: result.userid
-                                                                        }
-                                                                        //
+                                                                        publickey: result.publickeys.publickey,
+                                                                        privatekey: resulted_key.privatekey,
+                                                                        publickeycrypt: result.publickeys.publickeycrypt,
+                                                                        privatekeycrypt: resulted_key.privatekeycrypt,
+                                                                        email: formData.email,
+                                                                        device: Mydevice,
+                                                                        my_id: result.userid,
+                                                                        device_id: result.device_id
+                                                                    }
                                                                     localStorage.clear();
                                                                     console.log(UserData_new)
                                                                     localStorage.setItem('Userdata', JSON.stringify(UserData_new));
@@ -465,7 +466,6 @@
                                                                 .catch(error => {
                                                                     console.error("Ошибка сети:", error);
                                                                 });
-
                                                         })
 
                                                     } else {
@@ -480,8 +480,6 @@
                                                 ws.onclose = () => {
                                                     console.log("WebSocket closed");
                                                 };
-
-
 
                                                 // Настраиваем обработчик отмены ОДИН РАЗ
                                                 const cancelBtn = document.getElementById("cancelauth");
