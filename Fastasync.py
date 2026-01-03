@@ -186,6 +186,7 @@ async def websocket_endpoint(ws: WebSocket):
             return     
     else:
         if device_id not in WebSocketDevices or device_id in clients:
+            print("not in devices/clients",WebSocketDevices,clients,device_id)
             await ws.close()
             return     
     
@@ -373,6 +374,7 @@ async def podpis(request:Request):
                 to_delete.append(email_2)
         for email_2 in to_delete:
             del store[email_2]
+    print("verify")
     try:
         match data["what"]["x"]:
             case "auth":
@@ -408,9 +410,9 @@ async def podpis(request:Request):
         return {"success":False}
     public_key_pem = list(filter(lambda x: x["publickey"] is not None, user["devices"]))[0]
     public_key_pem=public_key_pem["publickey"]
-    print("verify")
+
     is_valid = verify_signature_simple(challenge, signature, public_key_pem)
-    print(is_valid)
+    print(is_valid,email)
     if is_valid:
         if data["what"]["x"]=="auth":
             print(f"success authorization {email}")
@@ -450,7 +452,7 @@ async def podpis(request:Request):
                 Database.update_user(email=email,phone=userdata["phone"],name=userdata["name"],about=aboutme,photo=path)
                 return {"success":True}
         if data["what"]["x"] == "no_i_not":
-            device_id = data["email"]+"newdevice"
+            device_id = data["email"]+"|idnewdevice"
             if device_id in clients:
                 try:
                     await clients[device_id]["ws"].send_json({"type":"new_device","success":False})
@@ -467,7 +469,7 @@ async def podpis(request:Request):
         if data["what"]["x"] == "yes_i_my":
             print("agree on new device")
             success = False
-            device_id = data["email"]+"newdevice"
+            device_id = data["email"]+"|idnewdevice"
             print("Adding device.....")
             res = Database.add_device(user_id=user["id"],
                                 name=data["what"]["device"],
@@ -611,30 +613,42 @@ async def Wss_Push_Notify(request:Request):
             if ip==str(DevicesKeys[data["email"]]["ip"]) and DevicesKeys[data["email"]]["fingerprint"] == data["fingerprint"]:
                 DevicesKeys[data["email"]]={"publickey":data["publickey"],"fingerprint":data["fingerprint"],"device":data["device"],"status":"waiting"}
                 data["ip"]=ip
-                device_id = data["email"]+"newdevice"
-                if device_id in clients:
-                    try:
-                        await clients[device_id]["ws"].send_json(data)
-                        return {"success":True,
-                                "status": "sent"}
-                    except:
-                        return {"status": "error",
-                                "success":False}
-                else:
-                    if device_id not in wait_for:
-                        wait_for[device_id]=[]
-                    wait_for[device_id].append(data)
-                    return {
-                        "success":True,
-                        "status": "offline"
-                        }
+                dv = Database.get_user_by_email(data["email"])["devices"]
+                for d in dv:
+                    print(d)
+                    device_id = data["email"]+"|id"+str(d["id"])
+                    if device_id in clients:
+                        try:
+                            print("sending")
+                            await clients[device_id]["ws"].send_json(data)
+                            return {"success":True,
+                                    "status": "sent"}
+                        except:
+                            print("error send")
+                            return {"status": "error",
+                                    "success":False}
+                    else:
+                        if device_id not in wait_for:
+                            wait_for[device_id]=[]
+                        wait_for[device_id].append(data)
+                        return {
+                            "success":True,
+                            "status": "offline"
+                            }
+            else:
+                print("bigauth")
+        else:
+            print("not in devicekeys")
+    else:
+        print("error632")        
+    print("returning")
     return {"success":"error"}
 
 @app.post("/cancel")
 async def cancel(request: Request):
     data = await request.json()
     print(request.client.host)
-    device_id = data["email"]+"newdevice"
+    device_id = data["email"]+"}idnewdevice"
     if device_id in clients:
         try:
             if device_id in clients:
@@ -642,7 +656,7 @@ async def cancel(request: Request):
                     if m["type"]=="newdevice":
                         clients[device_id]["msgoffline"].pop(m ,None)
 
-            await clients[device_id+'newdevice']["ws"].close()
+            await clients[device_id+'}idnewdevice']["ws"].close()
             return {"success":True,
                     "status": "sent"}
         except:pass

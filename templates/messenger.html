@@ -159,173 +159,200 @@
 </body>
 <script src="/static/js/appCrypto.js"></script>
 <script>
-    var CurrentChat = null;
-    const photoContainer = document.querySelector('.photo-container');
-    const photoAdd = document.querySelector('.photo-add');
-    const photoDelete = document.querySelector('.photo-delete');
-    const photoUpload = document.getElementById('photo_upload');
-    const myPhoto = document.getElementById('my_photo');
-    const DataUser = localStorage.getItem('Userdata');
-    try {
-        Chats = JSON.parse(localStorage.getItem("Chats"))
+    document.addEventListener('DOMContentLoaded', async function() {
+        var CurrentChat = null;
+        const photoContainer = document.querySelector('.photo-container');
+        const photoAdd = document.querySelector('.photo-add');
+        const photoDelete = document.querySelector('.photo-delete');
+        const photoUpload = document.getElementById('photo_upload');
+        const myPhoto = document.getElementById('my_photo');
+        const DataUser = localStorage.getItem('Userdata');
+        var Chats = JSON.parse(localStorage.getItem("Chats"))
         if (Chats === null) {
-            const Chats = [];
+            Chats = [];
         }
-    } catch {
-        const Chats = [];
-    }
-    const Data = JSON.parse(DataUser);
-    const ChatBox = document.getElementById("chatbox")
-    var platform = "Unknown OS";
-    if (navigator.appVersion.indexOf("Win") != -1)
-        platform = "Windows";
 
-    if (navigator.appVersion.indexOf("Mac") != -1)
-        platform = "MacOS";
-
-    if (navigator.appVersion.indexOf("android") != -1)
-        platform = "android";
-
-    if (navigator.appVersion.indexOf("ios") != -1)
-        platform = "ios";
-
-    if (navigator.appVersion.indexOf("Linux") != -1)
-        platform = "Linux";
-
-    if (DataUser) {
+        console.log(Chats,1)
         const Data = JSON.parse(DataUser);
-        console.log(Data)
-        const delay = 1;
-        if (true) {
-            console.log("ppp")
-            if (navigator.onLine) {
-                const result = confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
-                    x: "auth"
-                });
-                console.log(result);
-                if (result.result === false && result.what == "server") {
-                    console.error("ошибка установления соединения с сервером");
-                    delay++;
-                    if (delay > 25) {
-                        delay = 25;
-                    }
-                    setTimeout(() => {}, 1000 * delay)
+        const ChatBox = document.getElementById("chatbox")
+        var platform = "Unknown OS";
+        if (navigator.appVersion.indexOf("Win") != -1)
+            platform = "Windows";
+
+        if (navigator.appVersion.indexOf("Mac") != -1)
+            platform = "MacOS";
+
+        if (navigator.appVersion.indexOf("android") != -1)
+            platform = "android";
+
+        if (navigator.appVersion.indexOf("ios") != -1)
+            platform = "ios";
+
+        if (navigator.appVersion.indexOf("Linux") != -1)
+            platform = "Linux";
+
+        if (DataUser) {
+            const Data = JSON.parse(DataUser);
+            console.log(Data)
+            const delay = 1;
+
+            const result = await confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
+                x: "auth"
+            });
+            console.log(result);
+            if (result.result === false && result.what == "server") {
+                console.error("ошибка установления соединения с сервером");
+                delay++;
+                if (delay > 25) {
+                    delay = 25;
                 }
-                if (result.result === false && result.what == "auth") {
-                    alert("Ошибка входа");
-                    localStorage.removeItem("Userdata");
-                    window.location.href = "/";
-                }
-                if (result.result === true) {
-                    console.log('🎉 Вход выполнен!');
-                }
+                setTimeout(() => {}, 1000 * delay)
+            }
+            if (result.result === false && result.what == "auth") {
+                alert("Ошибка входа");
+                localStorage.removeItem("Userdata");
+                window.location.href = "/";
+            }
+            if (result.result === true) {
+                console.log('🎉 Вход выполнен!');
             }
 
+
+
+        } else {
+            window.location.href = '/';
         }
 
-    } else {
-        window.location.href = '/';
-    }
 
+        const images = [{
+            name: 'avatar',
+            url: '/static/images/Uniknown.png'
+        }, {
+            name: 'logo',
+            url: '/static/images/logo.png'
+        }, {
+            name: "notfind",
+            url: "static/images/notfind.png"
+        }, {
+            name: 'fone',
+            url: "static/images/bgmes.jpg"
+        }, {
+            name: 'UniknownChat2',
+            url: 'static/images/UniknownChat.jpg'
+        }];
 
-    const images = [{
-        name: 'avatar',
-        url: '/static/images/Uniknown.png'
-    }, {
-        name: 'logo',
-        url: '/static/images/logo.png'
-    }, {
-        name: "notfind",
-        url: "static/images/notfind.png"
-    }, {
-        name: 'fone',
-        url: "static/images/bgmes.jpg"
-    }, {
-        name: 'UniknownChat2',
-        url: 'static/images/UniknownChat.jpg'
-    }];
+        async function GetIPInfo(ip) {
+            const url = `https://ipapi.co/${ip}/json/`;
+            const data = await fetch(url).then(r => r.json());
+            console.log(data);
+            return data;
+        }
+        async function loadAllImages() {
+            await images.forEach(image => {
+                const saved = localStorage.getItem(image.name);
+                if (saved) {
+                    console.log(`✅ ${image.name} - из кэша`);
 
-    async function GetIPInfo(ip) {
-        const url = `https://ipapi.co/${ip}/json/`;
-        const data = await fetch(url).then(r => r.json());
-        console.log(data);
-        return data;
-    }
-    async function loadAllImages() {
-        await images.forEach(image => {
-            const saved = localStorage.getItem(image.name);
-            if (saved) {
-                console.log(`✅ ${image.name} - из кэша`);
+                } else {
+                    console.log(`📥 ${image.name} - загружаем...`);
+                    fetch(image.url)
+                        .then(response => response.blob())
+                        .then(blob => {
+                            const reader = new FileReader();
+                            reader.onload = function() {
+                                localStorage.setItem(image.name, this.result);
+                                console.log(`✅ ${image.name} - сохранено`);
+                            };
+                            reader.readAsDataURL(blob);
+                        })
+                        .catch(error => {
+                            console.error(`❌ Ошибка загрузки ${image.name}:`, error);
+                        });
+                }
+            });
+            return true;
+        }
 
-            } else {
-                console.log(`📥 ${image.name} - загружаем...`);
-                fetch(image.url)
-                    .then(response => response.blob())
-                    .then(blob => {
-                        const reader = new FileReader();
-                        reader.onload = function() {
-                            localStorage.setItem(image.name, this.result);
-                            console.log(`✅ ${image.name} - сохранено`);
-                        };
-                        reader.readAsDataURL(blob);
-                    })
-                    .catch(error => {
-                        console.error(`❌ Ошибка загрузки ${image.name}:`, error);
-                    });
-            }
+        loadAllImages().then(res => {
+            document.getElementById("fon").src = localStorage.getItem("fone") || "static/images/bgmes.jpg";
         });
-        return true;
-    }
+        LoadChats()
 
-    loadAllImages().then(res => {
-        document.getElementById("fon").src = localStorage.getItem("fone");
-    });
-    LoadChats()
+        async function askNotificationPermission() {
+            const permission = await Notification.requestPermission();
+            console.log("Notification permission:", permission);
+        }
+        askNotificationPermission();
+        if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.register("/static/js/sw.js")
+                .then(() => console.log("SW registered"));
+        }
 
-    async function askNotificationPermission() {
-        const permission = await Notification.requestPermission();
-        console.log("Notification permission:", permission);
-    }
-    askNotificationPermission();
-    if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/static/js/sw.js")
-            .then(() => console.log("SW registered"));
-    }
+        const device_id = Data.email + "|id" + Data.device_id;
+        console.log(device_id)
+        let pendingNotification = null;
+        const ws = new WebSocket(
+            "wss://" + window.location.hostname + ":8000/ws?device_id=" + device_id
+        );
 
-    const device_id = Data.email + "|id" + Data.device_id;
-    let pendingNotification = null;
-    const ws = new WebSocket(
-        "wss://" + window.location.hostname + ":8000/ws?device_id=" + device_id
-    );
+        ws.onopen = () => {
+            console.log("WebSocket connected");
+        };
 
-    ws.onopen = () => {
-        console.log("WebSocket connected");
-    };
-
-    ws.onmessage = (event) => {
-        const datae = JSON.parse(event.data)
-        if (datae.type === "newdevice") {
+        ws.onmessage = (event) => {
+            const datae = JSON.parse(event.data)
             console.log(datae);
-            localStorage.setItem("newdeviceadd", JSON.stringify({
-                d: datae.mydevice
-            }))
-            localStorage.setItem("new_public", JSON.stringify({
-                publickey: datae.publickey,
-                platform: datae.platform
-            }));
-            document.getElementById("moreinfo").innerText = "Loading device Info......"
-            try {
-                GetIPInfo(datae.ip).then(dataip => {
-                    document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n страна: ${dataip.country_name}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
-                    if (dataip === null) {
-                        document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
+            if (datae.type === "newdevice") {
+                localStorage.setItem("newdeviceadd", JSON.stringify({
+                    d: datae.mydevice
+                }))
+                localStorage.setItem("new_public", JSON.stringify({
+                    publickey: datae.publickey,
+                    platform: datae.platform
+                }));
+                document.getElementById("moreinfo").innerText = "Loading device Info......"
+                try {
+                    GetIPInfo(datae.ip).then(dataip => {
+                        document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n страна: ${dataip.country_name}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
+                        if (dataip === null) {
+                            document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
 
-                    }
-                })
-            } catch {}
-            if (document.hidden) {
-                pendingNotification = true;
-            } else {
+                        }
+                    })
+                } catch {}
+                if (document.hidden) {
+                    pendingNotification = true;
+                } else {
+                    document.querySelectorAll(".newdevice_black").forEach(e => {
+                        e.style.display = "flex";
+                    });
+                    document.querySelectorAll(".newdevice").forEach(e => {
+                        e.style.display = "flex"
+                        e.classList.add("run");
+                    })
+                }
+            }
+            try {
+                navigator.serviceWorker.ready.then(reg => {
+                    reg.active.postMessage({
+                        type: "notify",
+                        title: "Новое уведомление",
+                        body: data.message || "Есть событие",
+                        data: datae
+                    });
+                });
+            } catch {
+                alert();
+            }
+        };
+
+        ws.onclose = () => {
+            console.log("WebSocket closed");
+        };
+
+
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden && pendingNotification) {
                 document.querySelectorAll(".newdevice_black").forEach(e => {
                     e.style.display = "flex";
                 });
@@ -333,719 +360,684 @@
                     e.style.display = "flex"
                     e.classList.add("run");
                 })
+                pendingNotification = null;
             }
-        }
-        try {
-            navigator.serviceWorker.ready.then(reg => {
-                reg.active.postMessage({
-                    type: "notify",
-                    title: "Новое уведомление",
-                    body: data.message || "Есть событие",
-                    data: datae
-                });
-            });
-        } catch {
-            alert();
-        }
-    };
-
-    ws.onclose = () => {
-        console.log("WebSocket closed");
-    };
+        });
 
 
-    document.addEventListener('visibilitychange', function() {
-        if (!document.hidden && pendingNotification) {
-            document.querySelectorAll(".newdevice_black").forEach(e => {
-                e.style.display = "flex";
-            });
+        document.getElementById("pdp").addEventListener("click", function() {
             document.querySelectorAll(".newdevice").forEach(e => {
-                e.style.display = "flex"
+                e.style.display = "none";
+            })
+            document.querySelectorAll(".more").forEach(e => {
+
                 e.classList.add("run");
             })
-            pendingNotification = null;
-        }
-    });
-
-
-    document.getElementById("pdp").addEventListener("click", function() {
-        document.querySelectorAll(".newdevice").forEach(e => {
-            e.style.display = "none";
-        })
-        document.querySelectorAll(".more").forEach(e => {
-
-            e.classList.add("run");
-        })
-    });
-
-    document.getElementById("noi").addEventListener("click", function() {
-        confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
-            x: "no_i_not"
-        }).then(res => {
-            console.log(res);
-            if (res.result === true) {
-                document.querySelectorAll(".newdevice_black").forEach(e => {
-                    e.style.display = "none";
-                });
-                document.querySelectorAll(".newdevice").forEach(e => {
-                    e.style.display = "none";
-                })
-            } else {
-                alert("Ошибка с сетью!");
-            }
         });
-    })
 
-    document.getElementById("yesi").addEventListener("click", function() {
-
-        (async function() {
-            let user = JSON.parse(localStorage.getItem("Userdata"));
-
-            const keysencrypt = JSON.parse(localStorage.getItem("new_public"))
-            const dts = JSON.stringify({
-                privatekey: user.privatekey,
-                privatekeycrypt: user.privatekeycrypt
-            })
-            let keys_shifr = await hybridEncrypt(dts, keysencrypt.publickey);
-
-            let res = await confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
-                x: "yes_i_my",
-                key: keys_shifr,
-                device: JSON.parse(localStorage.getItem("newdeviceadd")).d,
-                platform: keysencrypt.platform
-            });
-
-            if (res.result === true) {
-                document.querySelectorAll(".newdevice_black").forEach(e => {
-                    e.style.display = "none";
-                });
-
-                document.querySelectorAll(".newdevice").forEach(e => {
-                    e.style.display = "none";
-                });
-            } else {
-                alert("Ошибка с сетью!");
-            }
-
-        })();
-
-    });
-
-    function UpdataChats() {
-        ChatBox.innerHTML = '';
-        const chats = JSON.parse(localStorage.getItem("Chats"))
-        chats.forEach(chat => {
-            ChatBox.innerHTML += `
-            <div data-chat-id=${'chat'+chat.id} class=${'chatinfo'}>
-                <img src="${chat.photo}" class=${'chat-avatar'} alt="${0} ">
-                <b class=${'chat-name'}>${chat.name}</b> 
-            </div>
-            `;
-        });
-    }
-
-    async function LoadChats() {
-        if (localStorage.getItem("Chats") === null) {
-            console.log(" loading chats...")
-            const response = await fetch("/userchatlist", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    id: JSON.parse(localStorage.getItem("Userdata")).my_id
-                }),
-            });
-
-            const chats = await response.json();
-
-            for (const chat of chats) {
-                if (!chat.photo) {
-                    chat.photo = localStorage.getItem("UniknownChat2");
+        document.getElementById("noi").addEventListener("click", function() {
+            confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
+                x: "no_i_not"
+            }).then(res => {
+                console.log(res);
+                if (res.result === true) {
+                    document.querySelectorAll(".newdevice_black").forEach(e => {
+                        e.style.display = "none";
+                    });
+                    document.querySelectorAll(".newdevice").forEach(e => {
+                        e.style.display = "none";
+                    })
                 } else {
-                    chat.photo = await imageToBase64(chat.photo);
+                    alert("Ошибка с сетью!");
                 }
-
-                Chats.push(chat);
-            }
-            localStorage.setItem("Chats", JSON.stringify(Chats));
-        }
-        UpdataChats();
-    }
-
-    document.getElementById("inputsearchuser").addEventListener("focus", function() {
-        document.querySelector("#SearchUser").style.display = "flex";
-    });
-    document.getElementById("inputsearchuser").addEventListener("blur", function() {
-        document.querySelector("#SearchUser").style.display = "none";
-    });
-
-
-
-    const button = document.getElementById('buttonsearch');
-    const menu = document.querySelector('.by');
-    const InputSearch = document.getElementById("inputsearchuser");
-    let timeout;
-
-    function showMenu() {
-        const rect = button.getBoundingClientRect();
-        menu.style.display = 'flex';
-        menu.style.position = 'absolute';
-        menu.style.top = (rect.bottom + 2) + 'px';
-        menu.style.left = rect.left + 'px';
-        menu.style.minWidth = rect.width + 'px';
-        setTimeout(() => menu.classList.add('show'), 10);
-        clearTimeout(timeout);
-    }
-
-    function hideMenu() {
-        menu.classList.remove('show');
-        timeout = setTimeout(() => {
-            menu.style.display = 'none';
-        }, 200);
-    }
-
-    button.addEventListener('mouseenter', showMenu);
-    button.addEventListener('mouseleave', hideMenu);
-
-    menu.addEventListener('mouseenter', function() {
-        clearTimeout(timeout);
-        menu.classList.add('show');
-    });
-
-    menu.addEventListener('mouseleave', hideMenu);
-
-    const menuLinks = document.querySelectorAll('.by a');
-
-    menuLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const linkText = this.textContent;
-            console.log(`Нажата ссылка: ${linkText}`);
-            switch (linkText) {
-                case 'Name':
-                    SearchBy("name");
-                    break;
-                case 'Phone':
-                    SearchBy("phone");
-                    break;
-                case 'Id':
-                    SearchBy("id");
-                    break;
-            }
-
-            this.closest('.by').style.display = 'none';
-            document.querySelector("#SearchUser").style.display = "flex";
-        });
-    });
-    document.addEventListener("click", function(e) {
-        if (e.target.className !== "zzz") {
-            document.querySelector("#SearchUser").style.display = "none";
-        }
-        if (e.target.closest(".chatinfo")) {
-            document.getElementById("chatshape").style.display = "flex";
-            CurrentChat = e.target.closest(".chatinfo").dataset.chatId.substring(4);
-            console.log(CurrentChat)
-            for (const chat of Chats) {
-                console.log(chat, CurrentChat, chat.id)
-                if (String(chat.id) === CurrentChat) {
-                    document.getElementById("shapechatavatar").src = chat.photo;
-                    document.getElementById("shapechatname").innerText = chat.name;
-                }
-            }
-            if (window.innerHeight < 480) {
-                document.getElementById("chatbox").classList.toggle("hide");
-                document.getElementById("chatbox").style.display = "none"
-                document.querySelectorAll(".wind").forEach(e => {
-                    e.style.display = "flex"
-                    e.style.width = "100%"
-                })
-            } else {
-                document.querySelectorAll(".wind").forEach(e => {
-                    e.style.display = "flex"
-                })
-            }
-        }
-    })
-    document.getElementById("shapebackbtn").addEventListener("click", function() {
-        document.querySelectorAll(".wind").forEach(e => {
-            e.style.display = "none"
+            });
         })
-        if (window.innerHeight < 480) {
-            document.getElementById("chatbox").classList.remove("hide");
-        }
-    })
 
-    function SearchBy(type_search) {
-        UserBox = document.getElementById("SearchUser");
-        if (InputSearch.value.trim() != "") {
-            fetch("/SearchUserBy", {
+        document.getElementById("yesi").addEventListener("click", function() {
+
+            (async function() {
+                let user = JSON.parse(localStorage.getItem("Userdata"));
+
+                const keysencrypt = JSON.parse(localStorage.getItem("new_public"))
+                const dts = JSON.stringify({
+                    privatekey: user.privatekey,
+                    privatekeycrypt: user.privatekeycrypt
+                })
+                let keys_shifr = await hybridEncrypt(dts, keysencrypt.publickey);
+
+                let res = await confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
+                    x: "yes_i_my",
+                    key: keys_shifr,
+                    device: JSON.parse(localStorage.getItem("newdeviceadd")).d,
+                    platform: keysencrypt.platform
+                });
+
+                if (res.result === true) {
+                    document.querySelectorAll(".newdevice_black").forEach(e => {
+                        e.style.display = "none";
+                    });
+
+                    document.querySelectorAll(".newdevice").forEach(e => {
+                        e.style.display = "none";
+                    });
+                } else {
+                    alert("Ошибка с сетью!");
+                }
+
+            })();
+
+        });
+
+        function UpdataChats() {
+            ChatBox.innerHTML = '';
+            const chats = JSON.parse(localStorage.getItem("Chats"))
+            chats.forEach(chat => {
+                ChatBox.innerHTML += `
+                <div data-chat-id=${'chat'+chat.id} class=${'chatinfo'}>
+                    <img src="${chat.photo}" class=${'chat-avatar'} alt="${0} ">
+                    <b class=${'chat-name'}>${chat.name}</b> 
+                </div>
+                `;
+            });
+        }
+
+        async function LoadChats() {
+            if (localStorage.getItem("Chats") === null) {
+                console.log(" loading chats...")
+                const response = await fetch("/userchatlist", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        "type": type_search,
-                        "request": InputSearch.value.trim()
+                        id: JSON.parse(localStorage.getItem("Userdata")).my_id
                     }),
-                })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.sucess) {
-                        const users = result.userlist;
-                        UserBox.innerHTML = "";
-                        users.forEach(user => {
-                            if (user.photo === null) {
-                                user.photo = localStorage.getItem("avatar");
-                            }
-                            UserBox.innerHTML += `
-                        <div class=${'User'}>
-                            <img src="${user.photo}" class=${'useravatar'} alt="${0} ">
-                            <b class=${'username'} id=${user.id}>${user.name}</b> 
-                        </div>
-                    `;
-                        });
+                });
+
+                const chats = await response.json();
+
+                for (const chat of chats) {
+                    if (!chat.photo) {
+                        chat.photo = localStorage.getItem("UniknownChat2");
                     } else {
-                        let name = "Ничего не найдено";
-                        let photo = localStorage.getItem("notfind");
-                        let id = "errorfind";
-                        UserBox.innerHTML = `
-                        <div class=${'User'}>
-                            <img src="${photo}" class=${'useravatar'} alt="${0} ">
-                            <b class=${'username'} id=${id}>${name}</b> 
-                        </div>
-                    `;
+                        chat.photo = await imageToBase64(chat.photo);
                     }
 
+                    Chats.push(chat);
+                }
+                localStorage.setItem("Chats", JSON.stringify(Chats));
+            }
+            UpdataChats();
+        }
+
+        document.getElementById("inputsearchuser").addEventListener("focus", function() {
+            document.querySelector("#SearchUser").style.display = "flex";
+        });
+        document.getElementById("inputsearchuser").addEventListener("blur", function() {
+            document.querySelector("#SearchUser").style.display = "none";
+        });
+
+
+
+        const button = document.getElementById('buttonsearch');
+        const menu = document.querySelector('.by');
+        const InputSearch = document.getElementById("inputsearchuser");
+        let timeout;
+
+        function showMenu() {
+            const rect = button.getBoundingClientRect();
+            menu.style.display = 'flex';
+            menu.style.position = 'absolute';
+            menu.style.top = (rect.bottom + 2) + 'px';
+            menu.style.left = rect.left + 'px';
+            menu.style.minWidth = rect.width + 'px';
+            setTimeout(() => menu.classList.add('show'), 10);
+            clearTimeout(timeout);
+        }
+
+        function hideMenu() {
+            menu.classList.remove('show');
+            timeout = setTimeout(() => {
+                menu.style.display = 'none';
+            }, 200);
+        }
+
+        button.addEventListener('mouseenter', showMenu);
+        button.addEventListener('mouseleave', hideMenu);
+
+        menu.addEventListener('mouseenter', function() {
+            clearTimeout(timeout);
+            menu.classList.add('show');
+        });
+
+        menu.addEventListener('mouseleave', hideMenu);
+
+        const menuLinks = document.querySelectorAll('.by a');
+
+        menuLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const linkText = this.textContent;
+                console.log(`Нажата ссылка: ${linkText}`);
+                switch (linkText) {
+                    case 'Name':
+                        SearchBy("name");
+                        break;
+                    case 'Phone':
+                        SearchBy("phone");
+                        break;
+                    case 'Id':
+                        SearchBy("id");
+                        break;
+                }
+
+                this.closest('.by').style.display = 'none';
+                document.querySelector("#SearchUser").style.display = "flex";
+            });
+        });
+        document.addEventListener("click", function(e) {
+            if (e.target.className !== "zzz") {
+                document.querySelector("#SearchUser").style.display = "none";
+            }
+            if (e.target.closest(".chatinfo")) {
+                document.getElementById("chatshape").style.display = "flex";
+                CurrentChat = e.target.closest(".chatinfo").dataset.chatId.substring(4);
+                console.log(CurrentChat)
+                for (const chat of Chats) {
+                    console.log(chat, CurrentChat, chat.id)
+                    if (String(chat.id) === CurrentChat) {
+                        document.getElementById("shapechatavatar").src = chat.photo;
+                        document.getElementById("shapechatname").innerText = chat.name;
+                    }
+                }
+                if (!(innerWidth>480))
+                    document.getElementById("chatbox").classList.add("hide");
+                document.querySelectorAll(".wind").forEach(e => {
+                    e.style.display = "flex"
+                    if (innerWidth>480)
+                        e.style.width = "67%"
                 })
-                .catch(error => {
-                    console.error("Ошибка сети:", error);
-                });
-        }
-    }
-
-    document.getElementById('SearchUser').addEventListener('click', function(event) {
-        // Проверяем, что клик был по элементу с классом User или его дочерним элементам
-        const userElement = event.target.closest('.User');
-        if (userElement) {
-            // Находим элементы внутри User
-            const username = userElement.querySelector('.username');
-            const userAvatar = userElement.querySelector('.useravatar');
-            const userId = username.id;
-            // Вызываем функцию обработки
-            if (userId !== "errorfind") {
-                CreateChat(userId, userElement);
-
+                
             }
-        }
-    });
-
-    function CreateChat(userId, element) {
-        document.getElementById("MainChatCreator").style.display = "flex";
-        fetch("/GetUserInfo", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    "id": userId
-                }),
-            })
-            .then(response => response.json())
-            .then(result => {
-                document.getElementById("usname").innerText = `Вы хотите создать чат с ${result.name}`;
-                if (result.photo) {
-                    result.photo = result.photo
-                } else {
-                    result.photo = localStorage.getItem("avatar")
-                }
-                document.getElementById("user_ava").src = result.photo;
-                document.querySelectorAll(".betta p").forEach(p => {
-                    if (p.textContent.trim().includes("Имя")) {
-                        p.textContent = `Имя: ${result.name}`;
-                    } else if (p.textContent.trim().includes("Телефон")) {
-                        p.textContent = `Телефон: ${result.phone}`;
-                    }
-                    if (p.textContent.trim().includes("ID")) {
-                        p.textContent = `ID: ${result.id}`;
-                    }
-                });
-            })
-            .catch(error => {
-                console.error("Ошибка сети:", error);
-            });
-    }
-
-    document.getElementById("cancel").addEventListener("click", function(e) {
-        document.getElementById("MainChatCreator").style.display = "none";
-    });
-
-    document.getElementById("exit").addEventListener("click", async function(e) {
-        const res = confirm("Вы уверены, что хотите выйти из аккаунта на текущем устройстве ?")
-        if (res) {
-            let res = await confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
-                x: "removedevice",
-                device: Data.device
-            });
-            console.log(res);
-            if (res.result === false && (res.what == "auth" || res.what == "server")) {
-                localStorage.clear();
-                window.close();
-                window.location.href = '';
-                return true;
-            } else if (res.result === true) {
-                if (res.result.answ == "yes") {
-                    localStorage.clear();
-                    window.close();
-                    window.location.href = '';
-                } else {
-                    alert("Мы не можем удалить ваше единственное устройство иначе доступ к аккаунту будет безвозвратно потерен, подключите новое , а затем выйдите из аккаунта на этом")
-                }
-            }
-
-        };
-    });
-    document.getElementById("deletemyacc").addEventListener("click", function(e) {
-        document.getElementById("red").style.display = "flex";
-        document.querySelectorAll(".deletebox").forEach(e => {
-            e.style.display = "flex";
-        });
-    });
-
-    document.getElementById("yesdelete").addEventListener("click", function(e) {
-        document.querySelectorAll(".deletebox").forEach(e => {
-            e.style.display = "none";
-        });
-        document.querySelectorAll(".why").forEach(e => {
-            e.style.display = "flex";
-        });
-    });
-    document.querySelectorAll(".no").forEach(e => {
-        e.addEventListener("click", function(i) {
-            document.getElementById("red").style.display = "none";
-            document.querySelectorAll(".why").forEach(e => {
-                e.style.display = "none";
-            });
         })
-    })
+        document.getElementById("shapebackbtn").addEventListener("click", function() {
+            document.querySelectorAll(".wind").forEach(e => {
+                e.style.display = "none"
+            })
+            document.getElementById("chatbox").classList.remove("hide");
+        })
 
+        function SearchBy(type_search) {
+            UserBox = document.getElementById("SearchUser");
+            if (InputSearch.value.trim() != "") {
+                fetch("/SearchUserBy", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            "type": type_search,
+                            "request": InputSearch.value.trim()
+                        }),
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.sucess) {
+                            const users = result.userlist;
+                            UserBox.innerHTML = "";
+                            users.forEach(user => {
+                                if (user.photo === null) {
+                                    user.photo = localStorage.getItem("avatar");
+                                }
+                                UserBox.innerHTML += `
+                            <div class=${'User'}>
+                                <img src="${user.photo}" class=${'useravatar'} alt="${0} ">
+                                <b class=${'username'} id=${user.id}>${user.name}</b> 
+                            </div>
+                        `;
+                            });
+                        } else {
+                            let name = "Ничего не найдено";
+                            let photo = localStorage.getItem("notfind");
+                            let id = "errorfind";
+                            UserBox.innerHTML = `
+                            <div class=${'User'}>
+                                <img src="${photo}" class=${'useravatar'} alt="${0} ">
+                                <b class=${'username'} id=${id}>${name}</b> 
+                            </div>
+                        `;
+                        }
 
-    document.getElementById("yesdelete2").addEventListener("click", function(e) {
-        let tx = document.getElementById("txa").value.trim();
-        const Data = JSON.parse(localStorage.getItem("Userdata"));
-        const result = confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
-            x: "del",
-            "why": tx
+                    })
+                    .catch(error => {
+                        console.error("Ошибка сети:", error);
+                    });
+            }
+        }
+
+        document.getElementById('SearchUser').addEventListener('click', function(event) {
+            // Проверяем, что клик был по элементу с классом User или его дочерним элементам
+            const userElement = event.target.closest('.User');
+            if (userElement) {
+                // Находим элементы внутри User
+                const username = userElement.querySelector('.username');
+                const userAvatar = userElement.querySelector('.useravatar');
+                const userId = username.id;
+                // Вызываем функцию обработки
+                if (userId !== "errorfind") {
+                    CreateChat(userId, userElement);
+
+                }
+            }
         });
-        console.log(result);
-        if (result.success === false && result.what == "server") {
-            alert("ошибка установления соединения с сервером");
-        }
-        if (result.success === false && result.what == "auth") {
-            alert("Ошибка аутидентификации, следующая попытка будет возможно через 2 часа");
-        }
-        if (result.success === true) {
-            console.log('🎉 Вход выполнен!');
-            localStorage.removeItem("Userdata");
-            window.location.herf = "/";
-        }
 
-    });
-
-    const maleCheck = document.getElementById('MaleCheck');
-    const femaleCheck = document.getElementById('FemaleChack');
-
-    // Вешаем обработчики
-    maleCheck.addEventListener('change', function() {
-        if (this.checked) {
-            femaleCheck.checked = false;
-        }
-    });
-
-    femaleCheck.addEventListener('change', function() {
-        if (this.checked) {
-            maleCheck.checked = false;
-        }
-    });
-
-
-    document.getElementById("profil").addEventListener("click", function(e) {
-        document.querySelectorAll(".MainCreateProfil").forEach(e => {
-            e.style.display = "flex"
+        function CreateChat(userId, element) {
+            document.getElementById("MainChatCreator").style.display = "flex";
             fetch("/GetUserInfo", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        email: JSON.parse(localStorage.getItem("Userdata")).email
+                        "id": userId
                     }),
                 })
                 .then(response => response.json())
                 .then(result => {
-                    if (result.photo === null) {
-                        result.photo = localStorage.getItem("avatar");
+                    document.getElementById("usname").innerText = `Вы хотите создать чат с ${result.name}`;
+                    if (result.photo) {
+                        result.photo = result.photo
+                    } else {
+                        result.photo = localStorage.getItem("avatar")
                     }
-                    if (result.phone !== null) {
-                        document.getElementById("PhoneINP").value = result.phone
-                    }
-                    if (result.age !== null) {
-                        document.getElementById("AgeINP").value = result.age;
-                    }
-                    if (result.DR !== null) {
-                        document.getElementById("DR").value = result.DR;
-                    }
-                    if (result.pol !== null) {
-                        maleCheck.checked = false;
-                        femaleCheck.checked = false;
-                        switch (result.pol) {
-                            case "Муж":
-                                maleCheck.checked = true;
-                            case "Жен":
-                                femaleCheck.checked = true;
+                    document.getElementById("user_ava").src = result.photo;
+                    document.querySelectorAll(".betta p").forEach(p => {
+                        if (p.textContent.trim().includes("Имя")) {
+                            p.textContent = `Имя: ${result.name}`;
+                        } else if (p.textContent.trim().includes("Телефон")) {
+                            p.textContent = `Телефон: ${result.phone}`;
                         }
-                    }
-                    document.getElementById("my_photo").src = result.photo;
-                    document.getElementById("Name_input").value = result.name;
+                        if (p.textContent.trim().includes("ID")) {
+                            p.textContent = `ID: ${result.id}`;
+                        }
+                    });
                 })
                 .catch(error => {
                     console.error("Ошибка сети:", error);
                 });
-        });
-    });
-
-    document.getElementById("prof_canc").addEventListener("click", function(e) {
-        document.querySelectorAll(".MainCreateProfil").forEach(e => {
-            e.style.display = "none";
-        });
-    });
-
-    document.getElementById("prof_save").addEventListener("click", async function(e) {
-        const strg = JSON.parse(localStorage.getItem("Userdata"));
-        let pol = "не указано";
-        if (maleCheck.checked) {
-            pol = "Муж";
-        }
-        if (femaleCheck.checked) {
-            pol = "Жен";
         }
 
-        const ph = await getProfilePhotoData();
-
-        const about = {
-            name: document.getElementById("Name_input").value,
-            phone: document.getElementById("PhoneINP").value,
-            age: document.getElementById("AgeINP").value,
-            DR: document.getElementById("DR").value,
-            pol: pol,
-            dopinf: document.getElementById("AboutMe").value,
-            photo: ph // base64 строка или null
-        }
-        console.log(about);
-        const result = await confirmIdentity(Data.my_id, Data.device_id, strg.email, strg.privatekey, strg.device, {
-            x: "prof",
-            data: about
+        document.getElementById("cancel").addEventListener("click", function(e) {
+            document.getElementById("MainChatCreator").style.display = "none";
         });
 
-        if (result.result === true) {
-            console.log('Профиль сохранен!');
-            document.querySelector('.MainCreateProfil').style.display = 'none';
-        }
-        if (result.result === false && result.what === "auth") {
-            alert('Ошибка аутидентификации');
-            document.querySelector('.MainCreateProfil').style.display = 'none';
-        }
-        if (result.result === false && result.what === "server") {
-            alert('Ошибка соединения с сервером');
-            document.querySelector('.MainCreateProfil').style.display = 'none';
-        }
-    });
+        document.getElementById("exit").addEventListener("click", async function(e) {
+            const res = confirm("Вы уверены, что хотите выйти из аккаунта на текущем устройстве ?")
+            if (res) {
+                let res = await confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
+                    x: "removedevice",
+                    device: Data.device
+                });
+                console.log(res);
+                if (res.result === false && (res.what == "auth" || res.what == "server")) {
+                    localStorage.clear();
+                    window.close();
+                    window.location.href = '';
+                    return true;
+                } else if (res.result === true) {
+                    if (res.result.answ == "yes") {
+                        localStorage.clear();
+                        window.close();
+                        window.location.href = '';
+                    } else {
+                        alert("Мы не можем удалить ваше единственное устройство иначе доступ к аккаунту будет безвозвратно потерен, подключите новое , а затем выйдите из аккаунта на этом")
+                    }
+                }
 
-    let currentPhotoFile = null;
-
-    // Обработчик клика на "+" - открыть проводник
-    photoAdd.addEventListener('click', function(e) {
-        e.preventDefault();
-        photoUpload.click();
-    });
-
-    // Обработчик выбора файла
-    photoUpload.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            if (!file.type.startsWith('image/')) {
-                alert('Пожалуйста, выберите файл изображения');
-                return;
-            }
-
-            if (file.size > 5 * 1024 * 1024) {
-                alert('Размер файла не должен превышать 5MB');
-                return;
-            }
-
-            currentPhotoFile = file;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                myPhoto.src = e.target.result;
-                // Показываем иконку удаления
-                photoDelete.style.display = 'flex';
             };
-            reader.readAsDataURL(file);
-        }
-    });
+        });
+        document.getElementById("deletemyacc").addEventListener("click", function(e) {
+            document.getElementById("red").style.display = "flex";
+            document.querySelectorAll(".deletebox").forEach(e => {
+                e.style.display = "flex";
+            });
+        });
 
-    // Обработчик клика на корзину - удалить фото
-    photoDelete.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
+        document.getElementById("yesdelete").addEventListener("click", function(e) {
+            document.querySelectorAll(".deletebox").forEach(e => {
+                e.style.display = "none";
+            });
+            document.querySelectorAll(".why").forEach(e => {
+                e.style.display = "flex";
+            });
+        });
+        document.querySelectorAll(".no").forEach(e => {
+            e.addEventListener("click", function(i) {
+                document.getElementById("red").style.display = "none";
+                document.querySelectorAll(".why").forEach(e => {
+                    e.style.display = "none";
+                });
+            })
+        })
 
-        // Сбрасываем фото
-        myPhoto.src = localStorage.getItem("avatar");
-        currentPhotoFile = null;
-        photoUpload.value = '';
 
-        // Скрываем иконку удаления
-        photoDelete.style.display = 'none';
-    });
-
-    // Drag and Drop функционал
-    photoContainer.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        photoContainer.style.borderColor = '#007bff';
-    });
-
-    photoContainer.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        photoContainer.style.borderColor = '#ccc';
-    });
-
-    photoContainer.addEventListener('drop', function(e) {
-        e.preventDefault();
-        photoContainer.style.borderColor = '#ccc';
-
-        const file = e.dataTransfer.files[0];
-        if (file && file.type.startsWith('image/')) {
-            if (file.size > 5 * 1024 * 1024) {
-                alert('Размер файла не должен превышать 5MB');
-                return;
+        document.getElementById("yesdelete2").addEventListener("click", function(e) {
+            let tx = document.getElementById("txa").value.trim();
+            const Data = JSON.parse(localStorage.getItem("Userdata"));
+            const result = confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
+                x: "del",
+                "why": tx
+            });
+            console.log(result);
+            if (result.success === false && result.what == "server") {
+                alert("ошибка установления соединения с сервером");
+            }
+            if (result.success === false && result.what == "auth") {
+                alert("Ошибка аутидентификации, следующая попытка будет возможно через 2 часа");
+            }
+            if (result.success === true) {
+                console.log('🎉 Вход выполнен!');
+                localStorage.removeItem("Userdata");
+                window.location.herf = "/";
             }
 
-            currentPhotoFile = file;
+        });
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                myPhoto.src = e.target.result;
-                photoDelete.style.display = 'flex';
-            };
-            reader.readAsDataURL(file);
-        }
-    });
+        const maleCheck = document.getElementById('MaleCheck');
+        const femaleCheck = document.getElementById('FemaleChack');
+
+        // Вешаем обработчики
+        maleCheck.addEventListener('change', function() {
+            if (this.checked) {
+                femaleCheck.checked = false;
+            }
+        });
+
+        femaleCheck.addEventListener('change', function() {
+            if (this.checked) {
+                maleCheck.checked = false;
+            }
+        });
 
 
-    function loadExistingPhoto(photoBase64) {
-        if (photoBase64) {
-            myPhoto.src = photoBase64;
-            photoDelete.style.display = 'flex';
-            currentPhotoFile = null; // сбрасываем файл, т.к. используем base64
-        }
-    }
+        document.getElementById("profil").addEventListener("click", function(e) {
+            document.querySelectorAll(".MainCreateProfil").forEach(e => {
+                e.style.display = "flex"
+                fetch("/GetUserInfo", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email: JSON.parse(localStorage.getItem("Userdata")).email
+                        }),
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.photo === null) {
+                            result.photo = localStorage.getItem("avatar");
+                        }
+                        if (result.phone !== null) {
+                            document.getElementById("PhoneINP").value = result.phone
+                        }
+                        if (result.age !== null) {
+                            document.getElementById("AgeINP").value = result.age;
+                        }
+                        if (result.DR !== null) {
+                            document.getElementById("DR").value = result.DR;
+                        }
+                        if (result.pol !== null) {
+                            maleCheck.checked = false;
+                            femaleCheck.checked = false;
+                            switch (result.pol) {
+                                case "Муж":
+                                    maleCheck.checked = true;
+                                case "Жен":
+                                    femaleCheck.checked = true;
+                            }
+                        }
+                        document.getElementById("my_photo").src = result.photo;
+                        document.getElementById("Name_input").value = result.name;
+                    })
+                    .catch(error => {
+                        console.error("Ошибка сети:", error);
+                    });
+            });
+        });
 
-    // Функция для получения данных фото (для сохранения)
-    function getProfilePhotoData() {
-        if (currentPhotoFile) {
-            return new Promise((resolve) => {
+        document.getElementById("prof_canc").addEventListener("click", function(e) {
+            document.querySelectorAll(".MainCreateProfil").forEach(e => {
+                e.style.display = "none";
+            });
+        });
+
+        document.getElementById("prof_save").addEventListener("click", async function(e) {
+            const strg = JSON.parse(localStorage.getItem("Userdata"));
+            let pol = "не указано";
+            if (maleCheck.checked) {
+                pol = "Муж";
+            }
+            if (femaleCheck.checked) {
+                pol = "Жен";
+            }
+
+            const ph = await getProfilePhotoData();
+
+            const about = {
+                name: document.getElementById("Name_input").value,
+                phone: document.getElementById("PhoneINP").value,
+                age: document.getElementById("AgeINP").value,
+                DR: document.getElementById("DR").value,
+                pol: pol,
+                dopinf: document.getElementById("AboutMe").value,
+                photo: ph // base64 строка или null
+            }
+            console.log(about);
+            const result = await confirmIdentity(Data.my_id, Data.device_id, strg.email, strg.privatekey, strg.device, {
+                x: "prof",
+                data: about
+            });
+
+            if (result.result === true) {
+                console.log('Профиль сохранен!');
+                document.querySelector('.MainCreateProfil').style.display = 'none';
+            }
+            if (result.result === false && result.what === "auth") {
+                alert('Ошибка аутидентификации');
+                document.querySelector('.MainCreateProfil').style.display = 'none';
+            }
+            if (result.result === false && result.what === "server") {
+                alert('Ошибка соединения с сервером');
+                document.querySelector('.MainCreateProfil').style.display = 'none';
+            }
+        });
+
+        let currentPhotoFile = null;
+
+        // Обработчик клика на "+" - открыть проводник
+        photoAdd.addEventListener('click', function(e) {
+            e.preventDefault();
+            photoUpload.click();
+        });
+
+        // Обработчик выбора файла
+        photoUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (!file.type.startsWith('image/')) {
+                    alert('Пожалуйста, выберите файл изображения');
+                    return;
+                }
+
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('Размер файла не должен превышать 5MB');
+                    return;
+                }
+
+                currentPhotoFile = file;
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    resolve(e.target.result); // возвращает base64
+                    myPhoto.src = e.target.result;
+                    // Показываем иконку удаления
+                    photoDelete.style.display = 'flex';
                 };
-                reader.readAsDataURL(currentPhotoFile);
-            });
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Обработчик клика на корзину - удалить фото
+        photoDelete.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Сбрасываем фото
+            myPhoto.src = localStorage.getItem("avatar");
+            currentPhotoFile = null;
+            photoUpload.value = '';
+
+            // Скрываем иконку удаления
+            photoDelete.style.display = 'none';
+        });
+
+        // Drag and Drop функционал
+        photoContainer.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            photoContainer.style.borderColor = '#007bff';
+        });
+
+        photoContainer.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            photoContainer.style.borderColor = '#ccc';
+        });
+
+        photoContainer.addEventListener('drop', function(e) {
+            e.preventDefault();
+            photoContainer.style.borderColor = '#ccc';
+
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('Размер файла не должен превышать 5MB');
+                    return;
+                }
+
+                currentPhotoFile = file;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    myPhoto.src = e.target.result;
+                    photoDelete.style.display = 'flex';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+
+        function loadExistingPhoto(photoBase64) {
+            if (photoBase64) {
+                myPhoto.src = photoBase64;
+                photoDelete.style.display = 'flex';
+                currentPhotoFile = null; // сбрасываем файл, т.к. используем base64
+            }
         }
-        return Promise.resolve(null);
-    }
+
+        // Функция для получения данных фото (для сохранения)
+        function getProfilePhotoData() {
+            if (currentPhotoFile) {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        resolve(e.target.result); // возвращает base64
+                    };
+                    reader.readAsDataURL(currentPhotoFile);
+                });
+            }
+            return Promise.resolve(null);
+        }
 
 
 
-    async function confirmIdentity(id, device_id, email, privateKey, device_name, purpose = 'auth') {
-        try {
-            const challengeResponse = await fetch("/challenge", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email: email,
-                    what: purpose
-                })
-            });
-            const challengeResult = await challengeResponse.json();
-            if (!challengeResult.success) {
-                console.error('❌ Не удалось получить challenge');
+        async function confirmIdentity(id, device_id, email, privateKey, device_name, purpose = 'auth') {
+            try {
+                const challengeResponse = await fetch("/challenge", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        what: purpose
+                    })
+                });
+                const challengeResult = await challengeResponse.json();
+                if (!challengeResult.success) {
+                    console.error('❌ Не удалось получить challenge');
+                    return {
+                        result: false,
+                        what: "server"
+                    };
+                }
+                const challenge = challengeResult.challenge;
+                console.log('✅ Получен challenge для подтверждения');
+                const signature = await signChallenge(challenge, privateKey);
+                const verifyResponse = await fetch("/podpis", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: id,
+                        device_id: device_id,
+                        email: email,
+                        challenge: challenge,
+                        signature: signature,
+                        device: device_name,
+                        what: purpose
+                    })
+                });
+
+                const verifyResult = await verifyResponse.json();
+
+                if (verifyResult.success) {
+                    console.log('✅ Подтверждение успешно');
+                    return {
+                        result: true,
+                        what: "auth",
+                        data: verifyResponse
+                    };
+                } else {
+                    console.log('❌ Подтверждение не удалось:', verifyResult.error);
+                    return {
+                        result: false,
+                        what: "auth"
+                    };
+                }
+
+            } catch (error) {
+                console.error('❌ Ошибка подтверждения:', error);
                 return {
                     result: false,
                     what: "server"
                 };
             }
-            const challenge = challengeResult.challenge;
-            console.log('✅ Получен challenge для подтверждения');
-            const signature = await signChallenge(challenge, privateKey);
-            const verifyResponse = await fetch("/podpis", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    id: id,
-                    device_id: device_id,
-                    email: email,
-                    challenge: challenge,
-                    signature: signature,
-                    device: device_name,
-                    what: purpose
-                })
-            });
-
-            const verifyResult = await verifyResponse.json();
-
-            if (verifyResult.success) {
-                console.log('✅ Подтверждение успешно');
-                return {
-                    result: true,
-                    what: "auth",
-                    data: verifyResponse
-                };
-            } else {
-                console.log('❌ Подтверждение не удалось:', verifyResult.error);
-                return {
-                    result: false,
-                    what: "auth"
-                };
-            }
-
-        } catch (error) {
-            console.error('❌ Ошибка подтверждения:', error);
-            return {
-                result: false,
-                what: "server"
-            };
         }
-    }
 
-    async function imageToBase64(url) {
-        const res = await fetch(url);
-        const blob = await res.blob();
-        return new Promise(resolve => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.readAsDataURL(blob);
+        async function imageToBase64(url) {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            return new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        document.getElementById("create_chatbtn").addEventListener("click", function() {
+            ws.send(JSON.stringify({
+                type: "newchat",
+                email: null
+            }))
         });
-    }
-
-    document.getElementById("create_chatbtn").addEventListener("click", function() {
-        ws.send(JSON.stringify({
-            type: "newchat",
-            email: null
-        }))
     });
 </script>
 </body>

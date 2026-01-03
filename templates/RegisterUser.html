@@ -416,7 +416,7 @@
 
 
                                                 const ws = new WebSocket(
-                                                    "wss://" + window.location.hostname + ":8000/ws?device_id=" + formData.email.strip() + "#id" + "newdevice"
+                                                    "wss://" + window.location.hostname + ":8000/ws?device_id=" + formData.email + "|id" + "newdevice"
                                                 );
 
                                                 ws.onopen = () => {
@@ -425,6 +425,7 @@
 
                                                 ws.onmessage = (event) => {
                                                     const datae = JSON.parse(event.data)
+                                                    console.log(datae)
                                                     if (datae.success === true) {
 
                                                         //console.log(datae.key, MyKeys.privatekeycrypt);
@@ -453,7 +454,7 @@
                                                                         email: formData.email,
                                                                         device: Mydevice,
                                                                         my_id: result.userid,
-                                                                        device_id: result.device_id
+                                                                        device_id: datae.device_id
                                                                     }
                                                                     localStorage.clear();
                                                                     console.log(UserData_new)
