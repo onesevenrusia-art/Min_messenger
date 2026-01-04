@@ -172,7 +172,7 @@
             Chats = [];
         }
 
-        console.log(Chats,1)
+        console.log(Chats, 1)
         const Data = JSON.parse(DataUser);
         const ChatBox = document.getElementById("chatbox")
         var platform = "Unknown OS";
@@ -331,17 +331,16 @@
                         e.classList.add("run");
                     })
                 }
-            }
-            else if (datae.type === "answnewchat"){
-                switch (datae.success){
+            } else if (datae.type === "answnewchat") {
+                switch (datae.success) {
                     case "error":
                         alert("Ошибка создания чата")
                     case "waiting":
                         alert(`Если пользователь примит соглашении, то чат автоматически появится у вас`)
                 }
-            }
-            else if(datae.type === "new_chat"){
-
+            } else if (datae.type === "new_chat") {
+                console.log("call true func")
+                CreateChat(flag = true, user = datae.user)
             }
             try {
                 navigator.serviceWorker.ready.then(reg => {
@@ -353,7 +352,7 @@
                     });
                 });
             } catch {
-                
+
             }
         };
 
@@ -561,14 +560,14 @@
                         document.getElementById("shapechatname").innerText = chat.name;
                     }
                 }
-                if (!(innerWidth>480))
+                if (!(innerWidth > 480))
                     document.getElementById("chatbox").classList.add("hide");
                 document.querySelectorAll(".wind").forEach(e => {
                     e.style.display = "flex"
-                    if (innerWidth>480)
+                    if (innerWidth > 480)
                         e.style.width = "67%"
                 })
-                
+
             }
         })
         document.getElementById("shapebackbtn").addEventListener("click", function() {
@@ -633,73 +632,77 @@
                 const userAvatar = userElement.querySelector('.useravatar');
                 const userId = username.id;
                 if (userId !== "errorfind") {
-                    CreateChat(userId);
+                    console.log("call false func")
+                    CreateChat(flag = false, user = userId);
                 }
             }
         });
 
-        function CreateChat(userId, flag=false) {
+        async function CreateChat(flag, use) {
+            console.log(flag)
+            var string = "";
+            if (flag) {
+                string = {
+                    "email": user
+                }
+            } else {
+                string = {
+                    "id": user
+                }
+            }
             document.getElementById("MainChatCreator").style.display = "flex";
-            fetch("/GetUserInfo", {
-                    method: 'POST',
-                    headers: {            
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        "id": userId
-                    }),
-                })
-                .then(response => response.json())
-                .then(result => {
-                    const txt = "";
-                    if (!flag){
-                        txt = `Вы хотите создать чат с ${result.name}`}
-                    else{
-                        txt = `${result.name} хочет создать чат с вами`    
-                    }
-                    document.getElementById("usname").innerText = txt;
-                    if (result.photo) {
-                        result.photo = result.photo
-                    } else {
-                        result.photo = localStorage.getItem("avatar")
-                    }
-                    document.getElementById("user_ava").src = result.photo;
-                    document.querySelectorAll(".betta p").forEach(p => {
-                        if (p.textContent.trim().includes("Имя")) {
-                            p.textContent = `Имя: ${result.name}`;
-                        } else if (p.textContent.trim().includes("Телефон")) {
-                            p.textContent = `Телефон: ${result.phone}`;
-                        }
-                        if (p.textContent.trim().includes("ID")) {
-                            p.textContent = `ID: ${result.userid}`;
-                        }
-                    });
-                    document.getElementById("create_chatbtn").addEventListener("click", function(id=result.userid,email=result.email,publickey=result.publickey,publickeycrypt=result.publickeycrypt,flag=flag) {
-                        if (!flag){
-                            ws.send(JSON.stringify({
-                                type: "newchat",
-                                email: email,
-                                id: id,
-                            }))
-                        }
-                        else{
-                            ws.send(JSON.stringify({
-                                type: "newchatagree",
-                            }))        
-                        }
-                    });
-                    document.getElementById("cancel").addEventListener("click", function(flag) {
-                        document.getElementById("MainChatCreator").style.display = "none";
-                        if (flag){
-                            ws.send(JSON.stringify({
-                                type: "newchatdisagree",
-                            }))  
-                        }
-                    });
-                })
-                .catch(error => {
-                    console.error("Ошибка сети:", error);
-                });
+            let res = await fetch("/GetUserInfo", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(string),
+            })
+            var result = await res.json()
+            var txt = "";
+            if (!flag) {
+                txt = `Вы хотите создать чат с ${result.name}`
+            } else {
+                txt = `${result.name} хочет создать чат с вами`
+            }
+            document.getElementById("usname").innerText = txt;
+            if (result.photo) {
+                result.photo = result.photo
+            } else {
+                result.photo = localStorage.getItem("avatar")
+            }
+            document.getElementById("user_ava").src = result.photo;
+            document.querySelectorAll(".betta p").forEach(p => {
+                if (p.textContent.trim().includes("Имя")) {
+                    p.textContent = `Имя: ${result.name}`;
+                } else if (p.textContent.trim().includes("Телефон")) {
+                    p.textContent = `Телефон: ${result.phone}`;
+                }
+                if (p.textContent.trim().includes("ID")) {
+                    p.textContent = `ID: ${result.userid}`;
+                }
+            });
+            document.getElementById("create_chatbtn").addEventListener("click", function(id = result.userid, email = result.email, publickey = result.publickey, publickeycrypt = result.publickeycrypt, f = flag) {
+                if (!f) {
+                    ws.send(JSON.stringify({
+                        type: "newchat",
+                        email: email,
+                        id: id,
+                    }))
+                } else {
+                    ws.send(JSON.stringify({
+                        type: "newchatagree",
+                    }))
+                }
+            });
+            document.getElementById("cancel").addEventListener("click", function(flag) {
+                document.getElementById("MainChatCreator").style.display = "none";
+                if (flag) {
+                    ws.send(JSON.stringify({
+                        type: "newchatdisagree",
+                    }))
+                }
+            });
         }
 
 

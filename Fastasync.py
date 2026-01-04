@@ -171,7 +171,7 @@ async def send_swjs():
         media_type="application/javascript",
         filename="sw.js"
     )
-
+#
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket): 
@@ -194,11 +194,11 @@ async def websocket_endpoint(ws: WebSocket):
     clients[device_id] = {"ws":ws}
     try:
         if device_id.split("|")[0] in wait_for:
-            for message in wait_for[device_id]:
+            for message in wait_for[device_id.split("|")[0]]:
                 await clients[device_id]["ws"].send_json(message)
                 wait_for[device_id].remove(message)
-    except:
-            pass
+    except Exception as e:
+        print(e)
     try:
         while True:
             msg = await ws.receive_json()
@@ -214,11 +214,10 @@ async def websocket_endpoint(ws: WebSocket):
                         except Exception as e:
                             print(e)
                     if not flag:
-                        print("adding wait for")
                         if msg["email"] not in wait_for:
                             wait_for[msg["email"]]=[]
-                        print(wait_for)
-                        wait_for[msg["email"]].append({"type":"new_chat","user":device_id.split("|")[0]})        
+                        wait_for[msg["email"]].append({"type":"new_chat","user":device_id.split("|")[0]})     
+                    
                 else:
                     try:
                         await ws.send_json({"type":"newchat","success":"error"})
@@ -573,12 +572,10 @@ async def podpis(request:Request):
 @app.post("/userchatlist")
 async def returnUserChatList(request:Request):
     data = await request.json()
-    print(data)
     if "id" not in data:
         return []
     id = data["id"]
     chats = Database.get_user_chats(id)
-    print(chats)
     if chats is not None:
         return chats
     return []
@@ -590,7 +587,6 @@ async def SearchUserBy(request:Request):
     what = data["request"]
     back = {"sucess":True, "userlist":[]}
     res = Database.search_users_by(what,typeS)
-    print(res)
     back["sucess"]=len(res)>0 
     back["userlist"]=[{"id":i['id'],"name":i['name'],"photo":i["photo"]} for i in res]
     return back
@@ -598,23 +594,20 @@ async def SearchUserBy(request:Request):
 @app.post("/GetUserInfo")
 async def GetUserInfo(request:Request):
     data = await request.json()
+    print(data)
     if 'id' in data:
         user = Database.get_user_by_id(data["id"])
     else:
         user = Database.get_user_by_email(data["email"])
     
-    print(user)
     dt = {"userid":user['id'],
                     "email":user['email'],
                     "name":user['name'],
                     "photo":user["photo"],
                     "phone":user['phone'],
                     "publickeys":{"publickey":user["devices"][0]["publickey"],"publickeycrypt":user["devices"][0]["publickeycrypt"]}}
-    print(dt)
     if user["about"]!=None:
-        print(user["about"].split("\n"))
         for d in user["about"].split("\n"):
-            print(d)
             if len(d.split(":")) == 2:
                 if d.split(":")[0] == "Возраст":
                     dt["age"]=d.split(":")[1].strip()
@@ -637,7 +630,6 @@ async def Wss_Push_Notify(request:Request):
                 data["ip"]=ip
                 dv = Database.get_user_by_email(data["email"])["devices"]
                 for d in dv:
-                    print(d)
                     device_id = data["email"]+"|id"+str(d["id"])
                     if device_id in clients:
                         try:
