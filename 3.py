@@ -17,3 +17,7 @@ b={'id': 1,
 print(list(filter(lambda x: x["name"]==2 , [{"name":2},{"name":1}])))
 print( list(filter(lambda x: x["publickey"]  is not None, b["devices"])))
 print(a['device'] in b['devices'])
+import MessengerDataBase
+db = MessengerDataBase.DataBaseManager()
+db.add_Inventive("arcsaeaga@gmail.com","onesevenrusia@gmail.com","new_chat")
+print(db.get_user_Inventives("arcsaeaga@gmail.com"))

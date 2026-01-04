@@ -197,6 +197,11 @@ async def websocket_endpoint(ws: WebSocket):
             for message in wait_for[device_id.split("|")[0]]:
                 await clients[device_id]["ws"].send_json(message)
                 wait_for[device_id].remove(message)
+        print(Database.get_user_Inventives(device_id.split("|")[0]))
+        for message in Database.get_user_Inventives(device_id.split("|")[0]):
+            message["time"]=message["time"].isoformat()
+            if message["typeinventive"]=="new_chat":
+                await clients[device_id]["ws"].send_json({"type":"new_chat","user":message["emailsent"],"time":message["time"]})
     except Exception as e:
         print(e)
     try:
@@ -213,16 +218,29 @@ async def websocket_endpoint(ws: WebSocket):
                             flag=True
                         except Exception as e:
                             print(e)
-                    if not flag:
-                        if msg["email"] not in wait_for:
-                            wait_for[msg["email"]]=[]
-                        wait_for[msg["email"]].append({"type":"new_chat","user":device_id.split("|")[0]})     
-                    
+                    if not flag: 
+                        Database.add_Inventive(emailrecive=msg["email"],
+                                               emailsent=device_id.split("|")[0],
+                                               inventivetype="newchat")
                 else:
                     try:
                         await ws.send_json({"type":"newchat","success":"error"})
                     except Exception as e:
                         print(e)
+            if msg["type"] == "newchatagree" or msg["type"] == "newchatdisagree":
+                print(f"[Agree] {msg}")
+                flag = False
+                for inventive in Database.get_user_Inventives():
+                    if inventive["emailsent"]==msg["email"] and inventive["type"]=="new_chat":
+                        if msg["type"]=="newchatdisagree":
+                            Database.add_chat(
+                                name="",
+                                user_ids=[int(Database.get_user_by_email(msg["email"])["id"]), int(Database.get_user_by_email(device_id.split("|")[0])["id"])],
+                                type="p2p",
+                            )
+                            Database.delete_Inventive(inventive["id"])
+                            break
+
 
     except Exception:
         print(f"[WS] Disconnected: {device_id}")

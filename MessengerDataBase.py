@@ -14,6 +14,15 @@ chat_participants = Table(
     Column("chat_id", ForeignKey("chats.id"), primary_key=True),
     Column("last_read",Integer,default=0)
 )
+class Inventives(Base):
+    __tablename__ = "inventives"
+
+    id = Column(Integer,primary_key=True)
+    emailrecive = Column(Integer, ForeignKey("users.email"), nullable=False)
+    emailsent = Column(String)
+    typeinventive = Column(String)
+    message = Column(String,default=None)
+    time = Column(DateTime, default=datetime.now())
 
 class User(Base):
     __tablename__ = "users"
@@ -52,6 +61,8 @@ class Chat(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
+    type = Column(String(32), nullable=False)
+    publickeycrypt = Column(String)
     about = Column(Text)
     photo = Column(String(255))
     created = Column(DateTime, default=datetime.now())
@@ -100,6 +111,8 @@ class DataBaseManager:
                 ]
                 - chats  [
                     * id
+                    * type - tehnic / p2p / group
+                    * publickeycrypt
                     * name
                     * photo
                     * about
@@ -123,6 +136,14 @@ class DataBaseManager:
                     * publickeycrypt
                     * last_seen
                     * created
+                ]
+                -inventives[
+                    * id
+                    * emailsent
+                    * emailrecive
+                    * inventivetype
+                    * message
+                    * time
                 ]
         """
         self.engine = create_engine(database_url, echo=False)
@@ -202,7 +223,7 @@ class DataBaseManager:
         finally:
             session.close()
 
-    def add_chat(self, name, user_ids, about=None, photo=None):
+    def add_chat(self, name, user_ids, type="tehnic", about=None, photo=None, publickeycrypt=None):
         session = self.Session()
         try:
             user_ids = set(user_ids)
@@ -216,7 +237,7 @@ class DataBaseManager:
             if not users:
                 return {"success":False,"error": "no valid users"}
 
-            chat = Chat(name=name, about=about, photo=photo)
+            chat = Chat(name=name, about=about, photo=photo, type=type, publickeycrypt=publickeycrypt)
             chat.users.extend(users)
 
             session.add(chat)
@@ -273,8 +294,6 @@ class DataBaseManager:
         finally:
             session.close()
 
-
-    # --------------------- Устройство ---------------------
     def add_device(self, user_id, name, publickey, publickeycrypt, platform=None):
         session = self.Session()
         try:
@@ -293,7 +312,22 @@ class DataBaseManager:
         finally:
             session.close()
 
-    # --------------------- Получение данных ---------------------
+    def add_Inventive(self,emailrecive,emailsent,inventivetype,message=None):
+        session = self.Session()
+        try:
+            inventive = Inventives(
+                emailrecive=emailrecive,
+                emailsent=emailsent,
+                typeinventive=inventivetype,
+                message=message,
+                time=datetime.now(),
+            )
+            session.add(inventive)
+            session.commit()
+            return {"success": True, "inventive_id": inventive.id}
+        finally:
+            session.close()
+
     def get_user_chats(self, user_id):
         session = self.Session()
         try:
@@ -311,6 +345,17 @@ class DataBaseManager:
             return [
                 {"id": d.id, "name": d.name, "platform": d.platform, "last_seen": d.last_seen}
                 for d in devices
+            ]
+        finally:
+            session.close()
+
+    def get_user_Inventives(self, user_email):
+        session = self.Session()
+        try:
+            inventives = session.query(Inventives).filter_by(emailrecive=user_email).all()
+            return [
+                {"id": d.id, "emailsent": d.emailsent, "message": d.message, "typeinventive": d.typeinventive, "time":d.time}
+                for d in inventives
             ]
         finally:
             session.close()
@@ -376,7 +421,10 @@ class DataBaseManager:
     
     def delete_message(self, message_id):
         return self._delete_obj(Message, message_id)
-
+    
+    def delete_Inventive(self, Inventive_id):
+        return self._delete_obj(Inventives, Inventive_id)
+    
     def update_user(self, email, **kwargs):
         """['name', 'phone', 'about', 'photo', 'blocked']"""
         session = self.Session()
@@ -538,4 +586,3 @@ class DataBaseManager:
             return [self._to_dict(msg)  for msg in messages if msg is not None]
         finally:
             session.close()
-

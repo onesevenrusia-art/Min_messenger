@@ -160,6 +160,7 @@
 <script src="/static/js/appCrypto.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', async function() {
+        //localStorage.clear();
         var CurrentChat = null;
         const photoContainer = document.querySelector('.photo-container');
         const photoAdd = document.querySelector('.photo-add');
@@ -692,14 +693,18 @@
                 } else {
                     ws.send(JSON.stringify({
                         type: "newchatagree",
+                        email: email,
+                        id: id,
                     }))
                 }
             });
-            document.getElementById("cancel").addEventListener("click", function(flag) {
+            document.getElementById("cancel").addEventListener("click", function(flag=flag, id = result.userid, email = result.email) {
                 document.getElementById("MainChatCreator").style.display = "none";
                 if (flag) {
                     ws.send(JSON.stringify({
                         type: "newchatdisagree",
+                        email: email,
+                        id: id,
                     }))
                 }
             });
