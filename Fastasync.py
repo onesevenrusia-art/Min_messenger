@@ -193,7 +193,7 @@ async def websocket_endpoint(ws: WebSocket):
     print(f"[WS] Connected: {device_id}")
     clients[device_id] = {"ws":ws}
     try:
-        if device_id in wait_for:
+        if device_id.split("|")[0] in wait_for:
             for message in wait_for[device_id]:
                 await clients[device_id]["ws"].send_json(message)
                 wait_for[device_id].remove(message)
@@ -201,8 +201,29 @@ async def websocket_endpoint(ws: WebSocket):
             pass
     try:
         while True:
-            msg = await ws.receive_text()
+            msg = await ws.receive_json()
             print(f"[WS] From {device_id}: {msg}")
+            if msg["type"] == "newchat":
+                if "newdevice" not in device_id and msg["email"] not in device_id:
+                    flag=False
+                    for client in filter(lambda x: msg["email"] in x and msg["email"]+"|idnewdevice" not in x, clients):
+                        try:
+                            client = clients[client]
+                            await client["ws"].send_json({"type":"new_chat","user":device_id.split("|")[0]})
+                            flag=True
+                        except Exception as e:
+                            print(e)
+                    if not flag:
+                        print("adding wait for")
+                        if msg["email"] not in wait_for:
+                            wait_for[msg["email"]]=[]
+                        print(wait_for)
+                        wait_for[msg["email"]].append({"type":"new_chat","user":device_id.split("|")[0]})        
+                else:
+                    try:
+                        await ws.send_json({"type":"newchat","success":"error"})
+                    except Exception as e:
+                        print(e)
 
     except Exception:
         print(f"[WS] Disconnected: {device_id}")
@@ -593,9 +614,10 @@ async def GetUserInfo(request:Request):
     if user["about"]!=None:
         print(user["about"].split("\n"))
         for d in user["about"].split("\n"):
+            print(d)
             if len(d.split(":")) == 2:
                 if d.split(":")[0] == "Возраст":
-                    dt["age"]=int(d.split(":")[1].strip())
+                    dt["age"]=d.split(":")[1].strip()
                 if d.split(":")[0] == "Пол":
                     dt["pol"]=d.split(":")[1].strip()
                 if d.split(":")[0] == "день рождения":

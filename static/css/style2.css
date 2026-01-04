@@ -813,5 +813,8 @@
     #shapebackbtn {
         margin-left: 5px;
         margin-right: 15px;
+        padding-top: 0px;
+        padding-bottom: 0px;
+        font-size: 22px;
         color: greenyellow;
     }

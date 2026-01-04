@@ -40,7 +40,7 @@
         <div id="chatbox"></div>
         <div class="wind">
             <div id="chatshape">
-                <button id="shapebackbtn"><<<</button>
+                <button id="shapebackbtn" style="padding: 0px;">⬅️</button>
                 <img id="shapechatavatar" style="width: 40px; height:40px" class="chat-avatar">
                 <p id="shapechatname"></p>
             </div>
@@ -332,6 +332,17 @@
                     })
                 }
             }
+            else if (datae.type === "answnewchat"){
+                switch (datae.success){
+                    case "error":
+                        alert("Ошибка создания чата")
+                    case "waiting":
+                        alert(`Если пользователь примит соглашении, то чат автоматически появится у вас`)
+                }
+            }
+            else if(datae.type === "new_chat"){
+
+            }
             try {
                 navigator.serviceWorker.ready.then(reg => {
                     reg.active.postMessage({
@@ -342,7 +353,7 @@
                     });
                 });
             } catch {
-                alert();
+                
             }
         };
 
@@ -590,22 +601,22 @@
                                     user.photo = localStorage.getItem("avatar");
                                 }
                                 UserBox.innerHTML += `
-                            <div class=${'User'}>
-                                <img src="${user.photo}" class=${'useravatar'} alt="${0} ">
-                                <b class=${'username'} id=${user.id}>${user.name}</b> 
-                            </div>
-                        `;
+                                    <div class=${'User'}>
+                                        <img src="${user.photo}" class=${'useravatar'} alt="${0} ">
+                                        <b class=${'username'} id=${user.id}>${user.name}</b> 
+                                    </div>
+                                `;
                             });
                         } else {
                             let name = "Ничего не найдено";
                             let photo = localStorage.getItem("notfind");
                             let id = "errorfind";
                             UserBox.innerHTML = `
-                            <div class=${'User'}>
-                                <img src="${photo}" class=${'useravatar'} alt="${0} ">
-                                <b class=${'username'} id=${id}>${name}</b> 
-                            </div>
-                        `;
+                                <div class=${'User'}>
+                                    <img src="${photo}" class=${'useravatar'} alt="${0} ">
+                                    <b class=${'username'} id=${id}>${name}</b> 
+                                </div>
+                            `;
                         }
 
                     })
@@ -616,26 +627,22 @@
         }
 
         document.getElementById('SearchUser').addEventListener('click', function(event) {
-            // Проверяем, что клик был по элементу с классом User или его дочерним элементам
             const userElement = event.target.closest('.User');
             if (userElement) {
-                // Находим элементы внутри User
                 const username = userElement.querySelector('.username');
                 const userAvatar = userElement.querySelector('.useravatar');
                 const userId = username.id;
-                // Вызываем функцию обработки
                 if (userId !== "errorfind") {
-                    CreateChat(userId, userElement);
-
+                    CreateChat(userId);
                 }
             }
         });
 
-        function CreateChat(userId, element) {
+        function CreateChat(userId, flag=false) {
             document.getElementById("MainChatCreator").style.display = "flex";
             fetch("/GetUserInfo", {
                     method: 'POST',
-                    headers: {
+                    headers: {            
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
@@ -644,7 +651,13 @@
                 })
                 .then(response => response.json())
                 .then(result => {
-                    document.getElementById("usname").innerText = `Вы хотите создать чат с ${result.name}`;
+                    const txt = "";
+                    if (!flag){
+                        txt = `Вы хотите создать чат с ${result.name}`}
+                    else{
+                        txt = `${result.name} хочет создать чат с вами`    
+                    }
+                    document.getElementById("usname").innerText = txt;
                     if (result.photo) {
                         result.photo = result.photo
                     } else {
@@ -658,7 +671,29 @@
                             p.textContent = `Телефон: ${result.phone}`;
                         }
                         if (p.textContent.trim().includes("ID")) {
-                            p.textContent = `ID: ${result.id}`;
+                            p.textContent = `ID: ${result.userid}`;
+                        }
+                    });
+                    document.getElementById("create_chatbtn").addEventListener("click", function(id=result.userid,email=result.email,publickey=result.publickey,publickeycrypt=result.publickeycrypt,flag=flag) {
+                        if (!flag){
+                            ws.send(JSON.stringify({
+                                type: "newchat",
+                                email: email,
+                                id: id,
+                            }))
+                        }
+                        else{
+                            ws.send(JSON.stringify({
+                                type: "newchatagree",
+                            }))        
+                        }
+                    });
+                    document.getElementById("cancel").addEventListener("click", function(flag) {
+                        document.getElementById("MainChatCreator").style.display = "none";
+                        if (flag){
+                            ws.send(JSON.stringify({
+                                type: "newchatdisagree",
+                            }))  
                         }
                     });
                 })
@@ -667,9 +702,6 @@
                 });
         }
 
-        document.getElementById("cancel").addEventListener("click", function(e) {
-            document.getElementById("MainChatCreator").style.display = "none";
-        });
 
         document.getElementById("exit").addEventListener("click", async function(e) {
             const res = confirm("Вы уверены, что хотите выйти из аккаунта на текущем устройстве ?")
@@ -830,7 +862,7 @@
                 DR: document.getElementById("DR").value,
                 pol: pol,
                 dopinf: document.getElementById("AboutMe").value,
-                photo: ph // base64 строка или null
+                photo: ph
             }
             console.log(about);
             const result = await confirmIdentity(Data.my_id, Data.device_id, strg.email, strg.privatekey, strg.device, {
@@ -1032,12 +1064,6 @@
             });
         }
 
-        document.getElementById("create_chatbtn").addEventListener("click", function() {
-            ws.send(JSON.stringify({
-                type: "newchat",
-                email: null
-            }))
-        });
     });
 </script>
 </body>
