@@ -324,6 +324,7 @@
         justify-content: start;
         width: 100%;
         height: 100%;
+        overflow-y: auto;
     }
     
     .mesenger_body {
@@ -817,4 +818,52 @@
         padding-bottom: 0px;
         font-size: 22px;
         color: greenyellow;
+    }
+    #delchat{
+        margin-right: 3px;
+        background-color: darkslategray;
+        justify-self: flex-end;
+    }
+    .message {
+        position: relative;
+        display: flex;
+        justify-content: start;
+        flex-direction: column;
+        background-color: rgb(224, 240, 240);
+        color: black;
+        padding-left: 8px;
+        padding-right: 13px;
+        padding-bottom: 2px;
+        padding-top: 3px;
+        justify-self: left;
+        margin-top: 5px;
+        margin-right: 15px;
+        border-radius: 8px;
+        border: 1px solid black;
+        width: fit-content;
+        max-width: 70%;
+        overflow-wrap: break-word;
+        word-break: break-all;
+        hyphens: auto;
+        white-space: pre-wrap;
+    }
+    
+    #name {
+        font-size: 11px;
+        color: blue;
+    }
+    
+    #text {
+        font-size: 18px;
+        white-space: normal;
+        overflow-wrap: break-word;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    
+    #time {
+        font-size: 10px;
+        color: red;
+        right: 0;
+        margin-left: auto;
     }

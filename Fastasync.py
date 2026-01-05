@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, Request
+from fastapi import FastAPI, WebSocket, Request, WebSocketDisconnect
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -12,12 +12,14 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import smtplib
+import redis
+import json
 import random
 import MessengerDataBase
 import FeedBacks
 import uvicorn
 import base64, uuid
-import os
+import os, sys, traceback
 
 clients = {}
 wait_for = {}
@@ -34,6 +36,9 @@ app = FastAPI()
 Database = MessengerDataBase.DataBaseManager()
 feedbacksdb = FeedBacks.Feedback_Manager()
 templates = Jinja2Templates(directory="templates")
+
+
+
 
 def save_photo_to_folder(name, photo_base64):
     try:
@@ -173,6 +178,30 @@ async def send_swjs():
     )
 #
 
+async def send_WS_msg(reciver, msg):
+    flag=False
+    for client in filter(lambda x: reciver in x and reciver+"|idnewdevice" not in x, clients):
+        try:
+            client = clients[client]
+            await client["ws"].send_json(msg)
+            flag=True
+        except Exception as e:
+            print(e)
+            return {"status": "error",
+                    "success":False}
+    if not flag:
+        if reciver not in wait_for:
+            wait_for[reciver]=[]
+        wait_for[reciver].append(msg)  
+        return {
+            "success":True,
+            "status": "offline"
+            }
+    else:            
+        return {"success":True,
+                    "status": "sent"}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket): 
     await ws.accept()
@@ -190,6 +219,7 @@ async def websocket_endpoint(ws: WebSocket):
             await ws.close()
             return     
     
+
     print(f"[WS] Connected: {device_id}")
     clients[device_id] = {"ws":ws}
     try:
@@ -197,10 +227,9 @@ async def websocket_endpoint(ws: WebSocket):
             for message in wait_for[device_id.split("|")[0]]:
                 await clients[device_id]["ws"].send_json(message)
                 wait_for[device_id].remove(message)
-        print(Database.get_user_Inventives(device_id.split("|")[0]))
         for message in Database.get_user_Inventives(device_id.split("|")[0]):
             message["time"]=message["time"].isoformat()
-            if message["typeinventive"]=="new_chat":
+            if message["typeinventive"]=="newchat":
                 await clients[device_id]["ws"].send_json({"type":"new_chat","user":message["emailsent"],"time":message["time"]})
     except Exception as e:
         print(e)
@@ -210,43 +239,97 @@ async def websocket_endpoint(ws: WebSocket):
             print(f"[WS] From {device_id}: {msg}")
             if msg["type"] == "newchat":
                 if "newdevice" not in device_id and msg["email"] not in device_id:
-                    flag=False
                     for client in filter(lambda x: msg["email"] in x and msg["email"]+"|idnewdevice" not in x, clients):
                         try:
                             client = clients[client]
                             await client["ws"].send_json({"type":"new_chat","user":device_id.split("|")[0]})
-                            flag=True
                         except Exception as e:
                             print(e)
-                    if not flag: 
-                        Database.add_Inventive(emailrecive=msg["email"],
+                    Database.add_Inventive(emailrecive=msg["email"],
                                                emailsent=device_id.split("|")[0],
                                                inventivetype="newchat")
-                else:
+                    ws.send_json({"type":"answnewchat","success":"waiting"})
+                else: 
                     try:
-                        await ws.send_json({"type":"newchat","success":"error"})
-                    except Exception as e:
+                        await ws.send_json({"type":"answnewchat","success":"error"})
+                    except Exception as e:              
                         print(e)
             if msg["type"] == "newchatagree" or msg["type"] == "newchatdisagree":
                 print(f"[Agree] {msg}")
-                flag = False
-                for inventive in Database.get_user_Inventives():
-                    if inventive["emailsent"]==msg["email"] and inventive["type"]=="new_chat":
-                        if msg["type"]=="newchatdisagree":
-                            Database.add_chat(
+                sender = Database.get_user_by_email(msg["email"])
+                reciver = Database.get_user_by_email(device_id.split("|")[0])
+                for inventive in Database.get_user_Inventives(reciver["email"]):
+                    if inventive["emailsent"]==msg["email"] and inventive["typeinventive"]=="newchat":
+                        if msg["type"]=="newchatagree":
+                            print("agree")
+                            id = Database.add_chat(
                                 name="",
-                                user_ids=[int(Database.get_user_by_email(msg["email"])["id"]), int(Database.get_user_by_email(device_id.split("|")[0])["id"])],
+                                user_ids=[int(sender["id"]), int(reciver["id"])],
                                 type="p2p",
                             )
+                            print(id)
+                            chat={"type":"addchat","chat":{"id":id["chat_id"],"type":"p2p","name":reciver["name"],"photo":reciver["photo"],"about":reciver["about"],"publickeycrypt":list(filter(lambda x: x["publickey"] is not None, reciver["devices"]))[0]["publickeycrypt"]}}
+                            await ws.send_json(chat)
+                            await send_WS_msg(sender["email"],chat)
+                            Database.delete_Inventive(inventive["id"])
+                            break
+                        if msg["type"]=="newchatdisagree":
+                            print("disagree")
+                            chats = filter(lambda x: x["type"] == "tehnic", Database.get_user_chats(sender["id"]))
+                            for chat in chats:
+                                Database.add_message(chat["id"],sender["id"],"txt",f"Пользователь {reciver['name']} отверг ваш запрос на создание чата с ним")   
                             Database.delete_Inventive(inventive["id"])
                             break
 
+            if msg["type"]=="delchat":
+                Database.delete_Chat(msg["id"])   
 
-    except Exception:
-        print(f"[WS] Disconnected: {device_id}")
-
-    finally:
-        clients.pop(device_id, None)
+            if msg["type"]=="newmessage":
+                answ = Database.add_message(chat_id=int(msg["chatid"]),
+                                            user_id=int(msg["userid"]),
+                                            datatype=msg["typemsg"],
+                                            content=msg["message"])
+                if answ["success"]:
+                    await ws.send_json({"type":"addmymsg",
+                                  "uniknownid":msg["uniknownid"],
+                                  "message_id":answ["message_id"],
+                                  "internal_id":answ["internal_id"],
+                                  "datatime": str(answ["time"]),
+                                  "success":True})
+                    emails=[]
+                    for id in Database.get_ChatParticipants(chat_id=msg["chatid"]):
+                        email = Database.get_user_by_id(id)["email"]
+                        emails.append(email)
+                    #print(clients)
+                    for client in clients:
+                        print(client.split("|id")[0] , emails)
+                        if client.split("|id")[0] in emails and client.split("|id")[1] != "newdevice" and device_id.split("|")[0] not in client:
+                            print("sending to ...")
+                            try:
+                                await clients[client]["ws"].send_json({"type":"addmsg",
+                                    "message_id":answ["message_id"],
+                                    "internal_id":answ["internal_id"],
+                                    "chat_id": msg["chatid"],
+                                    "user_id": msg["userid"],
+                                    "typemsg": msg["typemsg"],
+                                    "message": msg["message"],
+                                    "datatime": str(answ["time"])
+                                    })
+                            except Exception as e:print(e,traceback.format_exc())
+                else:
+                    ws.send_json({"type":"addmymsg",
+                                  "uniknownid":msg["uniknownid"],
+                                  "success":False})
+                
+    except WebSocketDisconnect as wserror:
+        try:
+            print(f"[WS] Disconnected: {device_id}, {wserror.code}")
+            if device_id.split("|id")[1]!="newdevice":
+                WebSocketDevices.remove(device_id)
+            clients.pop(device_id, None)
+        except Exception as e:
+            print(f"error removing {e}")
+    except Exception as e:print(f"error work ws {e, traceback.format_exc()}")
 
 # ПРОВЕРКА КОДА ЕМАИЛ 1 РЕГИСТРАЦИЯ
 @app.post('/registrform')
@@ -606,7 +689,7 @@ async def SearchUserBy(request:Request):
     back = {"sucess":True, "userlist":[]}
     res = Database.search_users_by(what,typeS)
     back["sucess"]=len(res)>0 
-    back["userlist"]=[{"id":i['id'],"name":i['name'],"photo":i["photo"]} for i in res]
+    back["userlist"]=[{"id":i['id'],"name":i['name'],"photo":i["photo"],"type":i["type"],"publickeycrypt":i["publickeycrypt"]} for i in res]
     return back
 
 @app.post("/GetUserInfo")

@@ -43,6 +43,7 @@
                 <button id="shapebackbtn" style="padding: 0px;">⬅️</button>
                 <img id="shapechatavatar" style="width: 40px; height:40px" class="chat-avatar">
                 <p id="shapechatname"></p>
+                <button id="delchat">🗑️</button>
             </div>
             <div id="chat"></div>
             <div class="input_msg">
@@ -158,10 +159,161 @@
 
 </body>
 <script src="/static/js/appCrypto.js"></script>
+<script src="static/js/MessagesDB.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', async function() {
         //localStorage.clear();
+
+        class MessageStore {
+            constructor(dbName = "chatDB", version = 1) {
+                this.dbName = dbName;
+                this.version = version;
+                this.db = null;
+            }
+
+            /* ---------- INIT ---------- */
+
+            async open() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.version);
+
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+
+                        if (!db.objectStoreNames.contains("messages")) {
+                            const store = db.createObjectStore("messages", {
+                                keyPath: "id"
+                            });
+
+                            store.createIndex("chat_id", "chat_id");
+                            store.createIndex(
+                                "chat_internal",
+                                ["chat_id", "internal_id"]
+                            );
+                        }
+                    };
+
+                    request.onsuccess = () => {
+                        this.db = request.result;
+                        resolve(true);
+                    };
+
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            /* ---------- INTERNAL ---------- */
+
+            _store(mode = "readonly") {
+                return this.db
+                    .transaction("messages", mode)
+                    .objectStore("messages");
+            }
+
+            /* ---------- SAVE / UPDATE ---------- */
+
+            async save(message) {
+                return new Promise((resolve, reject) => {
+                    const req = this._store("readwrite").put(message);
+                    req.onsuccess = () => resolve(true);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+
+            /* ---------- DELETE BY ID ---------- */
+
+            async deleteById(id) {
+                return new Promise((resolve, reject) => {
+                    const req = this._store("readwrite").delete(id);
+                    req.onsuccess = () => resolve(true);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+
+            /* ---------- DELETE CHAT ---------- */
+
+            async deleteByChat(chatId) {
+                return new Promise((resolve, reject) => {
+                    const store = this._store("readwrite");
+                    const index = store.index("chat_id");
+
+                    const req = index.openCursor(IDBKeyRange.only(chatId));
+
+                    req.onsuccess = (e) => {
+                        const cursor = e.target.result;
+                        if (cursor) {
+                            cursor.delete();
+                            cursor.continue();
+                        } else {
+                            resolve(true);
+                        }
+                    };
+
+                    req.onerror = () => reject(req.error);
+                });
+            }
+
+            /* ---------- GET BY ID ---------- */
+
+            async getById(id) {
+                return new Promise((resolve, reject) => {
+                    const req = this._store().get(id);
+                    req.onsuccess = () => resolve(req.result || null);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+
+            /* ---------- PAGINATION (limit + internal_id) ---------- */
+
+            async getChatMessages(chatId, limit = 50, beforeInternalId = Infinity) {
+                return new Promise((resolve, reject) => {
+                    const store = this._store();
+                    const index = store.index("chat_internal");
+
+                    const range = IDBKeyRange.bound(
+                        [chatId, 0],
+                        [chatId, beforeInternalId],
+                        false,
+                        true
+                    );
+
+                    const result = [];
+                    const req = index.openCursor(range, "prev");
+
+                    req.onsuccess = (e) => {
+                        const cursor = e.target.result;
+                        if (cursor && result.length < limit) {
+                            result.push(cursor.value);
+                            cursor.continue();
+                        } else {
+                            resolve(result.reverse());
+                        }
+                    };
+
+                    req.onerror = () => reject(req.error);
+                });
+            }
+
+            async updateById(id, patch) {
+                const old = await this.getById(id);
+                if (!old) return false;
+            
+                const updated = { ...old, ...patch };
+            
+                return new Promise((resolve, reject) => {
+                    const req = this._store("readwrite").put(updated);
+                    req.onsuccess = () => resolve(true);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+        }
+
+
         var CurrentChat = null;
+        var UnCookMessages = {};
+        const messageStore = new MessageStore();
+        await messageStore.open();
+        const GraphicChat = document.getElementById("chat");
         const photoContainer = document.querySelector('.photo-container');
         const photoAdd = document.querySelector('.photo-add');
         const photoDelete = document.querySelector('.photo-delete');
@@ -173,7 +325,6 @@
             Chats = [];
         }
 
-        console.log(Chats, 1)
         const Data = JSON.parse(DataUser);
         const ChatBox = document.getElementById("chatbox")
         var platform = "Unknown OS";
@@ -201,7 +352,7 @@
                 x: "auth"
             });
             console.log(result);
-            if (result.result === false && result.what == "server") {
+            if (result.result === false && result.what == "server") { 
                 console.error("ошибка установления соединения с сервером");
                 delay++;
                 if (delay > 25) {
@@ -283,6 +434,26 @@
             const permission = await Notification.requestPermission();
             console.log("Notification permission:", permission);
         }
+
+        async function SaveMsg(datae) {
+            if (datae.success){
+                    var msg = UnCookMessages[datae["uniknownid"]]
+                    await MessageStore.save({
+                        id: msg.message_id,
+                        internal_id: msg.internal_id,
+                        chat_id: msg.chat_id,
+                        user_id: msg.user_id,
+                        datatype: msg.typemsg,
+                        msg: msg.message,
+                        created: msg.datatime
+                    })
+                    delete UnCookMessages[datae["uniknownid"]];
+                }
+                else{
+
+                }
+        }
+
         askNotificationPermission();
         if ("serviceWorker" in navigator) {
             navigator.serviceWorker.register("/static/js/sw.js")
@@ -343,6 +514,13 @@
                 console.log("call true func")
                 CreateChat(flag = true, user = datae.user)
             }
+            else if (datae.type === "addchat"){
+                localStorage.setItem("Chats",localStorage.getItem("Chats").push(datae.chat))
+                UpdataChats();
+            }
+            else if (datae.type==="addmymsg"){
+                SaveMsg(datae)
+            }
             try {
                 navigator.serviceWorker.ready.then(reg => {
                     reg.active.postMessage({
@@ -381,7 +559,6 @@
                 e.style.display = "none";
             })
             document.querySelectorAll(".more").forEach(e => {
-
                 e.classList.add("run");
             })
         });
@@ -453,8 +630,9 @@
         }
 
         async function LoadChats() {
-            if (localStorage.getItem("Chats") === null) {
+            Chats=[]
                 console.log(" loading chats...")
+                localStorage.removeItem("Chats")
                 const response = await fetch("/userchatlist", {
                     method: 'POST',
                     headers: {
@@ -466,18 +644,31 @@
                 });
 
                 const chats = await response.json();
-
+                console.log(chats)
                 for (const chat of chats) {
-                    if (!chat.photo) {
-                        chat.photo = localStorage.getItem("UniknownChat2");
+                    if (!chat.photo || chat.photo === "None") {
+                        if (chat.type === "p2p"){
+                            var id = chat.name.split("/")
+                            console.log(id,Data.my_id)
+                            if (String(id[0]) === String(Data.my_id)){id=id[1]}
+                            else{id=id[0]}
+                            var user = await GetUserInfo({"id":id})
+                            chat.name = user.name;
+                            chat.photo = user.photo;
+                            chat.publickeycrypt = user.publickeys.publickeycrypt;
+                            chat.about=user.about;
+                        }
+                        else{
+                            chat.photo = localStorage.getItem("Uniknownchat2");
+                        }
                     } else {
+                        console.log(chat.photo)                        
                         chat.photo = await imageToBase64(chat.photo);
                     }
 
                     Chats.push(chat);
                 }
                 localStorage.setItem("Chats", JSON.stringify(Chats));
-            }
             UpdataChats();
         }
 
@@ -552,6 +743,7 @@
             }
             if (e.target.closest(".chatinfo")) {
                 document.getElementById("chatshape").style.display = "flex";
+                GraphicChat.innerHTML = "";
                 CurrentChat = e.target.closest(".chatinfo").dataset.chatId.substring(4);
                 console.log(CurrentChat)
                 for (const chat of Chats) {
@@ -652,14 +844,7 @@
                 }
             }
             document.getElementById("MainChatCreator").style.display = "flex";
-            let res = await fetch("/GetUserInfo", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(string),
-            })
-            var result = await res.json()
+            var result = await GetUserInfo(string);
             var txt = "";
             if (!flag) {
                 txt = `Вы хотите создать чат с ${result.name}`
@@ -697,6 +882,7 @@
                         id: id,
                     }))
                 }
+                document.getElementById("MainChatCreator").style.display = "none";
             });
             document.getElementById("cancel").addEventListener("click", function(flag=flag, id = result.userid, email = result.email) {
                 document.getElementById("MainChatCreator").style.display = "none";
@@ -800,20 +986,12 @@
         });
 
 
-        document.getElementById("profil").addEventListener("click", function(e) {
-            document.querySelectorAll(".MainCreateProfil").forEach(e => {
+        document.getElementById("profil").addEventListener("click",async function(e) {
+            for (let e of  document.querySelectorAll(".MainCreateProfil")){
                 e.style.display = "flex"
-                fetch("/GetUserInfo", {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
+                var result = await GetUserInfo({
                             email: JSON.parse(localStorage.getItem("Userdata")).email
-                        }),
-                    })
-                    .then(response => response.json())
-                    .then(result => {
+                        })
                         if (result.photo === null) {
                             result.photo = localStorage.getItem("avatar");
                         }
@@ -838,11 +1016,7 @@
                         }
                         document.getElementById("my_photo").src = result.photo;
                         document.getElementById("Name_input").value = result.name;
-                    })
-                    .catch(error => {
-                        console.error("Ошибка сети:", error);
-                    });
-            });
+            };
         });
 
         document.getElementById("prof_canc").addEventListener("click", function(e) {
@@ -918,7 +1092,6 @@
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     myPhoto.src = e.target.result;
-                    // Показываем иконку удаления
                     photoDelete.style.display = 'flex';
                 };
                 reader.readAsDataURL(file);
@@ -1072,7 +1245,64 @@
             });
         }
 
+        async function GetUserInfo(jsonfetch) {
+            var res = await fetch("/GetUserInfo", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(jsonfetch),
+            })
+            var result = await res.json()
+            if (result.photo===null || result.photo == "None"){
+                result.photo=localStorage.getItem("avatar");
+            }
+            return result;
+        }
+
+        document.getElementById("delchat").addEventListener("click",function(){
+            res= confirm("Вы уверены что хотите удалить чат ?")
+            if (res){
+                console.log("sending")
+                ws.send(JSON.stringify({type:"delchat",
+                    id: CurrentChat
+                }))
+
+            }
+        });
+
+        document.getElementById("send").addEventListener("click", async function(){
+            var msg = document.getElementById("input_message").value
+            msg = await hybridEncrypt(msg, )
+            if (msg !== ""){
+                let randomNumber = Math.floor(1000 + Math.random() * 9000); 
+                const time = new Date()
+                console.log(CurrentChat)
+                var msgs = JSON.stringify({
+                    type:"newmessage",
+                    chatid: CurrentChat,
+                    userid: Data.my_id,
+                    typemsg : "txt",
+                    message: String(msg),
+                    uniknownid: randomNumber,
+                    datatime: time
+
+                })
+                ws.send(msgs)
+                GraphicChat.innerHTML += `
+                            <div style='margin-left:25px' class="message">
+                                <p id="name">Я</p>
+                                <p id="text">${msg}</p>
+                                <p id="time">${time.getHours()}:${time.getMinutes()}</p>
+                            </div>
+                    `
+                document.getElementById("input_message").value=""
+                UnCookMessages[randomNumber]=msg;
+            }
+        })
     });
+
+
 </script>
 </body>
 

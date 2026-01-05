@@ -14,6 +14,16 @@ chat_participants = Table(
     Column("chat_id", ForeignKey("chats.id"), primary_key=True),
     Column("last_read",Integer,default=0)
 )
+
+'''
+class chat_participants:
+    __tablename__="chat_participants"
+
+    user_id = Column(ForeignKey("users.id"), primary_key=True),
+    chat_id = Column(ForeignKey("chats.id"), primary_key=True),
+    last_read = Column(Integer,default=0)
+'''
+
 class Inventives(Base):
     __tablename__ = "inventives"
 
@@ -255,25 +265,26 @@ class DataBaseManager:
         finally:
             session.close()
 
-    def add_message(self, chat_id, user_id, datatype, content):
+    def add_message(self, chat_id, user_id, datatype, content, tmc=None):
         session = self.Session()
         try:
             last_id = session.query(
                 func.max(Message.internal_id)
             ).filter_by(chat_id=chat_id).scalar() or 0
-
+            if tmc is None:
+                tmc = datetime.now()
             msg = Message(
                 chat_id=chat_id,
                 user_id=user_id,
                 internal_id=last_id + 1,
                 datatype=datatype,
                 content=content,
-                created=datetime.now()
+                created = tmc
             )
 
             session.add(msg)
             session.commit()
-            return {"success": True, "message_id": msg.id, "internal_id": msg.internal_id}
+            return {"success": True, "message_id": msg.id, "internal_id": msg.internal_id, "time": tmc}
         finally:
             session.close()
 
@@ -379,6 +390,11 @@ class DataBaseManager:
             return self._get_info([user])[0]
         finally:
             session.close()
+
+    def get_ChatParticipants(self,chat_id):
+            session = self.Session() 
+            participants = session.query(chat_participants).filter_by(chat_id=chat_id).all()
+            return [{"id":p[0]} for p in participants]
 
     def search_users_by(self, name_pattern, by="name"):
         """Поиск пользователей по имени, возвращает list of dict"""
