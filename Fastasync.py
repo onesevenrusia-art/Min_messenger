@@ -248,7 +248,7 @@ async def websocket_endpoint(ws: WebSocket):
                     Database.add_Inventive(emailrecive=msg["email"],
                                                emailsent=device_id.split("|")[0],
                                                inventivetype="newchat")
-                    ws.send_json({"type":"answnewchat","success":"waiting"})
+                    await ws.send_json({"type":"answnewchat","success":"waiting"})
                 else: 
                     try:
                         await ws.send_json({"type":"answnewchat","success":"error"})
@@ -288,7 +288,7 @@ async def websocket_endpoint(ws: WebSocket):
                 answ = Database.add_message(chat_id=int(msg["chatid"]),
                                             user_id=int(msg["userid"]),
                                             datatype=msg["typemsg"],
-                                            content=msg["message"])
+                                            content=json.dumps(msg["message"]))
                 if answ["success"]:
                     await ws.send_json({"type":"addmymsg",
                                   "uniknownid":msg["uniknownid"],
@@ -317,9 +317,15 @@ async def websocket_endpoint(ws: WebSocket):
                                     })
                             except Exception as e:print(e,traceback.format_exc())
                 else:
-                    ws.send_json({"type":"addmymsg",
+                    await ws.send_json({"type":"addmymsg",
                                   "uniknownid":msg["uniknownid"],
                                   "success":False})
+            if msg["type"] == "GetUnreadMsg":
+                if Database.get_user_by_id(msg["id"])["email"] == device_id.split("|id")[0] and device_id.split("|id")[1] != "newdevice":
+                    unread = Database.getALL_unread_messages(msg["id"])
+                    if len(unread)>0:
+                        await ws.send_json({"type":"newunread","messages":unread})
+
                 
     except WebSocketDisconnect as wserror:
         try:

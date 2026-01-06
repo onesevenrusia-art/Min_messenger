@@ -602,3 +602,25 @@ class DataBaseManager:
             return [self._to_dict(msg)  for msg in messages if msg is not None]
         finally:
             session.close()
+
+    def getALL_unread_messages(self, user_id):
+        session = self.Session()
+        try:
+            last_read = session.execute(
+                select(chat_participants.c.last_read)
+                .where(
+                    (chat_participants.c.user_id == user_id)
+                )
+            ).scalar() or 0
+
+            messages = (
+                session.query(Message)
+                .filter(
+                    Message.internal_id > last_read
+                )
+                .order_by(Message.internal_id)
+                .all()
+            )
+            return [self._to_dict(msg)  for msg in messages if msg is not None]
+        finally:
+            session.close()

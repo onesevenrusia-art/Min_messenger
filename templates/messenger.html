@@ -163,156 +163,10 @@
 <script>
     document.addEventListener('DOMContentLoaded', async function() {
         //localStorage.clear();
-
-        class MessageStore {
-            constructor(dbName = "chatDB", version = 1) {
-                this.dbName = dbName;
-                this.version = version;
-                this.db = null;
-            }
-
-            /* ---------- INIT ---------- */
-
-            async open() {
-                return new Promise((resolve, reject) => {
-                    const request = indexedDB.open(this.dbName, this.version);
-
-                    request.onupgradeneeded = (e) => {
-                        const db = e.target.result;
-
-                        if (!db.objectStoreNames.contains("messages")) {
-                            const store = db.createObjectStore("messages", {
-                                keyPath: "id"
-                            });
-
-                            store.createIndex("chat_id", "chat_id");
-                            store.createIndex(
-                                "chat_internal",
-                                ["chat_id", "internal_id"]
-                            );
-                        }
-                    };
-
-                    request.onsuccess = () => {
-                        this.db = request.result;
-                        resolve(true);
-                    };
-
-                    request.onerror = () => reject(request.error);
-                });
-            }
-
-            /* ---------- INTERNAL ---------- */
-
-            _store(mode = "readonly") {
-                return this.db
-                    .transaction("messages", mode)
-                    .objectStore("messages");
-            }
-
-            /* ---------- SAVE / UPDATE ---------- */
-
-            async save(message) {
-                return new Promise((resolve, reject) => {
-                    const req = this._store("readwrite").put(message);
-                    req.onsuccess = () => resolve(true);
-                    req.onerror = () => reject(req.error);
-                });
-            }
-
-            /* ---------- DELETE BY ID ---------- */
-
-            async deleteById(id) {
-                return new Promise((resolve, reject) => {
-                    const req = this._store("readwrite").delete(id);
-                    req.onsuccess = () => resolve(true);
-                    req.onerror = () => reject(req.error);
-                });
-            }
-
-            /* ---------- DELETE CHAT ---------- */
-
-            async deleteByChat(chatId) {
-                return new Promise((resolve, reject) => {
-                    const store = this._store("readwrite");
-                    const index = store.index("chat_id");
-
-                    const req = index.openCursor(IDBKeyRange.only(chatId));
-
-                    req.onsuccess = (e) => {
-                        const cursor = e.target.result;
-                        if (cursor) {
-                            cursor.delete();
-                            cursor.continue();
-                        } else {
-                            resolve(true);
-                        }
-                    };
-
-                    req.onerror = () => reject(req.error);
-                });
-            }
-
-            /* ---------- GET BY ID ---------- */
-
-            async getById(id) {
-                return new Promise((resolve, reject) => {
-                    const req = this._store().get(id);
-                    req.onsuccess = () => resolve(req.result || null);
-                    req.onerror = () => reject(req.error);
-                });
-            }
-
-            /* ---------- PAGINATION (limit + internal_id) ---------- */
-
-            async getChatMessages(chatId, limit = 50, beforeInternalId = Infinity) {
-                return new Promise((resolve, reject) => {
-                    const store = this._store();
-                    const index = store.index("chat_internal");
-
-                    const range = IDBKeyRange.bound(
-                        [chatId, 0],
-                        [chatId, beforeInternalId],
-                        false,
-                        true
-                    );
-
-                    const result = [];
-                    const req = index.openCursor(range, "prev");
-
-                    req.onsuccess = (e) => {
-                        const cursor = e.target.result;
-                        if (cursor && result.length < limit) {
-                            result.push(cursor.value);
-                            cursor.continue();
-                        } else {
-                            resolve(result.reverse());
-                        }
-                    };
-
-                    req.onerror = () => reject(req.error);
-                });
-            }
-
-            async updateById(id, patch) {
-                const old = await this.getById(id);
-                if (!old) return false;
-            
-                const updated = { ...old, ...patch };
-            
-                return new Promise((resolve, reject) => {
-                    const req = this._store("readwrite").put(updated);
-                    req.onsuccess = () => resolve(true);
-                    req.onerror = () => reject(req.error);
-                });
-            }
-        }
-
-
         var CurrentChat = null;
         var UnCookMessages = {};
-        const messageStore = new MessageStore();
-        await messageStore.open();
+        const messagedb = new MessageStore();
+        await messagedb.open();
         const GraphicChat = document.getElementById("chat");
         const photoContainer = document.querySelector('.photo-container');
         const photoAdd = document.querySelector('.photo-add');
@@ -331,17 +185,20 @@
         if (navigator.appVersion.indexOf("Win") != -1)
             platform = "Windows";
 
-        if (navigator.appVersion.indexOf("Mac") != -1)
+        else if (navigator.appVersion.indexOf("Mac") != -1)
             platform = "MacOS";
 
-        if (navigator.appVersion.indexOf("android") != -1)
+        else if (navigator.appVersion.indexOf("android") != -1)
             platform = "android";
 
-        if (navigator.appVersion.indexOf("ios") != -1)
+        else if (navigator.appVersion.indexOf("ios") != -1)
             platform = "ios";
 
-        if (navigator.appVersion.indexOf("Linux") != -1)
+        else if (navigator.appVersion.indexOf("Linux") != -1)
             platform = "Linux";
+        else{
+            platform = "Unknown OS";
+        }
 
         if (DataUser) {
             const Data = JSON.parse(DataUser);
@@ -374,7 +231,6 @@
         } else {
             window.location.href = '/';
         }
-
 
         const images = [{
             name: 'avatar',
@@ -435,23 +291,35 @@
             console.log("Notification permission:", permission);
         }
 
-        async function SaveMsg(datae) {
+        async function SavemyMsg(datae) {
             if (datae.success){
-                    var msg = UnCookMessages[datae["uniknownid"]]
-                    await MessageStore.save({
-                        id: msg.message_id,
-                        internal_id: msg.internal_id,
-                        chat_id: msg.chat_id,
-                        user_id: msg.user_id,
-                        datatype: msg.typemsg,
-                        msg: msg.message,
-                        created: msg.datatime
-                    })
-                    delete UnCookMessages[datae["uniknownid"]];
-                }
-                else{
+                var msgencrypt_g = UnCookMessages[datae["uniknownid"]]
+                await messagedb.save({
+                    id: parseInt(datae.message_id),
+                    internal_id: parseInt(datae.internal_id),
+                    chat_id: parseInt(msgencrypt_g.chatid),
+                    user_id: parseInt(msgencrypt_g.userid),
+                    datatype: datae.typemsg,
+                    msg: msgencrypt_g.message,
+                    created: datae.datatime
+                })
+                delete UnCookMessages[datae["uniknownid"]];
+            }
+            else{
+                alert("не удалось отправить сообщение")
+            }
+        }
 
-                }
+        async function SaveMsg(datae) {
+            await messagedb.save({
+                    id: parseInt(datae.message_id),
+                    internal_id: parseInt(datae.internal_id),
+                    chat_id: parseInt(datae.chat_id),
+                    user_id: parseInt(datae.user_id),
+                    datatype: datae.typemsg,
+                    msg: datae.message,
+                    created: datae.datatime
+                })
         }
 
         askNotificationPermission();
@@ -469,6 +337,10 @@
 
         ws.onopen = () => {
             console.log("WebSocket connected");
+            ws.send(JSON.stringify({
+                type: "GetUnreadMsg",
+                id: Data.my_id
+            }))
         };
 
         ws.onmessage = (event) => {
@@ -519,7 +391,15 @@
                 UpdataChats();
             }
             else if (datae.type==="addmymsg"){
+                SavemyMsg(datae)
+            }
+            else if (datae.type==="addmymsg"){
                 SaveMsg(datae)
+            }
+            else if (datae.type==="newunread"){
+                for (let msg of datae.messages){
+                    console.log(msg)
+                }
             }
             try {
                 navigator.serviceWorker.ready.then(reg => {
@@ -737,7 +617,7 @@
                 document.querySelector("#SearchUser").style.display = "flex";
             });
         });
-        document.addEventListener("click", function(e) {
+        document.addEventListener("click", async function(e) {
             if (e.target.className !== "zzz") {
                 document.querySelector("#SearchUser").style.display = "none";
             }
@@ -746,6 +626,8 @@
                 GraphicChat.innerHTML = "";
                 CurrentChat = e.target.closest(".chatinfo").dataset.chatId.substring(4);
                 console.log(CurrentChat)
+                const chatmsgs = await messagedb.getChatMessages(parseInt(CurrentChat))
+                console.log(chatmsgs)
                 for (const chat of Chats) {
                     console.log(chat, CurrentChat, chat.id)
                     if (String(chat.id) === CurrentChat) {
@@ -1272,23 +1154,11 @@
         });
 
         document.getElementById("send").addEventListener("click", async function(){
-            var msg = document.getElementById("input_message").value
-            msg = await hybridEncrypt(msg, )
+            const msg = document.getElementById("input_message").value
             if (msg !== ""){
-                let randomNumber = Math.floor(1000 + Math.random() * 9000); 
+                const randomNumber = Math.floor(1000 + Math.random() * 9000); 
+                const msgencrypt = await hybridEncrypt(msg, Data.publickeycrypt)
                 const time = new Date()
-                console.log(CurrentChat)
-                var msgs = JSON.stringify({
-                    type:"newmessage",
-                    chatid: CurrentChat,
-                    userid: Data.my_id,
-                    typemsg : "txt",
-                    message: String(msg),
-                    uniknownid: randomNumber,
-                    datatime: time
-
-                })
-                ws.send(msgs)
                 GraphicChat.innerHTML += `
                             <div style='margin-left:25px' class="message">
                                 <p id="name">Я</p>
@@ -1297,7 +1167,17 @@
                             </div>
                     `
                 document.getElementById("input_message").value=""
-                UnCookMessages[randomNumber]=msg;
+                var msgs = {
+                    type:"newmessage",
+                    chatid: CurrentChat,
+                    userid: Data.my_id,
+                    typemsg : "txt",
+                    message: msgencrypt,
+                    uniknownid: randomNumber,
+                    datatime: time
+                }
+                UnCookMessages[randomNumber]=msgs;
+                ws.send(JSON.stringify(msgs))
             }
         })
     });
