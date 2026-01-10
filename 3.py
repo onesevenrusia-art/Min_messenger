@@ -22,4 +22,4 @@ db = MessengerDataBase.DataBaseManager()
 #db.add_Inventive("arcsaeaga@gmail.com","onesevenrusia@gmail.com","new_chat")
 #for inventive in db.get_user_Inventives("arcsaraga@gmail.com"):
 #    db.delete_Inventive(inventive["id"])
-print(db.get_ChatParticipants(3))
+db.delete_Chat(3)

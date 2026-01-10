@@ -1,5 +1,5 @@
 class MessageStore {
-    constructor(dbName = "chatDB", version = 1) {
+    constructor(dbName = "chatDB", version = 2) {
         this.dbName = dbName;
         this.version = version;
         this.db = null;

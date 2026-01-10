@@ -32,6 +32,9 @@ class Inventives(Base):
     emailsent = Column(String)
     typeinventive = Column(String)
     message = Column(String,default=None)
+    publickey = Column(Text)
+    senderencryptedkey = Column(Text)
+    reciverencryptedkey = Column(Text)
     time = Column(DateTime, default=datetime.now())
 
 class User(Base):
@@ -323,7 +326,7 @@ class DataBaseManager:
         finally:
             session.close()
 
-    def add_Inventive(self,emailrecive,emailsent,inventivetype,message=None):
+    def add_Inventive(self,emailrecive,emailsent,inventivetype,publickey=None,senderencryptedkey=None,reciverencryptedkey=None,message=None):
         session = self.Session()
         try:
             inventive = Inventives(
@@ -331,6 +334,9 @@ class DataBaseManager:
                 emailsent=emailsent,
                 typeinventive=inventivetype,
                 message=message,
+                publickey=publickey,
+                senderencryptedkey=senderencryptedkey,
+                reciverencryptedkey=reciverencryptedkey,
                 time=datetime.now(),
             )
             session.add(inventive)
@@ -365,7 +371,14 @@ class DataBaseManager:
         try:
             inventives = session.query(Inventives).filter_by(emailrecive=user_email).all()
             return [
-                {"id": d.id, "emailsent": d.emailsent, "message": d.message, "typeinventive": d.typeinventive, "time":d.time}
+                {"id": d.id,
+                  "emailsent": d.emailsent,
+                    "message": d.message,
+                    "publickey":d.publickey,
+                    "senderencryptedkey":d.senderencryptedkey,
+                    "reciverencryptedkey":d.reciverencryptedkey,
+                      "typeinventive": d.typeinventive,
+                        "time":d.time}
                 for d in inventives
             ]
         finally:

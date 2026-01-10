@@ -867,3 +867,52 @@
         right: 0;
         margin-left: auto;
     }
+
+    .image-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+    
+    .image-overlay.hidden {
+        display: none;
+    }
+    
+    .image-card {
+        background: #222;
+        padding: 10px;
+        border-radius: 12px;
+        max-width: 90%;
+        max-height: 90%;
+    }
+    
+    .image-card img {
+        max-width: 300px;
+        max-height: 300px;
+        display: block;
+        margin-bottom: 10px;
+        border-radius: 8px;
+    }
+    
+    .image-actions {
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .image-actions button {
+        background: #444;
+        border: none;
+        color: white;
+        font-size: 18px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    
+    .image-actions button:hover {
+        background: #666;
+    }
