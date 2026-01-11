@@ -806,6 +806,18 @@ async def cancel(request: Request):
         except:pass
     return {"status": "error",
                     "success":False}
+@app.post("/GetUs")
+async def getus(request: Request):
+    data = await request.json()
+    try:
+        us = Database.get_user_by_id(data["id"])
+    except:
+        return {}
+    if data["photo"]:
+        return {"name":us["name"],"photo":us["photo"]}
+    else:
+        return {"name":us["name"]}    
+
 
 if __name__ == "__main__":
     uvicorn.run(

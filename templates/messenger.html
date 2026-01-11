@@ -175,19 +175,23 @@
         //localStorage.clear();
         var CurrentChat = null;
         var UnCookMessages = {};
+        var lastDate = new Date(0);
         try{
-            var ChatsData = JSON.parse(localStorage.getItem("Chats"))
+            var ChatsData = JSON.parse(localStorage.getItem("Chats"));
         }
         catch{
-            localStorage.setItem("Chats",JSON.stringify({}))
-            var ChatsData = {}
+            localStorage.setItem("Chats",JSON.stringify({}));
+            var ChatsData = {};
         }
         try{
-            var UserNames = JSON.parse(localStorage.getItem("UserNames"))
+            var UserNames = JSON.parse(localStorage.getItem("UserNames"));
+            if (UserNames === null){
+                UserNames = {};
+            }
         }
         catch{
-            localStorage.setItem("UserNames",JSON.stringify({}))
-            var UserNames = {}
+            localStorage.setItem("UserNames",JSON.stringify({}));
+            var UserNames = {};
         }
         const messagedb = new MessageStore();
         await messagedb.open();
@@ -199,7 +203,20 @@
         const myPhoto = document.getElementById('my_photo');
         const DataUser = localStorage.getItem('Userdata');
         const Data = JSON.parse(DataUser);
-        const ChatBox = document.getElementById("chatbox")
+        const ChatBox = document.getElementById("chatbox");
+        const Month = {
+            0:"январь",
+            1:"февраль",
+            2:"март",
+            3:"апрель",
+            4:"май",
+            5:"июнь",
+            6:"июль",
+            7:"август",
+            8:"сентябрь",
+            9:"октябрь",
+            10:"ноябрь",
+            11:"днкабрь"};
         var platform = "Unknown OS";
         if (navigator.appVersion.indexOf("Win") != -1)
             platform = "Windows";
@@ -221,7 +238,7 @@
 
         if (DataUser) {
             const Data = JSON.parse(DataUser);
-            console.log(Data)
+            console.log(Data);
             const delay = 1;
 
             const result = await confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
@@ -310,8 +327,73 @@
             console.log("Notification permission:", permission);
         }
 
-        async function UpdateGUI(){
-            
+        async function UpdateGUI(msg){
+            if (ChatsData[CurrentChat].type!=="tehnic"){
+                //console.log(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                var tag = false;
+                var date = new Date(msg.created)
+                console.log(msg)
+                if (!isSameDay(lastDate, date))
+                {
+                    GraphicChat.innerHTML += `
+                    <div class="message-center">
+                        <p id="text">${Month[date.getMonth()]}, ${date.getDay()}</p>
+                    </div>
+                    `
+                }
+                lastDate = date;
+                var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                var name = "Uniknown"
+                
+                    if (msg.user_id in UserNames){
+                        name = UserNames[msg.user_id]["name"]
+                        console.log(name)
+                    }
+                    else{
+                        name = await GetName(id=msg.user_id)
+                        name=name["name"]
+                        if (name !== null){
+                            UserNames[msg.user_id]={"name":name}
+                            localStorage.setItem("UserNames",UserNames)
+                        }
+                    }
+                
+                if (msg.user_id === Data.my_id){
+                    name = "Вы";
+                    tag = true
+                }
+            }
+            else{
+                var content = msg.msg
+                var name = "MIN-help"
+            }
+            if (tag){
+                var classn = "message-right";
+            }
+
+            else{
+                var classn = "message-left";
+            }
+            if (msg.datatype==="txt"){
+                GraphicChat.innerHTML += `
+                    <div class="${classn}">
+                        <p id="name">${name}</p>
+                        <p id="text">${content}</p>
+                        <p id="time">${date.getHours()}:${date.getMinutes()}</p>
+                    </div>
+            `
+            }
+            if (msg.datatype==="img"){
+                var img = await convertImage(content)
+                GraphicChat.innerHTML += `
+                    <div class="${classn}">
+                        <p id="name">${name}</p>
+                        <img src="${img}">
+                        <p id="time">${date.getHours()}:${date.getMinutes()}</p>
+                    </div>
+            `
+            }
+
         }
 
         async function SavemyMsg(datae) {
@@ -403,8 +485,10 @@
                 switch (datae.success) {
                     case "error":
                         alert("Ошибка создания чата")
+                        break;
                     case "waiting":
                         alert(`Если пользователь примит соглашении, то чат автоматически появится у вас`)
+                        break;
                 }
             } else if (datae.type === "new_chat") { // приглашение от инициатора
                 console.log("call true func")
@@ -426,15 +510,12 @@
             else if (datae.type==="addmsg"){
                 SaveMsg(datae)
                 if (datae.chat_id === CurrentChat){
-                    console.log(deepJsonParse(datae.message), ChatsData[parseInt(CurrentChat)].privatekeycrypt);
-                    var msg = await hybridDecrypt(deepJsonParse(datae.message), ChatsData[parseInt(CurrentChat)].privatekeycrypt);
-                    GraphicChat.innerHTML += `
-                            <div style='margin-left:25px' class="message">
-                                <p id="name">Я</p>
-                                <p id="text">${msg}</p>
-                                <p id="time">${msg.datatime}</p>
-                            </div>
-                    `
+                    var msg = {msg:datae.message,
+                        user_id:datae.user_id,
+                        created:datae.datatime,
+                        datatype:datae.typemsg
+                    }
+                    UpdateGUI(msg)
                 }
             }
             else if (datae.type==="newunread"){
@@ -680,13 +761,12 @@
                 document.querySelector("#SearchUser").style.display = "none";
             }
             if (e.target.closest(".chatinfo")) {
+                lastDate = new Date(0);
                 document.getElementById("chatshape").style.display = "flex";
                 GraphicChat.innerHTML = "";
                 CurrentChat = e.target.closest(".chatinfo").dataset.chatId.substring(4);
                 const chatmsgs = await messagedb.getChatMessages(parseInt(CurrentChat))
                 //console.log(chatmsgs)
-
-
                 document.getElementById("shapechatavatar").src = ChatsData[CurrentChat].photo;
                 document.getElementById("shapechatname").innerText = ChatsData[CurrentChat].name;
                 console.log(ChatsData[CurrentChat].type)
@@ -698,21 +778,7 @@
                         e.style.width = "67%"
                 })
                 for (let msg of chatmsgs){
-                    console.log(msg)
-                    if (ChatsData[CurrentChat].type!=="tehnic"){
-                        //console.log(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
-                        var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
-                    }
-                    else{
-                        var content = msg.msg
-                    }
-                    GraphicChat.innerHTML += `
-                            <div style='margin-left:25px' class="message">
-                                <p id="name">Я</p>
-                                <p id="text">${content}</p>
-                                <p id="time">${msg.created}</p>
-                            </div>
-                    `
+                   await UpdateGUI(msg)
                 }
             }
         })
@@ -970,8 +1036,10 @@
                             switch (result.pol) {
                                 case "Муж":
                                     maleCheck.checked = true;
+                                    break;
                                 case "Жен":
                                     femaleCheck.checked = true;
+                                    break;
                             }
                         }
                         document.getElementById("my_photo").src = result.photo;
@@ -1237,38 +1305,56 @@
                 ws.send(JSON.stringify({type:"delchat",
                     id: CurrentChat
                 }))
-
             }
         });
 
-        document.getElementById("send").addEventListener("click", async function(){
-            const msg = document.getElementById("input_message").value
-            if (msg !== ""){
-                const randomNumber = Math.floor(1000 + Math.random() * 9000); 
-                var msgencrypt = await hybridEncrypt(msg, ChatsData[parseInt(CurrentChat)].publickeycrypt)
-                var msgdecrypt = await hybridDecrypt(msgencrypt, ChatsData[parseInt(CurrentChat)].privatekeycrypt)
-                console.log(msgencrypt,msgdecrypt)
-                msgencrypt = JSON.stringify(msgencrypt);
-                const time = new Date()
-                GraphicChat.innerHTML += `
-                            <div class="message" style='margin-right:25px; justify-self: right;'>
-                                <p id="name"></p>
-                                <p id="text">${msg}</p>
-                                <p id="time">${time.getHours()}:${time.getMinutes()}</p>
-                            </div>
-                    `
-                document.getElementById("input_message").value=""
-                var msgs = {
+        async function Send_Message(msg,msgtype="txt") {
+            const randomNumber = Math.floor(1000 + Math.random() * 9000); 
+            var msgencrypt = await hybridEncrypt(msg, ChatsData[parseInt(CurrentChat)].publickeycrypt)
+            msgencrypt = JSON.stringify(msgencrypt);
+            const time = new Date()
+            switch (msgtype){
+                case "txt":{
+                    GraphicChat.innerHTML += `
+                                <div class="message-right">
+                                    <p id="name">Вы</p>
+                                    <p id="text">${msg}</p>
+                                    <p id="time">${time.getHours()}:${time.getMinutes()}</p>
+                                </div>
+                        `
+                    document.getElementById("input_message").value=""
+                    break;
+                }
+                case "img":{
+                    console.log(img);
+                    var img = await convertImage(msg)
+                    GraphicChat.innerHTML += `
+                                <div class="message-right">
+                                    <p id="name">Вы</p>
+                                    <img src="${img}">
+                                    <p id="time">${time.getHours()}:${time.getMinutes()}</p>
+                                </div>
+                        `
+                    break;
+                }
+            }
+            var msgs = {
                     type:"newmessage",
                     chatid: CurrentChat,
                     userid: Data.my_id,
-                    typemsg : "txt",
+                    typemsg : msgtype,
                     message: msgencrypt,
                     uniknownid: randomNumber,
                     datatime: time
                 }
-                UnCookMessages[randomNumber]=msgs;
-                ws.send(JSON.stringify(msgs))
+            UnCookMessages[randomNumber]=msgs;
+            ws.send(JSON.stringify(msgs))
+        }
+
+        document.getElementById("send").addEventListener("click", async function(){
+            const msg = document.getElementById("input_message").value
+            if (msg !== ""){
+                Send_Message(msg,"txt")
             }
         })
 
@@ -1309,6 +1395,15 @@
             reader.readAsDataURL(file);
         }
 
+        function convertImage(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
         /* -------- CANCEL -------- */
 
         cancelBtn.addEventListener("click", () => {
@@ -1319,16 +1414,32 @@
 
         /* -------- SEND (пока заглушка) -------- */
 
-        sendBtn.addEventListener("click", () => {
+        sendBtn.addEventListener("click",async function() {
             console.log("IMAGE READY TO SEND:", pastedImageFile);
-
-            // пока просто закрываем
+            await Send_Message(pastedImageFile,"img")
             pastedImageFile = null;
             overlay.classList.add("hidden");
         });
+
+        async function GetName(id, photoflag=false) {
+            var res = await fetch("/GetUs", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({"id":id,"photo":photoflag}),
+            })
+            var result = await res.json()
+            return result;
+        }
+
+        function isSameDay(date1, date2) {
+            return date1.getFullYear() === date2.getFullYear() &&
+                date1.getMonth() === date2.getMonth() &&
+                date1.getDate() === date2.getDate();
+        }
+                    
     });
-
-
 </script>
 </body>
 
