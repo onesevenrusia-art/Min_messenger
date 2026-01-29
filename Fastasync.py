@@ -11,6 +11,7 @@ from email_validator import validate_email, EmailNotValidError
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+from pathlib import Path
 import smtplib
 import json
 import random
@@ -37,7 +38,28 @@ feedbacksdb = FeedBacks.Feedback_Manager()
 templates = Jinja2Templates(directory="templates")
 
 
+def save_encrypted_media(payload: dict) -> str:
+    media_id = str(uuid.uuid4())
 
+    base_path = Path("media/encrypted")
+    base_path.mkdir(parents=True, exist_ok=True)
+
+    # --- paths ---
+    data_path = base_path / f"{media_id}.bin"
+    key_path  = base_path / f"{media_id}.key"
+    iv_path   = base_path / f"{media_id}.iv"
+
+    # --- decode base64 → bytes ---
+    encrypted_data = base64.b64decode(payload["encryptedData"])
+    encrypted_key  = base64.b64decode(payload["encryptedKey"])
+    iv             = base64.b64decode(payload["iv"])
+
+    # --- write RAW BYTES ---
+    data_path.write_bytes(encrypted_data)
+    key_path.write_bytes(encrypted_key)
+    iv_path.write_bytes(iv)
+
+    return media_id
 
 def save_photo_to_folder(name, photo_base64):
     try:
@@ -304,10 +326,14 @@ async def websocket_endpoint(ws: WebSocket):
                 Database.delete_Chat(msg["id"])   
 
             if msg["type"]=="newmessage":
-                answ = Database.add_message(chat_id=int(msg["chatid"]),
-                                            user_id=int(msg["userid"]),
-                                            datatype=msg["typemsg"],
-                                            content=json.dumps(msg["message"].replace("\'", "\"")))
+                if msg["typemsg"]=="txt":
+                    answ = Database.add_message(chat_id=int(msg["chatid"]),
+                                                user_id=int(msg["userid"]),
+                                                datatype=msg["typemsg"],
+                                                content=json.dumps(msg["message"].replace("\'", "\"")))
+                else:
+                    r=save_encrypted_media(msg["message"])
+                    print(r)
                 if answ["success"]:
                     await ws.send_json({"type":"addmymsg",
                                   "uniknownid":msg["uniknownid"],

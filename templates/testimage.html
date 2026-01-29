@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Paste image encrypt demo</title>
+</head>
+
+<body>
+
+    <textarea id="input" placeholder="Нажми Ctrl+V сюда"></textarea>
+    <br><br>
+
+    <img id="preview" style="max-width:300px; display:none;" />
+    <br><br>
+
+    <button id="send">Зашифровать</button>
+    <script src="static\js\appCrypto.js"></script>
+    <script>
+        let pastedFile = null;
+
+        /* ---------- PASTE IMAGE ---------- */
+        document.getElementById("input").addEventListener("paste", (e) => {
+            const items = e.clipboardData.items;
+
+            for (const item of items) {
+                if (item.type.startsWith("image/")) {
+                    e.preventDefault();
+
+                    pastedFile = item.getAsFile(); // ✅ НАСТОЯЩИЙ File/Blob
+                    console.log("PASTED FILE:", pastedFile);
+
+                    showPreview(pastedFile);
+                    return;
+                }
+            }
+        });
+
+        /* ---------- PREVIEW ---------- */
+        function showPreview(file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const img = document.getElementById("preview");
+                img.src = reader.result;
+                img.style.display = "block";
+            };
+            reader.readAsDataURL(file); // ⚠️ ТОЛЬКО для UI
+        }
+
+        /* ---------- SEND / ENCRYPT ---------- */
+        document.getElementById("send").addEventListener("click", async() => {
+            if (!pastedFile) {
+                alert("Нет картинки");
+                return;
+            }
+
+            console.log("IS BLOB:", pastedFile instanceof Blob); // true
+            console.log("ARRAYBUFFER EXISTS:", typeof pastedFile.arrayBuffer); // function
+
+            const encrypted = await encryptBlob(pastedFile, "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmYbnq98Rohy7PBUV8RGV2Mub/c06ACUkVuhqJ9XQph5Kli8uUOqX9iy7Qr/ZX43n5JiE3IzfLzg2cXMSf4UWzg/5PrKpb/vgoO6vS/3DmZ+xQOKZ6y/Lv1WEG3YkdMAAPPl2RE1gmbavPJaWlyJzx8Kk7U6tMjdpnb7og1hWu9TXWyKAUiclk+7ylcouUWBsINDpCv5H1TRhXZnULIlgEnslPbaD1UVfHTxLvSpUIjJWVNRdwRDVVS/kFri/i6Swy6H1EwNfmtQ668pFY025vhhprQULZCw+ys3sA27frl3mC0y+FC9F6PizUaYD+I9/lA7Ywi0kpFfQ05Q8kbGpOwIDAQAB");
+            console.log("ENCRYPTED RESULT:", encrypted);
+        });
+    </script>
+
+</body>
+
+</html>

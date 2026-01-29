@@ -6,7 +6,7 @@ CORS(app)
 
 @app.route("/")
 def index():
-    return render_template("shifertest.html")
+    return render_template("testimage.html")
 
 @app.route('/static/<path:path>')
 def send_static(path):

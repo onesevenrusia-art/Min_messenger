@@ -264,11 +264,16 @@
 
             throw new Error("toArrayBuffer: не Blob и не DataURL");
         }
-        async function encryptBlob(blob, publicKeyB64) {
-            // 1. Blob → ArrayBuffer
-            const dataBuffer = await blobToArrayBuffer(blob);
 
-            // 2. AES ключ
+        async function encryptBlob(blob, publicKeyB64) {
+            if (!(blob instanceof Blob)) {
+                throw new Error("encryptBlob: input is not Blob");
+            }
+
+            // 1. Blob → ArrayBuffer
+            const dataBuffer = await blob.arrayBuffer();
+
+            // 2. AES-256-GCM key
             const aesKey = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 },
                 true, ["encrypt"]
             );
@@ -276,13 +281,13 @@
             // 3. IV
             const iv = crypto.getRandomValues(new Uint8Array(12));
 
-            // 4. AES шифрование
+            // 4. Encrypt data (ANY BYTES)
             const encryptedData = await crypto.subtle.encrypt({ name: "AES-GCM", iv },
                 aesKey,
                 dataBuffer
             );
 
-            // 5. AES → RSA
+            // 5. Encrypt AES key with RSA
             const rawAesKey = await crypto.subtle.exportKey("raw", aesKey);
             const publicKey = await importPublicKey(publicKeyB64);
 
@@ -291,42 +296,53 @@
                 rawAesKey
             );
 
-            // 6. Пакет для сервера
+            // 6. Result package
             return {
                 encryptedKey: arrayBufferToBase64(encryptedKey),
                 encryptedData: arrayBufferToBase64(encryptedData),
                 iv: arrayBufferToBase64(iv),
-                mime: blob.type, // 👈 ВАЖНО
+                mime: blob.type,
                 size: blob.size
             };
         }
 
-        async function decryptBlob(pkg, privateKeyB64) {
-            // 1. RSA → AES
-            const privateKey = await importPrivateKey(privateKeyB64);
+        async function decryptBlob(encryptedPackage, privateKeyB64) {
 
-            const aesKeyRaw = await crypto.subtle.decrypt({ name: "RSA-OAEP" },
-                privateKey,
-                base64ToArrayBuffer(pkg.encryptedKey)
+            // 1. RSA → AES key
+            const encryptedKeyBuffer = base64ToArrayBuffer(
+                encryptedPackage.encryptedKey
             );
 
+            const privateKey = await importPrivateKey(privateKeyB64);
+
+            const rawAesKey = await crypto.subtle.decrypt({ name: "RSA-OAEP" },
+                privateKey,
+                encryptedKeyBuffer
+            );
+
+            // 2. Import AES key
             const aesKey = await crypto.subtle.importKey(
                 "raw",
-                aesKeyRaw, { name: "AES-GCM" },
+                rawAesKey, { name: "AES-GCM" },
                 false, ["decrypt"]
             );
 
-            // 2. AES decrypt
-            const decryptedBuffer = await crypto.subtle.decrypt({
-                    name: "AES-GCM",
-                    iv: new Uint8Array(base64ToArrayBuffer(pkg.iv))
-                },
-                aesKey,
-                base64ToArrayBuffer(pkg.encryptedData)
+            // 3. Decrypt data
+            const encryptedData = base64ToArrayBuffer(
+                encryptedPackage.encryptedData
             );
 
-            // 3. ArrayBuffer → Blob
-            return new Blob([decryptedBuffer], { type: pkg.mime });
+            const iv = base64ToArrayBuffer(encryptedPackage.iv);
+
+            const decryptedBuffer = await crypto.subtle.decrypt({ name: "AES-GCM", iv: new Uint8Array(iv) },
+                aesKey,
+                encryptedData
+            );
+
+            // 4. ArrayBuffer → Blob
+            return new Blob(
+                [decryptedBuffer], { type: encryptedPackage.mime }
+            );
         }
 
         function cleanPrivateKey(privateKeyData) {

@@ -339,7 +339,11 @@
                     `
                 }
                 lastDate = date;
-                var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                if (msg.datatype === "txt") {
+                    var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                } else {
+                    var content = await decryptBlob(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                }
                 var name = "Uniknown"
 
                 if (msg.user_id in UserNames) {
@@ -1421,9 +1425,9 @@
             return await blob.arrayBuffer();
         }
         sendBtn.addEventListener("click", async function() {
-            console.log(typeof pastedImageFile);
+            console.log(pastedImageFile instanceof Blob);
             console.log(pastedImageFile)
-            pastedImageFile = await blobToArrayBuffer(pastedImageFile)
+                //pastedImageFile = await blobToArrayBuffer(pastedImageFile, ChatsData[parseInt(CurrentChat)].publickeycrypt)
             await Send_Message(pastedImageFile, "img")
             pastedImageFile = null;
             overlay.classList.add("hidden");
