@@ -31,6 +31,7 @@ challenges_auth={}
 challenges_del={}
 challenges_prof={}
 challenges_conn_device={}
+passwordf = open("C:/Users/SB/Desktop/gmailpassword.txt").read()
 
 app = FastAPI()
 Database = MessengerDataBase.DataBaseManager()
@@ -38,8 +39,8 @@ feedbacksdb = FeedBacks.Feedback_Manager()
 templates = Jinja2Templates(directory="templates")
 
 
-def save_encrypted_media(payload: dict) -> str:
-    media_id = str(uuid.uuid4())
+def save_encrypted_media(payload: dict,id) -> str:
+    media_id = id
 
     base_path = Path("media/encrypted")
     base_path.mkdir(parents=True, exist_ok=True)
@@ -125,7 +126,7 @@ def IsEmailCorrect(email):
 
 def SendCode(emailreciver,body=0):
     email_from = 'onesevenrusia@gmail.com' 
-    password = 'qhxw zqci vqit xwvp'  
+    password = passwordf 
     email_to = emailreciver
     code=str(random.randint(100000, 999999))
     print(code)
@@ -178,6 +179,10 @@ def send_static(path: str):
 @app.get('/UsersPhotos/{path:path}')
 def userphoto(path: str):
     return FileResponse(f'UsersPhotos/{path}')
+
+@app.get('/media/{path:path}')
+def usermedia(path: str):
+    return FileResponse(f'media/{path}')
 
 @app.get('/favicon.ico')
 def favicon():
@@ -258,7 +263,7 @@ async def websocket_endpoint(ws: WebSocket):
     try:
         while True:
             msg = await ws.receive_json()
-            print(f"[WS] From {device_id}: {msg}")
+            print(f"[WS] From {device_id}: xxxxx")
             if msg["type"] == "newchat":
                 if "newdevice" not in device_id and msg["email"] not in device_id:
                     for client in filter(lambda x: msg["email"] in x and msg["email"]+"|idnewdevice" not in x, clients):
@@ -267,7 +272,13 @@ async def websocket_endpoint(ws: WebSocket):
                             await client["ws"].send_json({"type":"new_chat","user":device_id.split("|")[0]})
                         except Exception as e:
                             print("248❌",e)
-                    Database.add_Inventive(emailrecive=msg["email"],
+                    flag=True
+                    for inv in Database.get_user_Inventives(msg["email"]):
+                        if inv["typeinventive"] == "newchat" and inv["emailsent"] == device_id.split("|")[0]:
+                            flag=False
+                            break
+                    if flag:
+                        Database.add_Inventive(emailrecive=msg["email"],
                                                emailsent=device_id.split("|")[0],
                                                inventivetype="newchat",
                                                publickey=msg["publickey"],
@@ -282,14 +293,12 @@ async def websocket_endpoint(ws: WebSocket):
                     except Exception as e:              
                         print("262❌",e)
             if msg["type"] == "newchatagree" or msg["type"] == "newchatdisagree":
-                print(f"[Agree] {msg}")
+                print(f"[Agree] ")
                 sender = Database.get_user_by_email(msg["email"])
                 reciver = Database.get_user_by_email(device_id.split("|")[0])
                 for inventive in Database.get_user_Inventives(reciver["email"]):
                     if inventive["emailsent"]==msg["email"] and inventive["typeinventive"]=="newchat":
                         if msg["type"]=="newchatagree":
-                            print("agree")
-                            print(inventive)
                             pbc = inventive["publickey"]
                             pvc = inventive["reciverencryptedkey"]
                             mypvc = inventive["senderencryptedkey"]
@@ -332,8 +341,18 @@ async def websocket_endpoint(ws: WebSocket):
                                                 datatype=msg["typemsg"],
                                                 content=json.dumps(msg["message"].replace("\'", "\"")))
                 else:
-                    r=save_encrypted_media(msg["message"])
-                    print(r)
+                    msg["message"]=json.loads(msg["message"])
+                    answ = Database.add_message(chat_id=int(msg["chatid"]),
+                                                user_id=int(msg["userid"]),
+                                                datatype=msg["typemsg"],
+                                                content="")
+                    if answ["success"]:
+                        save_encrypted_media(msg["message"],answ["message_id"])
+                        pathid=answ["message_id"]
+                        answ1=Database.update_message(int(msg["chatid"]),int(answ["message_id"]),str(pathid),msg["typemsg"])
+                        answ["success"]=answ1["success"]
+                        print(344, answ["success"], answ1)
+
                 if answ["success"]:
                     await ws.send_json({"type":"addmymsg",
                                   "uniknownid":msg["uniknownid"],

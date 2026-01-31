@@ -493,12 +493,12 @@ class DataBaseManager:
         finally:
             session.close()
 
-    def update_message(self, chat_id, chat_message_id, new_content,datatype):
+    def update_message(self, chat_id, message_id, new_content,datatype):
         session = self.Session()
         try:
             msg = session.query(Message).filter(
                 Message.chat_id == chat_id,
-                Message.internal_id == chat_message_id
+                Message.id == message_id
             ).first()
 
             if not msg:

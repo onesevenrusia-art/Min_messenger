@@ -255,7 +255,7 @@
             if (result.result === false && result.what == "auth") {
                 alert("Ошибка входа");
                 localStorage.removeItem("Userdata");
-                window.location.href = "/";
+                window.location.href = "";
             }
             if (result.result === true) {
                 console.log('🎉 Вход выполнен!');
@@ -264,7 +264,7 @@
 
 
         } else {
-            window.location.href = '/';
+            window.location.href = '';
         }
 
         const images = [{
@@ -329,6 +329,7 @@
         async function UpdateGUI(msg) {
             if (ChatsData[CurrentChat].type !== "tehnic") {
                 //console.log(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                console.log(msg)
                 var tag = false;
                 var date = new Date(msg.created)
                 if (!isSameDay(lastDate, date)) {
@@ -342,7 +343,17 @@
                 if (msg.datatype === "txt") {
                     var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
                 } else {
-                    var content = await decryptBlob(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                    try{
+                    var prepared = await prepareEncryptedPackage({
+                        encryptedKeyPath: `/media/encrypted/${msg.id}.key`,
+                        encryptedDataPath: `/media/encrypted/${msg.id}.bin`,
+                        ivPath: `/media/encrypted/${msg.id}.iv`
+                    })
+                    var content = await decryptBlob(deepJsonParse(prepared), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                    }
+                    catch{
+                        return;
+                    }
                 }
                 var name = "Uniknown"
 
@@ -409,6 +420,7 @@
                 })
                 delete UnCookMessages[datae["uniknownid"]];
             } else {
+                console.log(datae)
                 alert("не удалось отправить сообщение")
             }
         }
@@ -1209,8 +1221,14 @@
                     })
                 });
                 const challengeResult = await challengeResponse.json();
+                if (challengeResult.success===false){
+                    localStorage.clear()
+                    window.location.herf=""
+                }
                 if (!challengeResult.success) {
                     console.error('❌ Не удалось получить challenge');
+                    localStorage.clear()
+                    window.location.herf=""
                     return {
                         result: false,
                         what: "server"
@@ -1432,6 +1450,36 @@
             pastedImageFile = null;
             overlay.classList.add("hidden");
         });
+
+        async function loadBinary(path) {
+            const res = await fetch(path);
+            const buffer = await res.arrayBuffer();
+            return buffer;
+        }
+        
+        function arrayBufferToBase64(buffer) {
+            let binary = "";
+            const bytes = new Uint8Array(buffer);
+            const chunkSize = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        async function prepareEncryptedPackage(paths) {
+            const [keyBuf, dataBuf, ivBuf] = await Promise.all([
+                loadBinary(paths.encryptedKeyPath),
+                loadBinary(paths.encryptedDataPath),
+                loadBinary(paths.ivPath)
+            ]);
+
+            return {
+                encryptedKey: arrayBufferToBase64(keyBuf),
+                encryptedData: arrayBufferToBase64(dataBuf),
+                iv: arrayBufferToBase64(ivBuf)
+            };
+        }
 
         async function GetName(id, photoflag = false) {
             var res = await fetch("/GetUs", {
