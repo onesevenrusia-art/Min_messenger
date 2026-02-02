@@ -6,7 +6,7 @@ CORS(app)
 
 @app.route("/")
 def index():
-    return render_template("testimage.html")
+    return render_template("testpush.html")
 
 @app.route('/static/<path:path>')
 def send_static(path):
@@ -17,7 +17,6 @@ def send_static(path):
 #MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAk79HpfLZjkJCVSffJxZsWJ77Z5TTMd0UYf9d8mnDGtegg29iRK/P1r7ldHzbjLWQUQGagZshQ6qV94HKRZeJN7lcaHoRFog7aYbdZv42XDkfcjNlcSwR8I6BEREfds0bHCcK8NJQB9G7djj+fcSPVUCPJA2Xb/XtqD5833wkcR1TWH331xNnEP6f6AbdyemEiqVC9hUfOX37GUrNQkfcZqIUArEva87Y463xerOERkwXVBUTPzLC13KvB0Tqx78yKdzLo8UivZI1CuHLIjikBWXu++XJEOVQwKUR95hk+XZrnbfBd2ljY4Tr9YzRQDxOD8rQzjhMvWtNKV/YoXyEFwIDAQAB
 if __name__ == '__main__':    
     app.run( host='0.0.0.0',  port=5000, debug=True, 
-            ssl_context=('cert.pem',"key.pem"),
             use_reloader=False) 
     
 

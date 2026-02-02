@@ -895,12 +895,12 @@
     text-align: center;
 }
     
-    #name {
+    .name {
         font-size: 11px;
         color: blue;
     }
     
-    #text {
+    .text {
         font-size: 18px;
         white-space: normal;
         overflow-wrap: break-word;
@@ -908,7 +908,7 @@
         word-break: break-word;
     }
     
-    #time {
+    .time {
         font-size: 10px;
         color: red;
         right: 0;

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Push Notification Example</title>
+</head>
+<body>
+    <button id="sendNotificationBtn">Отправить уведомление</button>
+
+    <script>
+        // Проверяем поддержку уведомлений
+        if (!("Notification" in window)) {
+            alert("Ваш браузер не поддерживает уведомления");
+        }
+
+        // Запрашиваем разрешение при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            Notification.requestPermission();
+            if (Notification.permission === "default") {
+                Notification.requestPermission();
+            }
+        });
+
+        // Обработчик кнопки
+        document.getElementById('sendNotificationBtn').addEventListener('click', function() {
+            sendPushNotification();
+        });
+
+        // Функция отправки уведомления
+        function sendPushNotification() {
+            // Проверяем разрешение
+            if (Notification.permission === "granted") {
+                // Создаем и показываем уведомление
+                const notification = new Notification("Мой сайт", {
+                    body: "Привет! Это тестовое уведомление",
+                    icon: "/icon.png", // опционально
+                    tag: "test-notification"
+                });
+
+                // Обработчик клика по уведомлению
+                notification.onclick = function() {
+                    window.focus();
+                    notification.close();
+                };
+
+                // Автоматическое закрытие через 5 секунд
+                setTimeout(() => {
+                    notification.close();
+                }, 5000);
+
+            } else if (Notification.permission === "default") {
+                // Запрашиваем разрешение
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        sendPushNotification(); // Повторяем попытку
+                    } else {
+                        alert("Вы запретили уведомления");
+                    }
+                });
+            } else {
+                alert("Вы запретили уведомления. Разрешите их в настройках браузера");
+            }
+        }
+    </script>
+</body>
+</html>

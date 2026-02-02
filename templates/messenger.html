@@ -194,6 +194,7 @@
         const messagedb = new MessageStore();
         await messagedb.open();
         const GraphicChat = document.getElementById("chat");
+        const graphic = new Graphic(document.getElementById("chat"));
         const photoContainer = document.querySelector('.photo-container');
         const photoAdd = document.querySelector('.photo-add');
         const photoDelete = document.querySelector('.photo-delete');
@@ -385,23 +386,26 @@
                 var classn = "message-left";
             }
             if (msg.datatype === "txt") {
-                GraphicChat.innerHTML += `
-                    <div class="${classn}">
-                        <p id="name">${name}</p>
-                        <p id="text">${content}</p>
-                        <p id="time">${date.getHours()}:${date.getMinutes()}</p>
-                    </div>
-            `
+                console.log(content)
+                graphic.add({type: msg.datatype,
+                    id: msg.id,
+                    content: content,
+                    time: `${date.getHours()}:${date.getMinutes()}`,
+                    namesender: name,
+                    classname: classn
+
+                })
+                //graphic.add(content,"txt",classn,msg.id,name,`${date.getHours()}:${date.getMinutes()}`)
             }
             if (msg.datatype === "img") {
                 var img = await convertImage(content)
-                GraphicChat.innerHTML += `
-                    <div class="${classn}">
-                        <p id="name">${name}</p>
-                        <img src="${img}">
-                        <p id="time">${date.getHours()}:${date.getMinutes()}</p>
-                    </div>
-            `
+                graphic.add({type: msg.datatype,
+                    id: msg.id,
+                    content: img,
+                    time: `${date.getHours()}:${date.getMinutes()}`,
+                    namesender: name,
+                    classname: classn
+                })
             }
 
         }
@@ -790,6 +794,9 @@
                 for (let msg of chatmsgs) {
                     await UpdateGUI(msg)
                 }
+            }
+            if (e.target.closest(".message-left") || e.target.closest(".message-right")){
+                console.log(e)
             }
         })
         document.getElementById("shapebackbtn").addEventListener("click", function() {
@@ -1352,7 +1359,7 @@
                         console.log(img);
                         var img = await convertImage(msg)
                         GraphicChat.innerHTML += `
-                                <div class="message-right">
+                                <div id=${"msg"+msg.id} class="message-right">
                                     <p id="name">Вы</p>
                                     <img src="${img}">
                                     <p id="time">${time.getHours()}:${time.getMinutes()}</p>
@@ -1503,6 +1510,95 @@
         }
 
     });
+
+
+    class Graphic {
+        constructor(chatElement) {
+            this.chat = chatElement;
+            this.loading = false;
+        }
+
+        /* ---------- MESSAGE ELEMENT ---------- */
+
+        _createMessage(msg) {
+            console.log(msg)
+            const div = document.createElement("div");
+            div.className = msg.classname
+            if (msg.type !== "tmc"){
+                div.dataset.id = msg.id;
+                const user = document.createElement("p");
+                user.className = "name";
+                user.textContent = msg.namesender;
+
+                if (msg.type === "txt"){
+                    var text = document.createElement("p");
+                    text.className = "text";
+                    text.textContent = msg.content;
+                }
+                if (msg.type === "img"){
+                    var text = document.createElement("img");
+                    text.src = msg.content;
+                }
+                const data_t = document.createElement("p");
+                data_t.className = "time";
+                data_t.textContent = msg.time;
+                div.append(user, text, data_t);
+                return div;
+            }
+            else{
+                div.className = "message-center"; 
+                const text = document.createElement("p");
+                text.textContent = msg.content;
+                div.append()
+            }
+        }
+
+        /* ---------- ADD MESSAGE (BOTTOM) ---------- */
+
+        add(msg) {
+            const el = this._createMessage(msg);
+            this.chat.appendChild(el);
+            this.chat.scrollTop = this.chat.scrollHeight;
+        }
+
+        /* ---------- UPDATE MESSAGE ---------- */
+
+        update(id, msg) {
+            const el = this.chat.querySelector(["data-id=`${id}`"]);
+            if (!el) return;
+            if (msg.type === "txt"){
+                el.querySelector(".text").textContent = newcontent;
+            }
+            if (msg.type === "img"){
+                el.querySelector(".text").src = newcontent;
+            }
+        }
+
+        /* ---------- DELETE MESSAGE ---------- */
+
+        remove(id) {
+            const el = this.chat.querySelector(["data-id=`${id}`"]);
+            if (!el) return;
+
+            el.remove();
+        }
+
+        /* ---------- LOAD OLDER (TOP) ---------- */
+
+        prepend(messages) {
+            if (!messages.length) return;
+
+            const oldHeight = this.chat.scrollHeight;
+
+            for (const msg of messages) {
+                const el = this._createMessage(msg);
+                this.chat.prepend(el);
+            }
+
+            const newHeight = this.chat.scrollHeight;
+            this.chat.scrollTop += (newHeight - oldHeight);
+        }
+    }
 </script>
 </body>
 
