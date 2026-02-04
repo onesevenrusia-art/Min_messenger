@@ -45,7 +45,9 @@
                 <p id="shapechatname"></p>
                 <button id="delchat">🗑️</button>
             </div>
-            <div id="chat"></div>
+            <div id="chat">
+
+            </div>
             <div class="input_msg">
                 <textarea id="input_message"></textarea>
                 <button id="send">Send</button>
@@ -166,7 +168,10 @@
             </div>
         </div>
     </div>
-
+    <div id="msgMenu" class="hidden_m">
+        <button id="editMsg">Изменить</button>
+        <button id="deleteMsg">Удалить</button>
+    </div>
 </body>
 <script src="/static/js/appCrypto.js"></script>
 <script src="static/js/MessagesDB.js"></script>
@@ -203,6 +208,8 @@
         const DataUser = localStorage.getItem('Userdata');
         const Data = JSON.parse(DataUser);
         const ChatBox = document.getElementById("chatbox");
+        const msg_menu = document.getElementById("msgMenu");
+        var activeMessageId = null;
         const Month = {
             0: "январь",
             1: "февраль",
@@ -476,8 +483,8 @@
                 }));
                 document.getElementById("moreinfo").innerText = "Loading device Info......"
                 try {
+                    document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n страна: ${dataip.country_name}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
                     GetIPInfo(datae.ip).then(dataip => {
-                        document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n страна: ${dataip.country_name}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
                         if (dataip === null) {
                             document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
 
@@ -737,6 +744,50 @@
             }, 200);
         }
 
+        function showMenu_msg(x, y) {
+            //msg_menu.remove("hidden_m")
+            const menuRect = msg_menu.getBoundingClientRect();
+            const padding = 8;
+
+            let posX = x;
+            let posY = y;
+
+            // 👉 не вылезать вправо
+            if (x + menuRect.width > window.innerWidth) {
+                posX = window.innerWidth - menuRect.width - padding;
+            }
+
+            // 👉 не вылезать вниз
+            if (y + menuRect.height > window.innerHeight) {
+                posY = window.innerHeight - menuRect.height - padding;
+            }
+
+            // 👉 не вылезать влево / вверх
+            posX = Math.max(padding, posX);
+            posY = Math.max(padding, posY);
+
+            msg_menu.style.left = posX + "px";
+            msg_menu.style.top = posY + "px";
+            msg_menu.classList.remove("hidden_m")
+            msg_menu.classList.add("show_m");
+        }
+
+        function hideMenu_msg() {
+            msg_menu.classList.remove("show_m");
+            msg_menu.classList.add("hidden_m");
+            activeMessageId = null;
+        }
+
+        document.addEventListener("click",hideMenu_msg)
+
+        document.getElementById("editMsg").addEventListener("click",function(){
+
+        });
+
+        document.getElementById("deleteMsg").addEventListener("click",function(){
+            Graphic.remove(activeMessageId);
+        });
+
         button.addEventListener('mouseenter', showMenu);
         button.addEventListener('mouseleave', hideMenu);
 
@@ -770,6 +821,18 @@
                 document.querySelector("#SearchUser").style.display = "flex";
             });
         });
+
+        GraphicChat.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+
+            const msgEl = e.target.closest(".message-right");
+            if (!msgEl) return;
+
+            activeMessageId = Number(msgEl.dataset.id);
+            console.log(activeMessageId);
+            showMenu_msg(e.pageX, e.pageY);
+        });
+
         document.addEventListener("click", async function(e) {
             if (e.target.className !== "zzz") {
                 document.querySelector("#SearchUser").style.display = "none";
@@ -795,9 +858,9 @@
                     await UpdateGUI(msg)
                 }
             }
-            if (e.target.closest(".message-left") || e.target.closest(".message-right")){
-                console.log(e)
-            }
+           //if (e.target.closest(".message-right")){
+           //    e.target.closest(".message-right").dataset.id
+           //}
         })
         document.getElementById("shapebackbtn").addEventListener("click", function() {
             document.querySelectorAll(".wind").forEach(e => {
