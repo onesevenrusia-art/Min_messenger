@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MIN Messenger - Свободу слову!</title>
-    <link rel="stylesheet" href="static/css/style2.css">
+    <link rel="stylesheet" href="static/css/style22.css">
 </head>
-
+<style src="static/css/style2.css"></style>
 <body>
     <div class="background-container">
         <img id="fon" src="" alt="Фон" class="background-image">
@@ -51,7 +51,11 @@
             <div class="input_msg">
                 <textarea id="input_message"></textarea>
                 <button id="send">Send</button>
-                <button id="sendmedia">🎙️</button>
+                <button id="sendmedia" class="microphone" style="        background-color: black;
+                border: 1px solid white;
+                border-radius: 25px;
+                font-size: 22px;
+                padding: 4px;">🎙️</button>
             </div>
         </div>
     </div>
@@ -173,6 +177,13 @@
         <button id="editMsg">Изменить</button>
         <button id="deleteMsg">Удалить</button>
     </div>
+
+    <div id="recordModal" class="hidden_md">
+        <div class="record-box">
+            <div id="recordTime">00:00</div>
+            <button id="stopRec">Стоп</button>
+        </div>
+    </div>
 </body>
 <script src="/static/js/appCrypto.js"></script>
 <script src="static/js/MessagesDB.js"></script>
@@ -185,8 +196,6 @@
                 this.loading = false;
             }
 
-            /* ---------- MESSAGE ELEMENT ---------- */
-
             _createMessage(msg) {
                 console.log(msg)
                 const div = document.createElement("div");
@@ -196,7 +205,7 @@
                     const user = document.createElement("p");
                     user.className = "name";
                     user.textContent = msg.namesender;
-
+                    console.log(msg.type)
                     if (msg.type === "txt"){
                         var text = document.createElement("p");
                         text.className = "text";
@@ -205,6 +214,11 @@
                     if (msg.type === "img"){
                         var text = document.createElement("img");
                         text.src = msg.content;
+                    }
+                    if (msg.type === "voice"){
+                        var text = document.createElement("audio");
+                        text.controls=true;
+                        text.src = URL.createObjectURL(msg.content);
                     }
                     const data_t = document.createElement("p");
                     data_t.className = "time";
@@ -220,15 +234,11 @@
                 }
             }
 
-            /* ---------- ADD MESSAGE (BOTTOM) ---------- */
-
             add(msg) {
                 const el = this._createMessage(msg);
                 this.chat.appendChild(el);
                 this.chat.scrollTop = this.chat.scrollHeight;
             }
-
-            /* ---------- UPDATE MESSAGE ---------- */
 
             update(id, msg) {
                 const el = this.chat.querySelector(`[data-id="${id}"]`);
@@ -236,12 +246,10 @@
                 if (msg.type === "txt"){
                     el.querySelector(".text").textContent = newcontent;
                 }
-                if (msg.type === "img"){
+                if (msg.type === "img" || msg.type === "voice"){
                     el.querySelector(".text").src = newcontent;
                 }
             }
-
-            /* ---------- DELETE MESSAGE ---------- */
 
             remove(id) {
                 const el = this.chat.querySelector(`[data-id="${id}"]`);
@@ -249,8 +257,6 @@
 
                 el.remove();
             }
-
-            /* ---------- LOAD OLDER (TOP) ---------- */
 
             prepend(messages) {
                 if (!messages.length) return;
@@ -496,10 +502,15 @@
                     classname: classn
 
                 })
-                //graphic.add(content,"txt",classn,msg.id,name,`${date.getHours()}:${date.getMinutes()}`)
             }
-            if (msg.datatype === "img") {
-                var img = await convertImage(content)
+            if (msg.datatype === "img" || msg.datatype === "voice") {
+                console.log(content)
+                if (msg.datatype==="img"){
+                    var img = await convertImage(content)}
+                else{
+                    var img = content
+                }
+                console.log(img)
                 graphic.add({type: msg.datatype,
                     id: msg.id,
                     content: img,
@@ -1502,11 +1513,12 @@
                 var msgencrypt = await encryptBlob(msg, ChatsData[parseInt(CurrentChat)].publickeycrypt)
             }
             msgencrypt = JSON.stringify(msgencrypt);
+            if (msgtype==="img"){
+                msg = await convertImage(msg)
+            }
             const time = new Date()
-            switch (msgtype) {
-                case "txt":
-                    {
-                        graphic.add({type: "txt",
+
+            graphic.add({type: msgtype,
                             id: `my${randomNumber}`,
                             content: msg,
                             time: `${time.getHours()}:${time.getMinutes()}`,
@@ -1514,24 +1526,7 @@
                             classname: "message-right"
 
                         })
-                        document.getElementById("input_message").value = ""
-                        break;
-                    }
-                case "img":
-                    {
-                        console.log(img);
-                        var img = await convertImage(msg)
-                        graphic.add({type: "img",
-                            id: `my${randomNumber}`,
-                            content: img,
-                            time: `${time.getHours()}:${time.getMinutes()}`,
-                            namesender: "Вы",
-                            classname: "message-right"
-
-                        })
-                        break;
-                    }
-            }
+            document.getElementById("input_message").value = ""
             var msgs = {
                 type: "newmessage",
                 chatid: CurrentChat,
@@ -1674,12 +1669,21 @@
         }
 
 
+
+        const stopBtn = document.getElementById("stopRec");
+        const modal = document.getElementById("recordModal");
+        const timeEl = document.getElementById("recordTime");
+
         let recorder;
         let stream;
         let chunks = [];
+        let timer;
+        let seconds = 0;
 
+        mediabtn.addEventListener("click", startRecording);
+        stopBtn.addEventListener("click", stopRecording);
 
-        mediabtn.addEventListener("pointerdown", async () => {
+        async function startRecording() {
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
@@ -1687,24 +1691,44 @@
                 chunks = [];
 
                 recorder.ondataavailable = e => chunks.push(e.data);
-                recorder.start();
-            } catch (e) {
-                console.error(e);
-                alert("Нет доступа к микрофону");
-            }
-        });
 
-        mediabtn.addEventListener("pointerup", () => {
+                recorder.start();
+
+                modal.style.display="flex";
+
+                // таймер
+                seconds = 0;
+                timeEl.textContent = "00:00";
+                timer = setInterval(() => {
+                    seconds++;
+                    const min = String(Math.floor(seconds / 60)).padStart(2, "0");
+                    const sec = String(seconds % 60).padStart(2, "0");
+                    timeEl.textContent = `${min}:${sec}`;
+                }, 1000);
+
+            } catch (e) {
+                alert("Нет доступа к микрофону");
+                console.log(e);
+            }
+        }
+
+        function stopRecording() {
+            console.log("stop")
+            modal.style.display="none";
             if (!recorder) return;
 
             recorder.stop();
-            recorder.onstop = () => {
-                const blob = new Blob(chunks, { type: recorder.mimeType });
-                console.log("VOICE BLOB:", blob);
 
+            recorder.onstop = () => {
+                clearInterval(timer);
+                modal.classList.add("hidden");
+
+                const blob = new Blob(chunks, { type: recorder.mimeType });
                 stream.getTracks().forEach(t => t.stop());
+
+                Send_Message(blob,"voice")
             };
-        });
+        }
 
 
     });

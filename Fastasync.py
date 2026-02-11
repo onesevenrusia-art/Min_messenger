@@ -351,7 +351,7 @@ async def websocket_endpoint(ws: WebSocket):
                         pathid=answ["message_id"]
                         answ1=Database.update_message(int(msg["chatid"]),int(answ["message_id"]),str(pathid),msg["typemsg"])
                         answ["success"]=answ1["success"]
-                        print(344, answ["success"], answ1)
+                        print(344, answ, answ1)
 
                 if answ["success"]:
                     await ws.send_json({"type":"addmymsg",
