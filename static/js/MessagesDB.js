@@ -12,7 +12,7 @@ class MessageStore {
 
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, this.version);
-
+            indexedDB.deleteDatabase(this.dbName)
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
 

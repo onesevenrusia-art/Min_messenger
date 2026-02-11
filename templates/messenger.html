@@ -51,6 +51,7 @@
             <div class="input_msg">
                 <textarea id="input_message"></textarea>
                 <button id="send">Send</button>
+                <button id="sendmedia">🎙️</button>
             </div>
         </div>
     </div>
@@ -176,7 +177,95 @@
 <script src="/static/js/appCrypto.js"></script>
 <script src="static/js/MessagesDB.js"></script>
 <script>
+
     document.addEventListener('DOMContentLoaded', async function() {
+        class Graphic {
+            constructor(chatElement) {
+                this.chat = chatElement;
+                this.loading = false;
+            }
+
+            /* ---------- MESSAGE ELEMENT ---------- */
+
+            _createMessage(msg) {
+                console.log(msg)
+                const div = document.createElement("div");
+                div.className = msg.classname
+                if (msg.type !== "tmc"){
+                    div.dataset.id = msg.id;
+                    const user = document.createElement("p");
+                    user.className = "name";
+                    user.textContent = msg.namesender;
+
+                    if (msg.type === "txt"){
+                        var text = document.createElement("p");
+                        text.className = "text";
+                        text.textContent = msg.content;
+                    }
+                    if (msg.type === "img"){
+                        var text = document.createElement("img");
+                        text.src = msg.content;
+                    }
+                    const data_t = document.createElement("p");
+                    data_t.className = "time";
+                    data_t.textContent = msg.time;
+                    div.append(user, text, data_t);
+                    return div;
+                }
+                else{
+                    div.className = "message-center"; 
+                    const text = document.createElement("p");
+                    text.textContent = msg.content;
+                    div.append()
+                }
+            }
+
+            /* ---------- ADD MESSAGE (BOTTOM) ---------- */
+
+            add(msg) {
+                const el = this._createMessage(msg);
+                this.chat.appendChild(el);
+                this.chat.scrollTop = this.chat.scrollHeight;
+            }
+
+            /* ---------- UPDATE MESSAGE ---------- */
+
+            update(id, msg) {
+                const el = this.chat.querySelector(`[data-id="${id}"]`);
+                if (!el) return;
+                if (msg.type === "txt"){
+                    el.querySelector(".text").textContent = newcontent;
+                }
+                if (msg.type === "img"){
+                    el.querySelector(".text").src = newcontent;
+                }
+            }
+
+            /* ---------- DELETE MESSAGE ---------- */
+
+            remove(id) {
+                const el = this.chat.querySelector(`[data-id="${id}"]`);
+                if (!el) return;
+
+                el.remove();
+            }
+
+            /* ---------- LOAD OLDER (TOP) ---------- */
+
+            prepend(messages) {
+                if (!messages.length) return;
+
+                const oldHeight = this.chat.scrollHeight;
+
+                for (const msg of messages) {
+                    const el = this._createMessage(msg);
+                    this.chat.prepend(el);
+                }
+
+                const newHeight = this.chat.scrollHeight;
+                this.chat.scrollTop += (newHeight - oldHeight);
+            }
+        }
         //localStorage.clear();
         var CurrentChat = null;
         var UnCookMessages = {};
@@ -209,6 +298,8 @@
         const Data = JSON.parse(DataUser);
         const ChatBox = document.getElementById("chatbox");
         const msg_menu = document.getElementById("msgMenu");
+        const mediabtn = document.getElementById("sendmedia")
+        msg_menu.classList.remove("hidden_m")
         var activeMessageId = null;
         const Month = {
             0: "январь",
@@ -263,7 +354,7 @@
             if (result.result === false && result.what == "auth") {
                 alert("Ошибка входа");
                 localStorage.removeItem("Userdata");
-                window.location.href = "";
+                //window.location.href = "";
             }
             if (result.result === true) {
                 console.log('🎉 Вход выполнен!');
@@ -272,7 +363,7 @@
 
 
         } else {
-            window.location.href = '';
+            window.location.href = '/';
         }
 
         const images = [{
@@ -337,7 +428,6 @@
         async function UpdateGUI(msg) {
             if (ChatsData[CurrentChat].type !== "tehnic") {
                 //console.log(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
-                console.log(msg)
                 var tag = false;
                 var date = new Date(msg.created)
                 if (!isSameDay(lastDate, date)) {
@@ -347,6 +437,10 @@
                     </div>
                     `
                 }
+                //console.log(date,`${Month[date.getMonth()]}, ${date.getDate()}`,msg.created,msg)
+                //console.log(deepJsonParse(msg.msg))
+                //console.log( ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                //console.log(await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt))
                 lastDate = date;
                 if (msg.datatype === "txt") {
                     var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
@@ -458,7 +552,7 @@
         console.log(device_id)
         let pendingNotification = null;
         const ws = new WebSocket(
-            "wss://" + window.location.hostname + ":8000/ws?device_id=" + device_id
+            "wss://" + window.location.hostname + ":443/ws?device_id=" + device_id
         );
 
         ws.onopen = () => {
@@ -785,7 +879,12 @@
         });
 
         document.getElementById("deleteMsg").addEventListener("click",function(){
-            Graphic.remove(activeMessageId);
+            graphic.remove(activeMessageId);
+            if (!("my" in activeMessageId)){
+                ws.send(JSON.stringify({
+                    id: activeMessageId
+                }))
+            }
         });
 
         button.addEventListener('mouseenter', showMenu);
@@ -828,7 +927,7 @@
             const msgEl = e.target.closest(".message-right");
             if (!msgEl) return;
 
-            activeMessageId = Number(msgEl.dataset.id);
+            activeMessageId = msgEl.dataset.id;
             console.log(activeMessageId);
             showMenu_msg(e.pageX, e.pageY);
         });
@@ -1014,13 +1113,13 @@
                 if (res.result === false && (res.what == "auth" || res.what == "server")) {
                     localStorage.clear();
                     window.close();
-                    window.location.href = '';
+                    window.location.href = '/';
                     return true;
                 } else if (res.result === true) {
                     if (res.result.answ == "yes") {
                         localStorage.clear();
                         window.close();
-                        window.location.href = '';
+                        window.location.href = '/';
                     } else {
                         alert("Мы не можем удалить ваше единственное устройство иначе доступ к аккаунту будет безвозвратно потерен, подключите новое , а затем выйдите из аккаунта на этом")
                     }
@@ -1293,12 +1392,12 @@
                 const challengeResult = await challengeResponse.json();
                 if (challengeResult.success===false){
                     localStorage.clear()
-                    window.location.herf=""
+                    //window.location.herf=""
                 }
                 if (!challengeResult.success) {
                     console.error('❌ Не удалось получить challenge');
                     localStorage.clear()
-                    window.location.herf=""
+                    //window.location.herf=""
                     return {
                         result: false,
                         what: "server"
@@ -1407,13 +1506,14 @@
             switch (msgtype) {
                 case "txt":
                     {
-                        GraphicChat.innerHTML += `
-                                <div class="message-right">
-                                    <p id="name">Вы</p>
-                                    <p id="text">${msg}</p>
-                                    <p id="time">${time.getHours()}:${time.getMinutes()}</p>
-                                </div>
-                        `
+                        graphic.add({type: "txt",
+                            id: `my${randomNumber}`,
+                            content: msg,
+                            time: `${time.getHours()}:${time.getMinutes()}`,
+                            namesender: "Вы",
+                            classname: "message-right"
+
+                        })
                         document.getElementById("input_message").value = ""
                         break;
                     }
@@ -1421,13 +1521,14 @@
                     {
                         console.log(img);
                         var img = await convertImage(msg)
-                        GraphicChat.innerHTML += `
-                                <div id=${"msg"+msg.id} class="message-right">
-                                    <p id="name">Вы</p>
-                                    <img src="${img}">
-                                    <p id="time">${time.getHours()}:${time.getMinutes()}</p>
-                                </div>
-                        `
+                        graphic.add({type: "img",
+                            id: `my${randomNumber}`,
+                            content: img,
+                            time: `${time.getHours()}:${time.getMinutes()}`,
+                            namesender: "Вы",
+                            classname: "message-right"
+
+                        })
                         break;
                     }
             }
@@ -1572,96 +1673,41 @@
                 date1.getDate() === date2.getDate();
         }
 
+
+        let recorder;
+        let stream;
+        let chunks = [];
+
+
+        mediabtn.addEventListener("pointerdown", async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                recorder = new MediaRecorder(stream);
+                chunks = [];
+
+                recorder.ondataavailable = e => chunks.push(e.data);
+                recorder.start();
+            } catch (e) {
+                console.error(e);
+                alert("Нет доступа к микрофону");
+            }
+        });
+
+        mediabtn.addEventListener("pointerup", () => {
+            if (!recorder) return;
+
+            recorder.stop();
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: recorder.mimeType });
+                console.log("VOICE BLOB:", blob);
+
+                stream.getTracks().forEach(t => t.stop());
+            };
+        });
+
+
     });
-
-
-    class Graphic {
-        constructor(chatElement) {
-            this.chat = chatElement;
-            this.loading = false;
-        }
-
-        /* ---------- MESSAGE ELEMENT ---------- */
-
-        _createMessage(msg) {
-            console.log(msg)
-            const div = document.createElement("div");
-            div.className = msg.classname
-            if (msg.type !== "tmc"){
-                div.dataset.id = msg.id;
-                const user = document.createElement("p");
-                user.className = "name";
-                user.textContent = msg.namesender;
-
-                if (msg.type === "txt"){
-                    var text = document.createElement("p");
-                    text.className = "text";
-                    text.textContent = msg.content;
-                }
-                if (msg.type === "img"){
-                    var text = document.createElement("img");
-                    text.src = msg.content;
-                }
-                const data_t = document.createElement("p");
-                data_t.className = "time";
-                data_t.textContent = msg.time;
-                div.append(user, text, data_t);
-                return div;
-            }
-            else{
-                div.className = "message-center"; 
-                const text = document.createElement("p");
-                text.textContent = msg.content;
-                div.append()
-            }
-        }
-
-        /* ---------- ADD MESSAGE (BOTTOM) ---------- */
-
-        add(msg) {
-            const el = this._createMessage(msg);
-            this.chat.appendChild(el);
-            this.chat.scrollTop = this.chat.scrollHeight;
-        }
-
-        /* ---------- UPDATE MESSAGE ---------- */
-
-        update(id, msg) {
-            const el = this.chat.querySelector(["data-id=`${id}`"]);
-            if (!el) return;
-            if (msg.type === "txt"){
-                el.querySelector(".text").textContent = newcontent;
-            }
-            if (msg.type === "img"){
-                el.querySelector(".text").src = newcontent;
-            }
-        }
-
-        /* ---------- DELETE MESSAGE ---------- */
-
-        remove(id) {
-            const el = this.chat.querySelector(["data-id=`${id}`"]);
-            if (!el) return;
-
-            el.remove();
-        }
-
-        /* ---------- LOAD OLDER (TOP) ---------- */
-
-        prepend(messages) {
-            if (!messages.length) return;
-
-            const oldHeight = this.chat.scrollHeight;
-
-            for (const msg of messages) {
-                const el = this._createMessage(msg);
-                this.chat.prepend(el);
-            }
-
-            const newHeight = this.chat.scrollHeight;
-            this.chat.scrollTop += (newHeight - oldHeight);
-        }
-    }
 </script>
 </body>
 

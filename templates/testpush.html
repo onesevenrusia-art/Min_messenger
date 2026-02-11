@@ -1,65 +1,46 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Push Notification Example</title>
+    <meta charset="UTF-8">
+    <title>Push Demo</title>
 </head>
 <body>
-    <button id="sendNotificationBtn">Отправить уведомление</button>
-
-    <script>
-        // Проверяем поддержку уведомлений
-        if (!("Notification" in window)) {
-            alert("Ваш браузер не поддерживает уведомления");
-        }
-
-        // Запрашиваем разрешение при загрузке страницы
-        document.addEventListener('DOMContentLoaded', function() {
-            Notification.requestPermission();
-            if (Notification.permission === "default") {
-                Notification.requestPermission();
-            }
-        });
-
-        // Обработчик кнопки
-        document.getElementById('sendNotificationBtn').addEventListener('click', function() {
-            sendPushNotification();
-        });
-
-        // Функция отправки уведомления
-        function sendPushNotification() {
-            // Проверяем разрешение
-            if (Notification.permission === "granted") {
-                // Создаем и показываем уведомление
-                const notification = new Notification("Мой сайт", {
-                    body: "Привет! Это тестовое уведомление",
-                    icon: "/icon.png", // опционально
-                    tag: "test-notification"
-                });
-
-                // Обработчик клика по уведомлению
-                notification.onclick = function() {
-                    window.focus();
-                    notification.close();
-                };
-
-                // Автоматическое закрытие через 5 секунд
-                setTimeout(() => {
-                    notification.close();
-                }, 5000);
-
-            } else if (Notification.permission === "default") {
-                // Запрашиваем разрешение
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") {
-                        sendPushNotification(); // Повторяем попытку
-                    } else {
-                        alert("Вы запретили уведомления");
-                    }
-                });
-            } else {
-                alert("Вы запретили уведомления. Разрешите их в настройках браузера");
-            }
-        }
-    </script>
+    <button id="notifyBtn">Отправить уведомление</button>
+    <p id="n"></p>
 </body>
 </html>
+<script>
+        // Проверяем поддержку
+        document.getElementById("n").innerText = Notification.permission
+        let permission = Notification.requestPermission();
+    if ('Notification' in window && 'serviceWorker' in navigator) {
+
+    // Регистрация Service Worker
+    navigator.serviceWorker.register('/static/js/sw.js').then(reg => {
+        console.log('Service Worker зарегистрирован', reg);
+    });
+    new Notification('Тест 🔔', {
+    body: 'Если это видно — всё работает'
+});
+    document.getElementById('notifyBtn').addEventListener('click', async () => {
+        // Запрос разрешения на уведомления
+        alert(Notification.permission)
+
+        console.log(Notification.permission)
+        Notification.requestPermission()
+        let permission = await Notification.requestPermission();
+        if (permission !== 'granted') return alert('Разрешение не получено');
+
+        // Отправка уведомления через Service Worker
+        navigator.serviceWorker.ready.then(registration => {
+            registration.showNotification('Привет!', {
+                body: 'Это тестовое уведомление',
+                icon: 'icon.png'
+            });
+        });
+    });
+
+    } else {
+    alert('Уведомления или Service Worker не поддерживаются этим браузером');
+    }
+</script>

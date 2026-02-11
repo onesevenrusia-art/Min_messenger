@@ -358,6 +358,7 @@ async def websocket_endpoint(ws: WebSocket):
                                   "uniknownid":msg["uniknownid"],
                                   "message_id":answ["message_id"],
                                   "internal_id":answ["internal_id"],
+                                  "typemsg":msg["typemsg"],
                                   "datatime": str(answ["time"]),
                                   "success":True})
                     emails=[]
@@ -547,7 +548,7 @@ async def challenge(request:Request):
             return {"success":False}
         return {"success":True, "challenge":challenge}
     else:
-        return {"success":False}
+        return {"success":False,"wh":"not"}
 
 @app.post("/podpis")
 async def podpis(request:Request):
@@ -864,10 +865,22 @@ async def getus(request: Request):
 
 
 if __name__ == "__main__":
+    # Явно указываем ssl контекст как в aiohttp
+    import ssl
+    
+    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ssl_context.load_cert_chain(
+        r'C:\Certbot\live\basicmimimummessenger.duckdns.org\fullchain.pem',
+        r'C:\Certbot\live\basicmimimummessenger.duckdns.org\privkey.pem'
+    )
+    
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=8000,
-        ssl_certfile="cert.pem",
-        ssl_keyfile="key.pem"
+        port=443,
+        ssl_version=ssl.PROTOCOL_TLS,
+        ssl_cert_reqs=ssl.CERT_NONE,
+        ssl_certfile=r'C:\Certbot\live\basicmimimummessenger.duckdns.org\fullchain.pem',
+        ssl_keyfile=r'C:\Certbot\live\basicmimimummessenger.duckdns.org\privkey.pem',
+        ssl_ciphers="ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20"
     )
