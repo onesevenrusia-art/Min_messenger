@@ -842,7 +842,7 @@
     border: 1px solid black;
     width: fit-content;
     min-width: 25%;
-    max-width: 95%;
+    max-width: 75%;
     overflow-wrap: break-word;
     word-break: break-word;
     hyphens: auto;
@@ -866,7 +866,7 @@
     border-radius: 8px;
     border: 1px solid rgb(0, 100, 200);
     width: fit-content;
-    max-width: 95%;
+    max-width: 75%;
     min-width: 25%;
     overflow-wrap: break-word;
     word-break: break-word;

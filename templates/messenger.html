@@ -186,7 +186,7 @@
     </div>
 </body>
 <script src="/static/js/appCrypto.js"></script>
-<script src="static/js/MessagesDB.js"></script>
+<script src="static/js/MessagesDB_3.js"></script>
 <script>
 
     document.addEventListener('DOMContentLoaded', async function() {
@@ -217,6 +217,8 @@
                     }
                     if (msg.type === "voice"){
                         var text = document.createElement("audio");
+                        text.style.maxHeight="35px"
+                        text.style.maxWidth="250px"
                         text.controls=true;
                         text.src = URL.createObjectURL(msg.content);
                     }
@@ -237,6 +239,12 @@
             add(msg) {
                 const el = this._createMessage(msg);
                 this.chat.appendChild(el);
+                this.chat.scrollTop = this.chat.scrollHeight;
+            }
+
+            prepend(msg) {
+                const el = this._createMessage(msg);
+                this.chat.prepend(el);
                 this.chat.scrollTop = this.chat.scrollHeight;
             }
 
@@ -275,7 +283,7 @@
         //localStorage.clear();
         var CurrentChat = null;
         var UnCookMessages = {};
-        var lastDate = new Date(0);
+        var lastDate = null;
         try {
             var ChatsData = JSON.parse(localStorage.getItem("Chats"));
         } catch {
@@ -307,6 +315,7 @@
         const mediabtn = document.getElementById("sendmedia")
         msg_menu.classList.remove("hidden_m")
         var activeMessageId = null;
+        var lastIdload = -1;
         const Month = {
             0: "январь",
             1: "февраль",
@@ -365,8 +374,6 @@
             if (result.result === true) {
                 console.log('🎉 Вход выполнен!');
             }
-
-
 
         } else {
             window.location.href = '/';
@@ -436,7 +443,7 @@
                 //console.log(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
                 var tag = false;
                 var date = new Date(msg.created)
-                if (!isSameDay(lastDate, date)) {
+                if (!isSameDay(lastDate, date) && lastDate !== null) {
                     GraphicChat.innerHTML += `
                     <div class="message-center">
                         <p id="text">${Month[date.getMonth()]}, ${date.getDate()}</p>
@@ -824,7 +831,26 @@
             document.querySelector("#SearchUser").style.display = "none";
         });
 
+        GraphicChat.addEventListener("scroll", async function ()  {
+            // ВНИЗ
+            if (GraphicChat.scrollTop + chat.clientHeight >= chat.scrollHeight - 5) {
+                console.log("Низ — можно подгружать новые сообщения");
+                GraphicChat.firstElementChild
+            }
 
+            // ВВЕРХ
+            if (GraphicChat.scrollTop <= 5) {
+                console.log("Верх — можно подгружать старые сообщения");
+                if (parseInt(GraphicChat.firstElementChild.dataset.id) < lastIdload || lastIdload===-1){
+                    var newmsgs = await messagedb.getChatMessages(chatId=parseInt(CurrentChat),5,parseInt(GraphicChat.firstElementChild.dataset.id)) 
+                    for (let msg of newmsgs){
+                        graphic.prepend(msg)
+                    }
+                    lastIdload=parseInt(GraphicChat.firstElementChild.dataset.id) 
+                }                
+            }   
+
+        });
 
         const button = document.getElementById('buttonsearch');
         const menu = document.querySelector('.by');
@@ -853,24 +879,19 @@
             //msg_menu.remove("hidden_m")
             const menuRect = msg_menu.getBoundingClientRect();
             const padding = 8;
-
             let posX = x;
             let posY = y;
-
             // 👉 не вылезать вправо
             if (x + menuRect.width > window.innerWidth) {
                 posX = window.innerWidth - menuRect.width - padding;
             }
-
             // 👉 не вылезать вниз
             if (y + menuRect.height > window.innerHeight) {
                 posY = window.innerHeight - menuRect.height - padding;
             }
-
             // 👉 не вылезать влево / вверх
             posX = Math.max(padding, posX);
             posY = Math.max(padding, posY);
-
             msg_menu.style.left = posX + "px";
             msg_menu.style.top = posY + "px";
             msg_menu.classList.remove("hidden_m")
@@ -948,11 +969,11 @@
                 document.querySelector("#SearchUser").style.display = "none";
             }
             if (e.target.closest(".chatinfo")) {
-                lastDate = new Date(0);
+                lastDate = null;
                 document.getElementById("chatshape").style.display = "flex";
                 GraphicChat.innerHTML = "";
                 CurrentChat = e.target.closest(".chatinfo").dataset.chatId.substring(4);
-                const chatmsgs = await messagedb.getChatMessages(parseInt(CurrentChat))
+                const chatmsgs = await messagedb.getChatMessages(parseInt(CurrentChat),20)
                     //console.log(chatmsgs)
                 document.getElementById("shapechatavatar").src = ChatsData[CurrentChat].photo;
                 document.getElementById("shapechatname").innerText = ChatsData[CurrentChat].name;
@@ -1537,7 +1558,13 @@
                 datatime: time
             }
             UnCookMessages[randomNumber] = msgs;
-            ws.send(JSON.stringify(msgs))
+            if (ws.readyState === ws.OPEN){
+                ws.send(JSON.stringify(msgs))
+            }
+            else{
+
+            }
+
         }
 
         document.getElementById("send").addEventListener("click", async function() {
@@ -1663,6 +1690,9 @@
         }
 
         function isSameDay(date1, date2) {
+            if (date1 ===null){
+                date1= new Date(0)
+            }
             return date1.getFullYear() === date2.getFullYear() &&
                 date1.getMonth() === date2.getMonth() &&
                 date1.getDate() === date2.getDate();
@@ -1695,8 +1725,6 @@
                 recorder.start();
 
                 modal.style.display="flex";
-
-                // таймер
                 seconds = 0;
                 timeEl.textContent = "00:00";
                 timer = setInterval(() => {
