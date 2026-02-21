@@ -107,7 +107,6 @@ class MessageStore {
     async loadOlderMessages(chatId, fromGlobalId, limit = 30) {
         const store = await this._store();
         const index = store.index("chat_global");
-        console.log(chatId, fromGlobalId, limit )
         const range = IDBKeyRange.upperBound([chatId, fromGlobalId], true);
 
         const result = [];
@@ -153,25 +152,28 @@ class MessageStore {
 
     async getChatMessages(chatId, limit = 30, beforeGlobalId = Infinity) {
         const store = await this._store();
-        const index = store.index("chat_global"); // индекс ["chat_id", "id"]
+        const index = store.index("chat_global"); // ["chat_id", "id"]
     
-        // Диапазон: все сообщения меньше beforeGlobalId
-        const range = IDBKeyRange.upperBound([chatId, beforeGlobalId], true);
+        // фиксируем chatId
+        const range = IDBKeyRange.bound(
+            [chatId, 0],                  // нижняя граница
+            [chatId, beforeGlobalId],     // верхняя
+            false,                        // включаем нижнюю
+            true                          // исключаем beforeGlobalId
+        );
     
         const result = [];
     
         return new Promise((resolve, reject) => {
-            // Курсор идёт "назад", от больших id к меньшим
             const req = index.openCursor(range, "prev");
     
             req.onsuccess = (e) => {
                 const cursor = e.target.result;
     
                 if (cursor && result.length < limit) {
-                    result.push(cursor.value); // собираем сообщения
+                    result.push(cursor.value);
                     cursor.continue();
                 } else {
-                    // возвращаем от старого к новому
                     resolve(result.reverse());
                 }
             };
@@ -179,7 +181,6 @@ class MessageStore {
             req.onerror = () => reject(req.error);
         });
     }
-
     /* ---------- CLEAR DB (опционально) ---------- */
     async deleteDB() {
         this.db = null;

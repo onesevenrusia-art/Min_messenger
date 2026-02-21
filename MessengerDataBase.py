@@ -47,6 +47,8 @@ class User(Base):
     about = Column(Text)
     photo = Column(String(255))
     blocked = Column(DateTime)
+    publickey = Column(String)
+    publickeycrypt = Column(String)
 
     chats = relationship("Chat", secondary=chat_participants, back_populates="users")
     devices = relationship("Device", back_populates="user", cascade="all, delete-orphan")
@@ -99,6 +101,7 @@ class Message(Base):
     datatype = Column(String(32), nullable=False)
     content = Column(Text, nullable=False)
     created = Column(DateTime, default=datetime.now())
+    status = Column(Integer, default=0)
 
     chat = relationship("Chat", back_populates="messages")
     user = relationship("User", back_populates="messages")
@@ -121,6 +124,8 @@ class DataBaseManager:
                     * photo
                     * about
                     * blocked - none / datatime
+                    * publickey
+                    * publickeycrypt
                 ]
                 - chats  [
                     * id
@@ -139,6 +144,7 @@ class DataBaseManager:
                     * datatype -   txt /img /voice /file /folder
                     * content
                     * created
+                    * status
                 ]
                 - devices [
                     * id
@@ -177,6 +183,8 @@ class DataBaseManager:
                     "phone": u.phone,
                     "about": u.about,
                     "photo": u.photo,
+                    "publickey": u.publickey,
+                    "publickeycrypt": u.publickeycrypt,
                     "blocked": u.blocked,
                     "devices": devices
                 })
@@ -215,7 +223,7 @@ class DataBaseManager:
         finally:
             session.close()
 
-    def add_user(self, email, name, phone=None, about=None, photo=None):
+    def add_user(self, email, name, phone=None, about=None, photo=None, publickey = None, publickeycrypt = None):
         session = self.Session()
         try:
             if session.query(User).filter_by(email=email).first():
@@ -226,7 +234,9 @@ class DataBaseManager:
                 name=name,
                 phone=phone,
                 about=about,
-                photo=photo
+                photo=photo,
+                publickey=publickey,
+                publickeycrypt=publickeycrypt
             )
 
             session.add(user)
@@ -308,7 +318,7 @@ class DataBaseManager:
         finally:
             session.close()
 
-    def add_device(self, user_id, name, publickey, publickeycrypt, platform=None):
+    def add_device(self, user_id, name, publickey=None, publickeycrypt=None, platform=None):
         session = self.Session()
         try:
             device = Device(
@@ -404,6 +414,16 @@ class DataBaseManager:
         finally:
             session.close()
 
+    def get_message_by_id(self, id):
+        session = self.Session()
+        try:
+            msg = session.get(Message, id)
+            if not msg:
+                return None
+            return self._get_info([msg])[0]
+        finally:
+            session.close()
+
     def get_ChatParticipants(self,chat_id):
             session = self.Session() 
             participants = session.query(chat_participants).filter_by(chat_id=chat_id).all()
@@ -493,7 +513,7 @@ class DataBaseManager:
         finally:
             session.close()
 
-    def update_message(self, chat_id, message_id, new_content,datatype):
+    def update_message(self, chat_id, message_id, new_content,datatype,status=0):
         session = self.Session()
         try:
             msg = session.query(Message).filter(
@@ -503,9 +523,12 @@ class DataBaseManager:
 
             if not msg:
                 return {"success":False,"error": "Сообщение не найдено"}
-
-            msg.content = new_content
-            msg.datatype = datatype
+            if new_content is not None:
+                msg.content = new_content
+            if datatype is not None:
+                msg.datatype = datatype
+            if status is not None:
+                msg.status = status
             session.commit()
 
             return {
@@ -518,6 +541,7 @@ class DataBaseManager:
                 "error": str(e)}
         finally:
             session.close()
+            
     def update_device(self, id, **kwargs):
         """[publickey publickeycrypt lastseen]"""
         session = self.Session()

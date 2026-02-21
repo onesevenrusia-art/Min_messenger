@@ -830,7 +830,7 @@
     display: flex;
     justify-content: start;
     flex-direction: column;
-    background-color: rgb(205, 244, 170);
+    background-color: rgba(228, 238, 220, 0.891);
     color: black;
     padding: 3px 13px 2px 8px;
     justify-self: start;

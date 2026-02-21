@@ -175,7 +175,7 @@ def index2(request: Request):
 @app.get('/static/{path:path}')
 def send_static(path: str):
     return FileResponse(f'static/{path}')
-
+ 
 @app.get('/UsersPhotos/{path:path}')
 def userphoto(path: str):
     return FileResponse(f'UsersPhotos/{path}')
@@ -328,11 +328,17 @@ async def websocket_endpoint(ws: WebSocket):
                             chats = filter(lambda x: x["type"] == "tehnic", Database.get_user_chats(sender["id"]))
                             for chat in chats:
                                 Database.add_message(chat["id"],sender["id"],"txt",f"Пользователь {reciver['name']} отверг ваш запрос на создание чата с ним")   
+
                             Database.delete_Inventive(inventive["id"])
                             break
 
             if msg["type"]=="delchat":
                 Database.delete_Chat(msg["id"])   
+                participiants = Database.get_ChatParticipants(msg["id"])
+                for p in participiants:
+                    user = Database.get_user_by_id(int(p["id"]))
+                    await send_WS_msg(user["email"],{"type":"deletechat","id":int(msg["id"])})
+
 
             if msg["type"]=="newmessage":
                 if msg["typemsg"]=="txt":
@@ -391,6 +397,13 @@ async def websocket_endpoint(ws: WebSocket):
                     if len(unread)>0:
                         await ws.send_json({"type":"newunread","messages":unread})
 
+            if msg["type"] == "reading":
+                print(msg)
+                last_read_id = int(msg["last_read_id"])
+                m = Database.get_message_by_id(last_read_id)
+                print(m)
+            else:print(msg,405,msg["type"])
+
                 
     except WebSocketDisconnect as wserror:
         try:
@@ -434,6 +447,8 @@ async def key(request:Request):
         res= Database.add_user(email=data.get("email"),
                         name=data.get("name"),
                         phone=data.get("phone"),
+                        publickey=data.get("publickey"),
+                        publickeycrypt=data.get("publickeycrypt")
                         )
         if res["success"]:
             print("success adding ///")
@@ -507,6 +522,20 @@ async def eminp(request:Request):
     if user is not None:
         if user["blocked"] is None or user["blocked"]<=datetime.now():
             state = SendCode(email)
+            id = Database.get_user_by_email(email)["id"]
+            chats = filter(lambda x: x["type"] == "tehnic", Database.get_user_chats(id))
+            for chat in chats:
+                a=Database.add_message(chat["id"], id ,"txt",f"код для входа в MIN {state[1]}")  
+                if a["success"]:
+                    await send_WS_msg(email,{"type":"addmsg",
+                                    "message_id":a["message_id"],
+                                    "internal_id":a["internal_id"],
+                                    "chat_id": chat["id"],
+                                    "user_id": 0,
+                                    "typemsg": "txt",
+                                    "message": f"код для входа в MIN {state[1]}",
+                                    "datatime": str(datetime.now())
+                                    })
             if type(state) == str:
                 print(f"ERROR! {state}")
                 return {"state":"errorpost"}

@@ -188,20 +188,42 @@
 <script src="/static/js/appCrypto.js"></script>
 <script src="static/js/MessagesDB_3.js"></script>
 <script>
-
+    //🔴🟠🟡🟢🔵🟣✅️⚠️❗❌⋮🔗
     document.addEventListener('DOMContentLoaded', async function() {
         class Graphic {
-            constructor(chatElement) {
+            constructor(chatElement, onReadCallback) {
                 this.chat = chatElement;
                 this.loading = false;
-            }
 
+                this.maxReadId = 0;
+                this.onRead = onReadCallback;
+
+                this.observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const id = Number(entry.target.dataset.id);
+
+                            if (id > this.maxReadId) {
+                                this.maxReadId = id;
+
+                                clearTimeout(this.readTimer);
+                                this.readTimer = setTimeout(() => {
+                                    if (this.onRead) {
+                                        this.onRead(this.chatId, this.maxReadId);
+                                    }
+                                }, 200); 
+                            }
+                        }
+                    });
+                }, { threshold: 0.6 });
+            }
             _createMessage(msg) {
                 console.log(msg)
                 const div = document.createElement("div");
                 div.className = msg.classname
                 if (msg.type !== "tmc"){
                     div.dataset.id = msg.id;
+                    this.observer.observe(div);
                     const user = document.createElement("p");
                     user.className = "name";
                     user.textContent = msg.namesender;
@@ -224,7 +246,14 @@
                     }
                     const data_t = document.createElement("p");
                     data_t.className = "time";
-                    data_t.textContent = msg.time;
+
+                    if (msg.classname === "message-right") {
+                        const status = document.createElement("span");
+                        status.className = "status";
+                        status.textContent = msg.status || "🔴"; // по умолчанию — отправлено
+                        data_t.appendChild(status);
+                    }
+                    data_t.insertAdjacentText("afterbegin", msg.time + " ");
                     div.append(user, text, data_t);
                     return div;
                 }
@@ -232,19 +261,14 @@
                     div.className = "message-center"; 
                     const text = document.createElement("p");
                     text.textContent = msg.content;
-                    div.append()
+                    div.append(text)
+                    return div;
                 }
             }
 
             add(msg) {
                 const el = this._createMessage(msg);
                 this.chat.appendChild(el);
-                this.chat.scrollTop = this.chat.scrollHeight;
-            }
-
-            prepend(msg) {
-                const el = this._createMessage(msg);
-                this.chat.prepend(el);
                 this.chat.scrollTop = this.chat.scrollHeight;
             }
 
@@ -266,18 +290,32 @@
                 el.remove();
             }
 
-            prepend(messages) {
-                if (!messages.length) return;
-
+            prepend(msg) {
+                if (!msg) return;
+                const oldscrolltop = this.chat.scrollTop;
                 const oldHeight = this.chat.scrollHeight;
-
-                for (const msg of messages) {
-                    const el = this._createMessage(msg);
-                    this.chat.prepend(el);
-                }
-
+                const el = this._createMessage(msg);
+                this.chat.prepend(el);
                 const newHeight = this.chat.scrollHeight;
-                this.chat.scrollTop += (newHeight - oldHeight);
+                this.chat.scrollTop = oldscrolltop + (newHeight - oldHeight);
+            }
+
+            markRead(lastReadId) {
+                this.chat.querySelectorAll(".message-right[data-id]").forEach(el => {
+                    const id = Number(el.dataset.id);
+                    if (id <= lastReadId) {
+                        const status = el.querySelector(".status");
+                        if (status) status.textContent = "🟢";
+                    }
+                });
+            }
+
+            setStatus(id, statusIcon) {
+                const el = this.chat.querySelector(`[data-id="${id}"]`);
+                if (!el || !el.classList.contains("message-right")) return;
+
+                const status = el.querySelector(".status");
+                if (status) status.textContent = statusIcon;
             }
         }
         //localStorage.clear();
@@ -299,20 +337,36 @@
             localStorage.setItem("UserNames", JSON.stringify({}));
             var UserNames = {};
         }
-        const messagedb = new MessageStore();
-        await messagedb.open();
+
         const GraphicChat = document.getElementById("chat");
-        const graphic = new Graphic(document.getElementById("chat"));
+        const graphic = new Graphic(document.getElementById("chat"), (lastReadId) => {
+            console.log({
+                type: "reading",
+                last_read_id: lastReadId
+            })
+            ws.send(JSON.stringify({
+                type: "reading",
+                last_read_id: lastReadId
+            }));
+        });
         const photoContainer = document.querySelector('.photo-container');
         const photoAdd = document.querySelector('.photo-add');
         const photoDelete = document.querySelector('.photo-delete');
         const photoUpload = document.getElementById('photo_upload');
         const myPhoto = document.getElementById('my_photo');
         const DataUser = localStorage.getItem('Userdata');
+        if (DataUser === null){
+            console.log(DataUser, window.location.origin)
+            localStorage.clear()
+            window.location.href = window.location.origin; // https://basicmimimummessenger.duckdns.org
+
+        }
         const Data = JSON.parse(DataUser);
         const ChatBox = document.getElementById("chatbox");
         const msg_menu = document.getElementById("msgMenu");
-        const mediabtn = document.getElementById("sendmedia")
+        const mediabtn = document.getElementById("sendmedia");
+        const messagedb = new MessageStore(dbName=`${Data.my_id}/${Data.device_id}`);
+        await messagedb.open();
         msg_menu.classList.remove("hidden_m")
         var activeMessageId = null;
         var lastIdload = -1;
@@ -369,7 +423,7 @@
             if (result.result === false && result.what == "auth") {
                 alert("Ошибка входа");
                 localStorage.removeItem("Userdata");
-                //window.location.href = "";
+                window.location.href = window.location.origin;
             }
             if (result.result === true) {
                 console.log('🎉 Вход выполнен!');
@@ -438,17 +492,29 @@
             console.log("Notification permission:", permission);
         }
 
-        async function UpdateGUI(msg) {
-            if (ChatsData[CurrentChat].type !== "tehnic") {
+        async function UpdateGUI(msg,start=false) {
+            var th = ChatsData[CurrentChat].type !== "tehnic"
+            var tag = false;
+            if (true) {
                 //console.log(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
                 var tag = false;
                 var date = new Date(msg.created)
+                console.log(date)
                 if (!isSameDay(lastDate, date) && lastDate !== null) {
-                    GraphicChat.innerHTML += `
-                    <div class="message-center">
-                        <p id="text">${Month[date.getMonth()]}, ${date.getDate()}</p>
-                    </div>
-                    `
+                    if (start){
+                        graphic.prepend({
+                            type:"tmc",
+                            content: `${Month[date.getMonth()]}, ${date.getDate()}`,
+                            classname:"message-center"
+                        })
+                    }
+                    else{
+                        GraphicChat.innerHTML += `
+                            <div class="message-center">
+                                <p id="text">${Month[date.getMonth()]}, ${date.getDate()}</p>
+                            </div>
+                            `
+                    }
                 }
                 //console.log(date,`${Month[date.getMonth()]}, ${date.getDate()}`,msg.created,msg)
                 //console.log(deepJsonParse(msg.msg))
@@ -456,44 +522,56 @@
                 //console.log(await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt))
                 lastDate = date;
                 if (msg.datatype === "txt") {
-                    var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                    if (th){
+                        var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                    }
+                    else{
+                        var content = msg.msg
+                    }
                 } else {
                     try{
-                    var prepared = await prepareEncryptedPackage({
-                        encryptedKeyPath: `/media/encrypted/${msg.id}.key`,
-                        encryptedDataPath: `/media/encrypted/${msg.id}.bin`,
-                        ivPath: `/media/encrypted/${msg.id}.iv`
-                    })
-                    var content = await decryptBlob(deepJsonParse(prepared), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                        if (th){
+                            console.log(msg)
+                            var prepared = await prepareEncryptedPackage({
+                                encryptedKeyPath: `/media/encrypted/${msg.id}.key`,
+                                encryptedDataPath: `/media/encrypted/${msg.id}.bin`,
+                                ivPath: `/media/encrypted/${msg.id}.iv`
+                            })
+                            var content = await decryptBlob(deepJsonParse(prepared), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                        }
+                        else{
+                            var content = `media/unencrupted/{msg.is}`
+                        }
                     }
                     catch{
                         return;
                     }
                 }
                 var name = "Uniknown"
-
-                if (msg.user_id in UserNames) {
-                    name = UserNames[msg.user_id]["name"]
-                    console.log(name)
-                } else {
-                    name = await GetName(id = msg.user_id)
-                    name = name["name"]
-                    if (name !== null) {
-                        UserNames[msg.user_id] = {
-                            "name": name
+                if (th){
+                    if (msg.user_id in UserNames) {
+                        name = UserNames[msg.user_id]["name"]
+                        console.log(name)
+                    } else {
+                        name = await GetName(id = msg.user_id)
+                        name = name["name"]
+                        if (name !== null) {
+                            UserNames[msg.user_id] = {
+                                "name": name
+                            }
+                            localStorage.setItem("UserNames", UserNames)
                         }
-                        localStorage.setItem("UserNames", UserNames)
+                    }
+
+                    if (msg.user_id === Data.my_id) {
+                        name = "Вы";
+                        tag = true
                     }
                 }
-
-                if (msg.user_id === Data.my_id) {
-                    name = "Вы";
-                    tag = true
+                else{
+                    var name = "Min-help"
                 }
-            } else {
-                var content = msg.msg
-                var name = "MIN-help"
-            }
+            } 
             if (tag) {
                 var classn = "message-right";
             } else {
@@ -501,30 +579,52 @@
             }
             if (msg.datatype === "txt") {
                 console.log(content)
-                graphic.add({type: msg.datatype,
-                    id: msg.id,
-                    content: content,
-                    time: `${date.getHours()}:${date.getMinutes()}`,
-                    namesender: name,
-                    classname: classn
+                if (!start){
+                    graphic.add({type: msg.datatype,
+                        id: msg.id,
+                        content: content,
+                        time: `${date.getHours()}:${date.getMinutes()}`,
+                        namesender: name,
+                        classname: classn
+                    })
+                }
+                else{
+                    graphic.prepend({type: msg.datatype,
+                        id: msg.id,
+                        content: content,
+                        time: `${date.getHours()}:${date.getMinutes()}`,
+                        namesender: name,
+                        classname: classn
+                    })
+                }
 
-                })
             }
             if (msg.datatype === "img" || msg.datatype === "voice") {
-                console.log(content)
+                console.log(msg)
                 if (msg.datatype==="img"){
                     var img = await convertImage(content)}
                 else{
                     var img = content
                 }
                 console.log(img)
-                graphic.add({type: msg.datatype,
-                    id: msg.id,
-                    content: img,
-                    time: `${date.getHours()}:${date.getMinutes()}`,
-                    namesender: name,
-                    classname: classn
-                })
+                if (!start){
+                    graphic.add({type: msg.datatype,
+                        id: msg.id,
+                        content: img,
+                        time: `${date.getHours()}:${date.getMinutes()}`,
+                        namesender: name,
+                        classname: classn
+                    })
+                }
+                else{
+                    graphic.prepend({type: msg.datatype,
+                        id: msg.id,
+                        content: img,
+                        time: `${date.getHours()}:${date.getMinutes()}`,
+                        namesender: name,
+                        classname: classn
+                    })
+                }
             }
 
         }
@@ -576,7 +676,7 @@
         ws.onopen = () => {
             console.log("WebSocket connected");
             ws.send(JSON.stringify({
-                type: "GetUnreadMsg",
+                type: "GetnewMsg",
                 id: Data.my_id
             }))
             console.log(localStorage.getItem("Chats"))
@@ -646,7 +746,12 @@
                         created: datae.datatime,
                         datatype: datae.typemsg
                     }
-                    UpdateGUI(msg)
+                    UpdateGUI({id: datae.message_id,
+                        created: datae.datatime,
+                        msg: datae.message,
+                        datatype: datae.typemsg,
+                        user_id: datae.user_id
+                    },false)
                 }
             } else if (datae.type === "newunread") {
                 for (let msg of datae.messages) {
@@ -843,8 +948,9 @@
                 console.log("Верх — можно подгружать старые сообщения");
                 if (parseInt(GraphicChat.firstElementChild.dataset.id) < lastIdload || lastIdload===-1){
                     var newmsgs = await messagedb.getChatMessages(chatId=parseInt(CurrentChat),5,parseInt(GraphicChat.firstElementChild.dataset.id)) 
-                    for (let msg of newmsgs){
-                        graphic.prepend(msg)
+                    for (let msg of newmsgs.reverse()){
+                        console.log(msg)
+                        UpdateGUI(msg,true)
                     }
                     lastIdload=parseInt(GraphicChat.firstElementChild.dataset.id) 
                 }                
@@ -986,7 +1092,9 @@
                         e.style.width = "67%"
                 })
                 for (let msg of chatmsgs) {
+                    console.log(msg)
                     await UpdateGUI(msg)
+                    
                 }
             }
            //if (e.target.closest(".message-right")){
@@ -1423,12 +1531,18 @@
                 });
                 const challengeResult = await challengeResponse.json();
                 if (challengeResult.success===false){
-                    localStorage.clear()
-                    //window.location.herf=""
+                    try{
+                        if (challengeResult.wh === "not"){
+                            localStorage.clear()
+                            window.location.href = window.location.origin;
+                        }
+                    }
+                    catch{}
+
                 }
                 if (!challengeResult.success) {
                     console.error('❌ Не удалось получить challenge');
-                    localStorage.clear()
+                    //localStorage.clear()
                     //window.location.herf=""
                     return {
                         result: false,
