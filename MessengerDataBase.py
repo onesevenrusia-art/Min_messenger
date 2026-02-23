@@ -579,6 +579,15 @@ class DataBaseManager:
 
         return result.rowcount
 
+    def get_max_lastread(self, chat_id: int):
+        session = self.Session()
+        stmt = (
+            select(func.max(chat_participants.c.last_read))
+            .where(chat_participants.c.chat_id == chat_id)
+        )
+
+        result = session.execute(stmt)
+        return result.scalar() or 0
 
     def is_user_blocked(self, email):
         """Проверить заблокирован ли пользователь"""

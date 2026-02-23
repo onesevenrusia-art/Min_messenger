@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="static/css/style22.css">
 </head>
 <style src="static/css/style2.css"></style>
+
 <body>
     <div class="background-container">
         <img id="fon" src="" alt="Фон" class="background-image">
@@ -209,33 +210,35 @@
                             }
                         }
                     });
-                }, { threshold: 0.6 });
+                }, {
+                    threshold: 0.6
+                });
             }
             _createMessage(msg) {
                 console.log(msg)
                 const div = document.createElement("div");
                 div.className = msg.classname
-                if (msg.type !== "tmc"){
+                if (msg.type !== "tmc") {
                     div.dataset.id = msg.id;
                     this.observer.observe(div);
                     const user = document.createElement("p");
                     user.className = "name";
                     user.textContent = msg.namesender;
                     console.log(msg.type)
-                    if (msg.type === "txt"){
+                    if (msg.type === "txt") {
                         var text = document.createElement("p");
                         text.className = "text";
                         text.textContent = msg.content;
                     }
-                    if (msg.type === "img"){
+                    if (msg.type === "img") {
                         var text = document.createElement("img");
                         text.src = msg.content;
                     }
-                    if (msg.type === "voice"){
+                    if (msg.type === "voice") {
                         var text = document.createElement("audio");
-                        text.style.maxHeight="35px"
-                        text.style.maxWidth="250px"
-                        text.controls=true;
+                        text.style.maxHeight = "35px"
+                        text.style.maxWidth = "250px"
+                        text.controls = true;
                         text.src = URL.createObjectURL(msg.content);
                     }
                     const data_t = document.createElement("p");
@@ -250,9 +253,8 @@
                     data_t.insertAdjacentText("afterbegin", msg.time + " ");
                     div.append(user, text, data_t);
                     return div;
-                }
-                else{
-                    div.className = "message-center"; 
+                } else {
+                    div.className = "message-center";
                     const text = document.createElement("p");
                     text.textContent = msg.content;
                     div.append(text)
@@ -269,10 +271,10 @@
             update(id, msg) {
                 const el = this.chat.querySelector(`[data-id="${id}"]`);
                 if (!el) return;
-                if (msg.type === "txt"){
+                if (msg.type === "txt") {
                     el.querySelector(".text").textContent = newcontent;
                 }
-                if (msg.type === "img" || msg.type === "voice"){
+                if (msg.type === "img" || msg.type === "voice") {
                     el.querySelector(".text").src = newcontent;
                 }
             }
@@ -348,13 +350,13 @@
                 type: "reading",
                 last_read_id: lastReadId
             })
-            
-            if (lastreadchat[CurrentChat] < lastReadId){
+
+            if (lastreadchat[CurrentChat] < lastReadId) {
                 lastreadchat[CurrentChat] = currentlastread
                 currentlastread = lastReadId
-               
-                if (readtimer === null){   
-                    var cth = CurrentChat              
+
+                if (readtimer === null) {
+                    var cth = CurrentChat
                     readtimer = setTimeout(() => {
                         readtimer = null
                         ws.send(JSON.stringify({
@@ -364,11 +366,12 @@
                             user_id: Data.my_id
                         }));
 
-                    localStorage.setItem("lastreadchat",JSON.stringify(lastreadchat))
-                }, 5000)}
+                        localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
+                    }, 5000)
+                }
 
             }
-            
+
         });
 
 
@@ -384,7 +387,7 @@
         const photoUpload = document.getElementById('photo_upload');
         const myPhoto = document.getElementById('my_photo');
         const DataUser = localStorage.getItem('Userdata');
-        if (DataUser === null){
+        if (DataUser === null) {
             console.log(DataUser, window.location.origin)
             localStorage.clear()
             window.location.href = window.location.origin; // https://basicmimimummessenger.duckdns.org
@@ -394,7 +397,7 @@
         const ChatBox = document.getElementById("chatbox");
         const msg_menu = document.getElementById("msgMenu");
         const mediabtn = document.getElementById("sendmedia");
-        const messagedb = new MessageStore(dbName=`${Data.my_id}/${Data.device_id}`);
+        const messagedb = new MessageStore(dbName = `${Data.my_id}/${Data.device_id}`);
         await messagedb.open();
         msg_menu.classList.remove("hidden_m")
         var activeMessageId = null;
@@ -521,7 +524,7 @@
             console.log("Notification permission:", permission);
         }
 
-        async function UpdateGUI(msg,start=false) {
+        async function UpdateGUI(msg, start = false) {
             var th = ChatsData[CurrentChat].type !== "tehnic"
             var tag = false;
             if (true) {
@@ -530,14 +533,13 @@
                 var date = new Date(msg.created)
                 console.log(date)
                 if (!isSameDay(lastDate, date) && lastDate !== null) {
-                    if (start){
+                    if (start) {
                         graphic.prepend({
-                            type:"tmc",
+                            type: "tmc",
                             content: `${Month[date.getMonth()]}, ${date.getDate()}`,
-                            classname:"message-center"
+                            classname: "message-center"
                         })
-                    }
-                    else{
+                    } else {
                         GraphicChat.innerHTML += `
                             <div class="message-center">
                                 <p id="text">${Month[date.getMonth()]}, ${date.getDate()}</p>
@@ -551,15 +553,14 @@
                 //console.log(await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt))
                 lastDate = date;
                 if (msg.datatype === "txt") {
-                    if (th){
+                    if (th) {
                         var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
-                    }
-                    else{
+                    } else {
                         var content = msg.msg
                     }
                 } else {
-                    try{
-                        if (th){
+                    try {
+                        if (th) {
                             console.log(msg)
                             var prepared = await prepareEncryptedPackage({
                                 encryptedKeyPath: `/media/encrypted/${msg.id}.key`,
@@ -567,17 +568,15 @@
                                 ivPath: `/media/encrypted/${msg.id}.iv`
                             })
                             var content = await decryptBlob(deepJsonParse(prepared), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
-                        }
-                        else{
+                        } else {
                             var content = `media/unencrupted/{msg.is}`
                         }
-                    }
-                    catch{
+                    } catch {
                         return;
                     }
                 }
                 var name = "Uniknown"
-                if (th){
+                if (th) {
                     if (msg.user_id in UserNames) {
                         name = UserNames[msg.user_id]["name"]
                         console.log(name)
@@ -596,11 +595,10 @@
                         name = "Вы";
                         tag = true
                     }
-                }
-                else{
+                } else {
                     var name = "Min-help"
                 }
-            } 
+            }
             if (tag) {
                 var classn = "message-right";
             } else {
@@ -608,17 +606,18 @@
             }
             if (msg.datatype === "txt") {
                 console.log(content)
-                if (!start){
-                    graphic.add({type: msg.datatype,
+                if (!start) {
+                    graphic.add({
+                        type: msg.datatype,
                         id: msg.id,
                         content: content,
                         time: `${date.getHours()}:${date.getMinutes()}`,
                         namesender: name,
                         classname: classn
                     })
-                }
-                else{
-                    graphic.prepend({type: msg.datatype,
+                } else {
+                    graphic.prepend({
+                        type: msg.datatype,
                         id: msg.id,
                         content: content,
                         time: `${date.getHours()}:${date.getMinutes()}`,
@@ -630,23 +629,24 @@
             }
             if (msg.datatype === "img" || msg.datatype === "voice") {
                 console.log(msg)
-                if (msg.datatype==="img"){
-                    var img = await convertImage(content)}
-                else{
+                if (msg.datatype === "img") {
+                    var img = await convertImage(content)
+                } else {
                     var img = content
                 }
                 console.log(img)
-                if (!start){
-                    graphic.add({type: msg.datatype,
+                if (!start) {
+                    graphic.add({
+                        type: msg.datatype,
                         id: msg.id,
                         content: img,
                         time: `${date.getHours()}:${date.getMinutes()}`,
                         namesender: name,
                         classname: classn
                     })
-                }
-                else{
-                    graphic.prepend({type: msg.datatype,
+                } else {
+                    graphic.prepend({
+                        type: msg.datatype,
                         id: msg.id,
                         content: img,
                         time: `${date.getHours()}:${date.getMinutes()}`,
@@ -761,14 +761,14 @@
                 datae.chat.privatekeycrypt = await hybridDecrypt(jsonkey, Data.privatekeycrypt)
                 console.log(datae.chat)
                 ChatsData[datae.chat.id] = datae.chat
-                lastreadchat[Number(datae.chat.id)]=0
-                localStorage.setItem("lastreadchat",JSON.stringify(lastreadchat))
+                lastreadchat[Number(datae.chat.id)] = 0
+                localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
                 localStorage.setItem("Chats", JSON.stringify(ChatsData));
                 LoadChats();
                 console.log(localStorage.getItem("Chats"))
-            }else if (datae.type === "delete_chat"){
+            } else if (datae.type === "delete_chat") {
 
-            }else if (datae.type === "addmymsg") {
+            } else if (datae.type === "addmymsg") {
                 SavemyMsg(datae)
             } else if (datae.type === "addmsg") {
                 SaveMsg(datae)
@@ -779,30 +779,30 @@
                         created: datae.datatime,
                         datatype: datae.typemsg
                     }
-                    UpdateGUI({id: datae.message_id,
+                    UpdateGUI({
+                        id: datae.message_id,
                         created: datae.datatime,
                         msg: datae.message,
                         datatype: datae.typemsg,
                         user_id: datae.user_id
-                    },false)
+                    }, false)
                 }
             } else if (datae.type === "newunread") {
                 for (let msg of datae.messages) {
                     console.log(msg)
                     messagedb.save({
-                            id: parseInt(msg.id),
-                            internal_id: parseInt(msg.internal_id),
-                            chat_id: parseInt(msg.chat_id),
-                            user_id: parseInt(msg.user_id),
-                            datatype: msg.datatype,
-                            msg: msg.content,
-                            created: msg.created
-                        })
-                        // ws.send(JSON.stringify({
-                        //     type: "readmsg",
-                        //     id: msg.id
-                        // }))
+                        id: parseInt(msg.id),
+                        internal_id: parseInt(msg.internal_id),
+                        chat_id: parseInt(msg.chat_id),
+                        user_id: parseInt(msg.user_id),
+                        datatype: msg.datatype,
+                        msg: msg.content,
+                        created: msg.created
+                    })
+
                 }
+            } else if (datae.type === "newread") {
+                graphic.markRead(datae.last_read_id)
             }
             try {
                 navigator.serviceWorker.ready.then(reg => {
@@ -969,7 +969,7 @@
             document.querySelector("#SearchUser").style.display = "none";
         });
 
-        GraphicChat.addEventListener("scroll", async function ()  {
+        GraphicChat.addEventListener("scroll", async function() {
             // ВНИЗ
             if (GraphicChat.scrollTop + chat.clientHeight >= chat.scrollHeight - 5) {
                 console.log("Низ — можно подгружать новые сообщения");
@@ -979,15 +979,15 @@
             // ВВЕРХ
             if (GraphicChat.scrollTop <= 5) {
                 console.log("Верх — можно подгружать старые сообщения");
-                if (parseInt(GraphicChat.firstElementChild.dataset.id) < lastIdload || lastIdload===-1){
-                    var newmsgs = await messagedb.getChatMessages(chatId=parseInt(CurrentChat),5,parseInt(GraphicChat.firstElementChild.dataset.id)) 
-                    for (let msg of newmsgs.reverse()){
+                if (parseInt(GraphicChat.firstElementChild.dataset.id) < lastIdload || lastIdload === -1) {
+                    var newmsgs = await messagedb.getChatMessages(chatId = parseInt(CurrentChat), 5, parseInt(GraphicChat.firstElementChild.dataset.id))
+                    for (let msg of newmsgs.reverse()) {
                         console.log(msg)
-                        UpdateGUI(msg,true)
+                        UpdateGUI(msg, true)
                     }
-                    lastIdload=parseInt(GraphicChat.firstElementChild.dataset.id) 
-                }                
-            }   
+                    lastIdload = parseInt(GraphicChat.firstElementChild.dataset.id)
+                }
+            }
 
         });
 
@@ -1043,15 +1043,15 @@
             activeMessageId = null;
         }
 
-        document.addEventListener("click",hideMenu_msg)
+        document.addEventListener("click", hideMenu_msg)
 
-        document.getElementById("editMsg").addEventListener("click",function(){
+        document.getElementById("editMsg").addEventListener("click", function() {
 
         });
 
-        document.getElementById("deleteMsg").addEventListener("click",function(){
+        document.getElementById("deleteMsg").addEventListener("click", function() {
             graphic.remove(activeMessageId);
-            if (!("my" in activeMessageId)){
+            if (!("my" in activeMessageId)) {
                 ws.send(JSON.stringify({
                     id: activeMessageId
                 }))
@@ -1113,7 +1113,7 @@
                 document.getElementById("chatshape").style.display = "flex";
                 GraphicChat.innerHTML = "";
                 CurrentChat = e.target.closest(".chatinfo").dataset.chatId.substring(4);
-                const chatmsgs = await messagedb.getChatMessages(parseInt(CurrentChat),20)
+                const chatmsgs = await messagedb.getChatMessages(parseInt(CurrentChat), 20)
                     //console.log(chatmsgs)
                 document.getElementById("shapechatavatar").src = ChatsData[CurrentChat].photo;
                 document.getElementById("shapechatname").innerText = ChatsData[CurrentChat].name;
@@ -1128,12 +1128,12 @@
                 for (let msg of chatmsgs) {
                     console.log(msg)
                     await UpdateGUI(msg)
-                    
+
                 }
             }
-           //if (e.target.closest(".message-right")){
-           //    e.target.closest(".message-right").dataset.id
-           //}
+            //if (e.target.closest(".message-right")){
+            //    e.target.closest(".message-right").dataset.id
+            //}
         })
         document.getElementById("shapebackbtn").addEventListener("click", function() {
             document.querySelectorAll(".wind").forEach(e => {
@@ -1564,14 +1564,13 @@
                     })
                 });
                 const challengeResult = await challengeResponse.json();
-                if (challengeResult.success===false){
-                    try{
-                        if (challengeResult.wh === "not"){
+                if (challengeResult.success === false) {
+                    try {
+                        if (challengeResult.wh === "not") {
                             localStorage.clear()
                             window.location.href = window.location.origin;
                         }
-                    }
-                    catch{}
+                    } catch {}
 
                 }
                 if (!challengeResult.success) {
@@ -1682,19 +1681,20 @@
                 var msgencrypt = await encryptBlob(msg, ChatsData[parseInt(CurrentChat)].publickeycrypt)
             }
             msgencrypt = JSON.stringify(msgencrypt);
-            if (msgtype==="img"){
+            if (msgtype === "img") {
                 msg = await convertImage(msg)
             }
             const time = new Date()
 
-            graphic.add({type: msgtype,
-                            id: `my${randomNumber}`,
-                            content: msg,
-                            time: `${time.getHours()}:${time.getMinutes()}`,
-                            namesender: "Вы",
-                            classname: "message-right"
+            graphic.add({
+                type: msgtype,
+                id: `my${randomNumber}`,
+                content: msg,
+                time: `${time.getHours()}:${time.getMinutes()}`,
+                namesender: "Вы",
+                classname: "message-right"
 
-                        })
+            })
             document.getElementById("input_message").value = ""
             var msgs = {
                 type: "newmessage",
@@ -1706,10 +1706,9 @@
                 datatime: time
             }
             UnCookMessages[randomNumber] = msgs;
-            if (ws.readyState === ws.OPEN){
+            if (ws.readyState === ws.OPEN) {
                 ws.send(JSON.stringify(msgs))
-            }
-            else{
+            } else {
 
             }
 
@@ -1797,7 +1796,7 @@
             const buffer = await res.arrayBuffer();
             return buffer;
         }
-        
+
         function arrayBufferToBase64(buffer) {
             let binary = "";
             const bytes = new Uint8Array(buffer);
@@ -1838,8 +1837,8 @@
         }
 
         function isSameDay(date1, date2) {
-            if (date1 ===null){
-                date1= new Date(0)
+            if (date1 === null) {
+                date1 = new Date(0)
             }
             return date1.getFullYear() === date2.getFullYear() &&
                 date1.getMonth() === date2.getMonth() &&
@@ -1863,7 +1862,9 @@
 
         async function startRecording() {
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: true
+                });
 
                 recorder = new MediaRecorder(stream);
                 chunks = [];
@@ -1872,7 +1873,7 @@
 
                 recorder.start();
 
-                modal.style.display="flex";
+                modal.style.display = "flex";
                 seconds = 0;
                 timeEl.textContent = "00:00";
                 timer = setInterval(() => {
@@ -1890,7 +1891,7 @@
 
         function stopRecording() {
             console.log("stop")
-            modal.style.display="none";
+            modal.style.display = "none";
             if (!recorder) return;
 
             recorder.stop();
@@ -1899,10 +1900,12 @@
                 clearInterval(timer);
                 modal.classList.add("hidden");
 
-                const blob = new Blob(chunks, { type: recorder.mimeType });
+                const blob = new Blob(chunks, {
+                    type: recorder.mimeType
+                });
                 stream.getTracks().forEach(t => t.stop());
 
-                Send_Message(blob,"voice")
+                Send_Message(blob, "voice")
             };
         }
 

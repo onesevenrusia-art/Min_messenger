@@ -31,7 +31,7 @@ challenges_auth={}
 challenges_del={}
 challenges_prof={}
 challenges_conn_device={}
-passwordf = open("C:/Users/SB/Desktop/gmailpassword.txt").read()
+passwordf = open("C:/Users/Alex/Desktop/gmailpassword.txt").read()
 
 app = FastAPI()
 Database = MessengerDataBase.DataBaseManager()
@@ -204,7 +204,7 @@ async def send_swjs():
     )
 #
 
-async def send_WS_msg(reciver, msg):
+async def send_WS_msg(reciver, msg, wait=True):
     flag=False
     for client in filter(lambda x: reciver in x and reciver+"|idnewdevice" not in x, clients):
         try:
@@ -216,9 +216,10 @@ async def send_WS_msg(reciver, msg):
             return {"status": "error",
                     "success":False}
     if not flag:
-        if reciver not in wait_for:
-            wait_for[reciver]=[]
-        wait_for[reciver].append(msg)  
+        if wait:
+            if reciver not in wait_for:
+                wait_for[reciver]=[]
+            wait_for[reciver].append(msg)  
         return {
             "success":True,
             "status": "offline"
@@ -399,8 +400,16 @@ async def websocket_endpoint(ws: WebSocket):
 
             if msg["type"] == "reading":
                 print(msg)
+                fm=Database.get_max_lastread(msg["chat_id"])
                 last_read_id = int(msg["last_read_id"])
                 Database.update_lastread_participant(chat_id=int(msg["chat_id"]),participant_id=int(msg["user_id"]),lastread_id=last_read_id)
+                sm=Database.get_max_lastread(msg["chat_id"])
+                if sm>fm:
+                    print(Database.get_ChatParticipants(msg["chat_id"]))
+                    for p in Database.get_ChatParticipants(msg["chat_id"]):
+                        eml = Database.get_user_by_id(p["id"])["email"]
+                        await send_WS_msg(eml,{"type":"newread","last_read_id":msg["last_read_id"],"chat_id":msg["chat_id"]},wait=False)
+
 
                 
     except WebSocketDisconnect as wserror:
@@ -895,19 +904,13 @@ if __name__ == "__main__":
     # Явно указываем ssl контекст как в aiohttp
     import ssl
     
-    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-    ssl_context.load_cert_chain(
-        r'C:\Certbot\live\basicmimimummessenger.duckdns.org\fullchain.pem',
-        r'C:\Certbot\live\basicmimimummessenger.duckdns.org\privkey.pem'
-    )
-    
     uvicorn.run(
         app,
         host="0.0.0.0",
         port=443,
         ssl_version=ssl.PROTOCOL_TLS,
         ssl_cert_reqs=ssl.CERT_NONE,
-        ssl_certfile=r'C:\Certbot\live\basicmimimummessenger.duckdns.org\fullchain.pem',
-        ssl_keyfile=r'C:\Certbot\live\basicmimimummessenger.duckdns.org\privkey.pem',
+        ssl_certfile=r'fullchain.pem',
+        ssl_keyfile=r'privkey.pem',
         ssl_ciphers="ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20"
     )
