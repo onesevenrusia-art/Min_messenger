@@ -420,7 +420,7 @@ class DataBaseManager:
             msg = session.get(Message, id)
             if not msg:
                 return None
-            return self._get_info([msg])[0]
+            return self._to_dict(msg)
         finally:
             session.close()
 
@@ -561,6 +561,24 @@ class DataBaseManager:
                 "error": str(e)}
         finally:
             session.close()     
+
+    def update_lastread_participant(self, chat_id: int, participant_id: int, lastread_id: int):
+        session = self.Session()
+        stmt = (
+            update(chat_participants)
+            .where(
+                chat_participants.c.chat_id == chat_id,
+                chat_participants.c.user_id == participant_id,
+                chat_participants.c.last_read < lastread_id
+            )
+            .values(last_read=lastread_id)
+        )
+
+        result = session.execute(stmt)
+        session.commit()
+
+        return result.rowcount
+
 
     def is_user_blocked(self, email):
         """Проверить заблокирован ли пользователь"""

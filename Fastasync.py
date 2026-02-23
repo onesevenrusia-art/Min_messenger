@@ -400,9 +400,7 @@ async def websocket_endpoint(ws: WebSocket):
             if msg["type"] == "reading":
                 print(msg)
                 last_read_id = int(msg["last_read_id"])
-                m = Database.get_message_by_id(last_read_id)
-                print(m)
-            else:print(msg,405,msg["type"])
+                Database.update_lastread_participant(chat_id=int(msg["chat_id"]),participant_id=int(msg["user_id"]),lastread_id=last_read_id)
 
                 
     except WebSocketDisconnect as wserror:

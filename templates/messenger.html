@@ -205,13 +205,7 @@
 
                             if (id > this.maxReadId) {
                                 this.maxReadId = id;
-
-                                clearTimeout(this.readTimer);
-                                this.readTimer = setTimeout(() => {
-                                    if (this.onRead) {
-                                        this.onRead(this.chatId, this.maxReadId);
-                                    }
-                                }, 200); 
+                                if (this.onRead) this.onRead(id);
                             }
                         }
                     });
@@ -322,6 +316,7 @@
         var CurrentChat = null;
         var UnCookMessages = {};
         var lastDate = null;
+        var currentlastread = 0;
         try {
             var ChatsData = JSON.parse(localStorage.getItem("Chats"));
         } catch {
@@ -337,18 +332,52 @@
             localStorage.setItem("UserNames", JSON.stringify({}));
             var UserNames = {};
         }
-
+        try {
+            var lastreadchat = JSON.parse(localStorage.getItem("lastreadchat"));
+            if (lastreadchat === null) {
+                lastreadchat = {};
+            }
+        } catch {
+            localStorage.setItem("lastreadchat", JSON.stringify({}));
+            var lastreadchat = {};
+        }
+        var readtimer = null
         const GraphicChat = document.getElementById("chat");
         const graphic = new Graphic(document.getElementById("chat"), (lastReadId) => {
             console.log({
                 type: "reading",
                 last_read_id: lastReadId
             })
-            ws.send(JSON.stringify({
-                type: "reading",
-                last_read_id: lastReadId
-            }));
+            
+            if (lastreadchat[CurrentChat] < lastReadId){
+                lastreadchat[CurrentChat] = currentlastread
+                currentlastread = lastReadId
+               
+                if (readtimer === null){   
+                    var cth = CurrentChat              
+                    readtimer = setTimeout(() => {
+                        readtimer = null
+                        ws.send(JSON.stringify({
+                            type: "reading",
+                            last_read_id: currentlastread,
+                            chat_id: cth,
+                            user_id: Data.my_id
+                        }));
+
+                    localStorage.setItem("lastreadchat",JSON.stringify(lastreadchat))
+                }, 5000)}
+
+            }
+            
         });
+
+
+
+
+
+
+
+
         const photoContainer = document.querySelector('.photo-container');
         const photoAdd = document.querySelector('.photo-add');
         const photoDelete = document.querySelector('.photo-delete');
@@ -693,9 +722,9 @@
                     publickey: datae.publickey,
                     platform: datae.platform
                 }));
-                document.getElementById("moreinfo").innerText = "Loading device Info......"
+                document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n страна: ${dataip.country_name}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
+
                 try {
-                    document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n страна: ${dataip.country_name}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
                     GetIPInfo(datae.ip).then(dataip => {
                         if (dataip === null) {
                             document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
@@ -732,10 +761,14 @@
                 datae.chat.privatekeycrypt = await hybridDecrypt(jsonkey, Data.privatekeycrypt)
                 console.log(datae.chat)
                 ChatsData[datae.chat.id] = datae.chat
+                lastreadchat[Number(datae.chat.id)]=0
+                localStorage.setItem("lastreadchat",JSON.stringify(lastreadchat))
                 localStorage.setItem("Chats", JSON.stringify(ChatsData));
                 LoadChats();
                 console.log(localStorage.getItem("Chats"))
-            } else if (datae.type === "addmymsg") {
+            }else if (datae.type === "delete_chat"){
+
+            }else if (datae.type === "addmymsg") {
                 SavemyMsg(datae)
             } else if (datae.type === "addmsg") {
                 SaveMsg(datae)
@@ -1075,6 +1108,7 @@
                 document.querySelector("#SearchUser").style.display = "none";
             }
             if (e.target.closest(".chatinfo")) {
+                readtimer = null
                 lastDate = null;
                 document.getElementById("chatshape").style.display = "flex";
                 GraphicChat.innerHTML = "";
