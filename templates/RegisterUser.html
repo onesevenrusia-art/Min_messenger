@@ -416,7 +416,7 @@
 
 
                                                 const ws = new WebSocket(
-                                                    "wss://" + window.location.hostname + ":8000/ws?device_id=" + formData.email + "|id" + "newdevice"
+                                                    "wss://" + window.location.hostname + ":443/ws?device_id=" + formData.email + "|id" + "newdevice"
                                                 );
 
                                                 ws.onopen = () => {
@@ -459,6 +459,8 @@
                                                                     localStorage.clear();
                                                                     console.log(UserData_new)
                                                                     localStorage.setItem('Userdata', JSON.stringify(UserData_new));
+                                                                    localStorage.setItem("Chats",JSON.stringify(resulted_key.Chats))
+                                                                    localStorage.setItem("lastreadchat",JSON.stringify(resulted_key.lastread))
                                                                     console.log("✅ Данные сохранены в localStorage");
                                                                     alert("✅ Регистрация прошла успешно.");
                                                                     ws.close();

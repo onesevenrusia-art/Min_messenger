@@ -20,6 +20,7 @@ import FeedBacks
 import uvicorn
 import base64, uuid
 import os, sys, traceback
+import ssl
 
 clients = {}
 wait_for = {}
@@ -31,7 +32,7 @@ challenges_auth={}
 challenges_del={}
 challenges_prof={}
 challenges_conn_device={}
-passwordf = open("C:/Users/Alex/Desktop/gmailpassword.txt").read()
+passwordf = open("C:/Users/SB/Desktop/gmailpassword.txt").read()
 
 app = FastAPI()
 Database = MessengerDataBase.DataBaseManager()
@@ -124,7 +125,7 @@ def IsEmailCorrect(email):
     except EmailNotValidError:
         return False
 
-def SendCode(emailreciver,body=0):
+def SendCode(emailreciver,body=0,flag=False):
     email_from = 'onesevenrusia@gmail.com' 
     password = passwordf 
     email_to = emailreciver
@@ -149,7 +150,8 @@ def SendCode(emailreciver,body=0):
         server.starttls()  # Шифруем соединение
         server.login(email_from, password)  # Логинимся на сервер
         text = msg.as_string()  # Преобразуем сообщение в строку
-        server.sendmail(email_from, email_to, text)  # Отправляем письмо
+        if flag:
+            server.sendmail(email_from, email_to, text)  # Отправляем письмо
     except Exception as e:
         print(e)
         try:
@@ -255,10 +257,29 @@ async def websocket_endpoint(ws: WebSocket):
                 await clients[device_id]["ws"].send_json(message)
                 wait_for[device_id].remove(message)
         #print(f'#{Database.get_user_Inventives(device_id.split("|")[0])}#')
+        this_deviceid = device_id.split("|")[1]
+        this_email = device_id.split("|")[0]
+        this_userid = Database.get_user_by_email(this_email)["id"]
         for inventive in Database.get_user_Inventives(device_id.split("|")[0]):
             inventive["time"]=inventive["time"].isoformat()
-            if inventive["typeinventive"]=="newchat":
+            if inventive["typeinventive"]=="newchat" and inventive["emailsent"] != device_id.split("|")[0] and int(inventive["status"])==0:
                 await clients[device_id]["ws"].send_json({"type":"new_chat","user":inventive["emailsent"],"time":inventive["time"],"publickey":inventive["publickey"],"privatekey":inventive["reciverencryptedkey"]})
+            if inventive["emailsent"] == this_email and this_deviceid != "newdevice" and int(inventive["status"])==1:
+                dvs=Database.get_user_devices(this_userid)
+                for dv in dvs:
+                    if this_deviceid==dv["id"]:
+                        needchat = Database.get_chat(inventive["message"]["chatid"])
+                        await clients[device_id]["ws"].send_json(
+                                                            {"type":"addchat",
+                                                               "chat":{"id":needchat["id"],
+                                                                       "type":needchat["type"],
+                                                                       "name":needchat["name"],
+                                                                       "photo":needchat["photo"],
+                                                                       "about":needchat["about"],
+                                                                       "publickeycrypt":needchat["publickeycrypt"],
+                                                                       "privatekeycrypt":inventive["senderencryptedkey"]}})
+                        Database.update_reciver_inventive(inventive["id"],this_email,int(this_deviceid))
+
     except Exception as e:
         print(e)
     try:
@@ -279,14 +300,19 @@ async def websocket_endpoint(ws: WebSocket):
                             flag=False
                             break
                     if flag:
-                        Database.add_Inventive(emailrecive=msg["email"],
+                        ms_data = {
+                            "chatid":"x",
+                            "devices": [i['id'] for i in Database.get_user_devices(this_userid)]+[i['id'] for i in Database.get_user_devices(msg["email"])]
+                        }
+                        r=Database.add_Inventive(emailrecive=msg["email"],
                                                emailsent=device_id.split("|")[0],
                                                inventivetype="newchat",
                                                publickey=msg["publickey"],
-                                               message=None,
+                                               message=ms_data,
                                                reciverencryptedkey=str(msg["encrypted"]),
                                                senderencryptedkey=str(msg["myencrypted"])
                                             )
+                        print(r)
                     await ws.send_json({"type":"answnewchat","success":"waiting"})
                 else:
                     try:
@@ -322,7 +348,8 @@ async def websocket_endpoint(ws: WebSocket):
                                                                        "name":f"{sender['id']}/{reciver['id']}","photo":None,"about":None,
                                                                        "publickeycrypt":pbc,
                                                                        "privatekeycrypt":mypvc}})
-                            Database.delete_Inventive(inventive["id"])
+                            
+                            Database.update_reciver_inventive(inventive["id"],chat_id=id["chat_id"])
                             break
                         if msg["type"]=="newchatdisagree":
                             print("disagree")
@@ -392,18 +419,31 @@ async def websocket_endpoint(ws: WebSocket):
                     await ws.send_json({"type":"addmymsg",
                                   "uniknownid":msg["uniknownid"],
                                   "success":False})
-            if msg["type"] == "GetUnreadMsg":
+                    
+            if msg["type"] == "Getnewlast":
                 if Database.get_user_by_id(msg["id"])["email"] == device_id.split("|id")[0] and device_id.split("|id")[1] != "newdevice":
-                    unread = Database.getALL_unread_messages(msg["id"])
-                    if len(unread)>0:
-                        await ws.send_json({"type":"newunread","messages":unread})
+                    MyLastIDs = msg["lastids"]
+                    print(MyLastIDs)
+                    for key in MyLastIDs:
+                        key=key
+                        my = MyLastIDs[key]["my"]
+                        other = MyLastIDs[key]["other"]
+                        m1= Database.get_max_msgid(key)
+                        o1=Database.get_max_lastread(key,msg["id"])
+                        if my < m1:
+                            MyLastIDs[key]["my"]=m1
+                        if other<o1:
+                            MyLastIDs[key]["my"]=o1
+                    await ws.send_json({"type":"newlastdata",
+                                        "lastdata":MyLastIDs})
+                    
 
             if msg["type"] == "reading":
                 print(msg)
-                fm=Database.get_max_lastread(msg["chat_id"])
+                fm=Database.get_max_lastread(msg["chat_id"],msg["user_id"])
                 last_read_id = int(msg["last_read_id"])
                 Database.update_lastread_participant(chat_id=int(msg["chat_id"]),participant_id=int(msg["user_id"]),lastread_id=last_read_id)
-                sm=Database.get_max_lastread(msg["chat_id"])
+                sm=Database.get_max_lastread(msg["chat_id"],msg["user_id"])
                 if sm>fm:
                     print(Database.get_ChatParticipants(msg["chat_id"]))
                     for p in Database.get_ChatParticipants(msg["chat_id"]):
@@ -899,11 +939,12 @@ async def getus(request: Request):
     else:
         return {"name":us["name"]}    
 
+@app.post("/CancelAuthNewDevice")
+async def getus(request: Request):
+    data = await request.json()
 
-if __name__ == "__main__":
-    # Явно указываем ssl контекст как в aiohttp
-    import ssl
-    
+
+if __name__ == "__main__":    
     uvicorn.run(
         app,
         host="0.0.0.0",

@@ -214,10 +214,13 @@
                     threshold: 0.6
                 });
             }
-            _createMessage(msg) {
+            _createMessage(msg,read=false) {
                 console.log(msg)
                 const div = document.createElement("div");
                 div.className = msg.classname
+                var st={true:"🟢",
+                    false:"🔴"
+                }
                 if (msg.type !== "tmc") {
                     div.dataset.id = msg.id;
                     this.observer.observe(div);
@@ -247,7 +250,7 @@
                     if (msg.classname === "message-right") {
                         const status = document.createElement("span");
                         status.className = "status";
-                        status.textContent = msg.status || "🔴"; // по умолчанию — отправлено
+                        status.textContent = msg.status || st[read]; // по умолчанию — отправлено
                         data_t.appendChild(status);
                     }
                     data_t.insertAdjacentText("afterbegin", msg.time + " ");
@@ -262,8 +265,8 @@
                 }
             }
 
-            add(msg) {
-                const el = this._createMessage(msg);
+            add(msg,read=false) {
+                const el = this._createMessage(msg,read);
                 this.chat.appendChild(el);
                 this.chat.scrollTop = this.chat.scrollHeight;
             }
@@ -286,11 +289,11 @@
                 el.remove();
             }
 
-            prepend(msg) {
+            prepend(msg,read=false) {
                 if (!msg) return;
                 const oldscrolltop = this.chat.scrollTop;
                 const oldHeight = this.chat.scrollHeight;
-                const el = this._createMessage(msg);
+                const el = this._createMessage(msg,read);
                 this.chat.prepend(el);
                 const newHeight = this.chat.scrollHeight;
                 this.chat.scrollTop = oldscrolltop + (newHeight - oldHeight);
@@ -343,6 +346,7 @@
             localStorage.setItem("lastreadchat", JSON.stringify({}));
             var lastreadchat = {};
         }
+        console.log(lastreadchat)
         var readtimer = null
         const GraphicChat = document.getElementById("chat");
         const graphic = new Graphic(document.getElementById("chat"), (lastReadId) => {
@@ -351,8 +355,8 @@
                 last_read_id: lastReadId
             })
 
-            if (lastreadchat[CurrentChat] < lastReadId) {
-                lastreadchat[CurrentChat] = currentlastread
+            if (lastreadchat[CurrentChat]["my"] < lastReadId) {
+                lastreadchat[CurrentChat]["my"] = currentlastread;
                 currentlastread = lastReadId
 
                 if (readtimer === null) {
@@ -373,12 +377,6 @@
             }
 
         });
-
-
-
-
-
-
 
 
         const photoContainer = document.querySelector('.photo-container');
@@ -520,9 +518,15 @@
         LoadChats()
 
         async function askNotificationPermission() {
-            const permission = await Notification.requestPermission();
-            console.log("Notification permission:", permission);
+            if (Notification.permission !== "granted") {
+                await Notification.requestPermission();
+            }
+
+            //new Notification("Новое сообщение", {
+            //    body: "Привет!"
+            //});
         }
+
 
         async function UpdateGUI(msg, start = false) {
             var th = ChatsData[CurrentChat].type !== "tehnic"
@@ -689,7 +693,7 @@
             })
         }
 
-        askNotificationPermission();
+        await askNotificationPermission();
         if ("serviceWorker" in navigator) {
             navigator.serviceWorker.register("/static/js/sw.js")
                 .then(() => console.log("SW registered"));
@@ -705,10 +709,10 @@
         ws.onopen = () => {
             console.log("WebSocket connected");
             ws.send(JSON.stringify({
-                type: "GetnewMsg",
-                id: Data.my_id
+                type: "Getnewlast",
+                id: Data.my_id,
+                lastids: lastreadchat
             }))
-            console.log(localStorage.getItem("Chats"))
         };
 
         ws.onmessage = async function(event) {
@@ -722,7 +726,7 @@
                     publickey: datae.publickey,
                     platform: datae.platform
                 }));
-                document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n страна: ${dataip.country_name}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
+                document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n страна: ...\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
 
                 try {
                     GetIPInfo(datae.ip).then(dataip => {
@@ -761,7 +765,7 @@
                 datae.chat.privatekeycrypt = await hybridDecrypt(jsonkey, Data.privatekeycrypt)
                 console.log(datae.chat)
                 ChatsData[datae.chat.id] = datae.chat
-                lastreadchat[Number(datae.chat.id)] = 0
+                lastreadchat[Number(datae.chat.id)] = {"my":0,"other":0}
                 localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
                 localStorage.setItem("Chats", JSON.stringify(ChatsData));
                 LoadChats();
@@ -802,15 +806,17 @@
 
                 }
             } else if (datae.type === "newread") {
-                graphic.markRead(datae.last_read_id)
-            }
+                lastreadchat["other"] = datae.last_read_id;
+                localStorage.setItem("lastreadchat",JSON.stringify(lastreadchat))
+                if (datae.chat_id === CurrentChat){
+                    graphic.markRead(datae.last_read_id)
+                }
+            } 
             try {
                 navigator.serviceWorker.ready.then(reg => {
-                    reg.active.postMessage({
-                        type: "notify",
-                        title: "Новое уведомление",
-                        body: data.message || "Есть событие",
-                        data: datae
+                    reg.showNotification('Привет!', {
+                        body: 'Тестовое уведомление',
+                        icon: '/icon.png'
                     });
                 });
             } catch {
@@ -872,7 +878,9 @@
                 const keysencrypt = JSON.parse(localStorage.getItem("new_public"))
                 const dts = JSON.stringify({
                     privatekey: user.privatekey,
-                    privatekeycrypt: user.privatekeycrypt
+                    privatekeycrypt: user.privatekeycrypt,
+                    Chats: JSON.parse(localStorage.getItem("Chats")),
+                    lastread: JSON.parse(localStorage.getItem("lastreadchat"))
                 })
                 let keys_shifr = await hybridEncrypt(dts, keysencrypt.publickey);
 

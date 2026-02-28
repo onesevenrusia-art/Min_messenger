@@ -1,9 +1,11 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Table, select
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Table, JSON, select
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import create_engine, func, update
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.inspection import inspect
+from sqlalchemy import or_
 from datetime import datetime, timedelta
+import json
 
 Base = declarative_base()
 
@@ -31,11 +33,12 @@ class Inventives(Base):
     emailrecive = Column(Integer, ForeignKey("users.email"), nullable=False)
     emailsent = Column(String)
     typeinventive = Column(String)
-    message = Column(String,default=None)
+    message = Column(JSON,default=dict)
     publickey = Column(Text)
     senderencryptedkey = Column(Text)
     reciverencryptedkey = Column(Text)
     time = Column(DateTime, default=datetime.now())
+    status = Column(Integer, default=0)
 
 class User(Base):
     __tablename__ = "users"
@@ -301,6 +304,23 @@ class DataBaseManager:
         finally:
             session.close()
 
+    def get_max_msgid(self, chat_id):
+        session = self.Session()
+        last_id = session.query(
+                func.max(Message.id)
+            ).filter_by(chat_id=chat_id).scalar() or 0
+        return last_id
+    
+    def get_max_lastread(self, chat_id: int):
+        session = self.Session()
+        stmt = (
+            select(func.max(chat_participants.c.last_read))
+            .where(chat_participants.c.chat_id == chat_id)
+        )
+
+        result = session.execute(stmt)
+        return result.scalar() or 0
+
     def read_message(self,user_id,chat_id,internal_id):
         session = self.Session()
         try:
@@ -343,17 +363,39 @@ class DataBaseManager:
                 emailrecive=emailrecive,
                 emailsent=emailsent,
                 typeinventive=inventivetype,
-                message=message,
+                message=json.dumps(message),
                 publickey=publickey,
                 senderencryptedkey=senderencryptedkey,
                 reciverencryptedkey=reciverencryptedkey,
                 time=datetime.now(),
+                status = 0
             )
             session.add(inventive)
             session.commit()
             return {"success": True, "inventive_id": inventive.id}
         finally:
             session.close()
+
+    def update_reciver_inventive(self,inventive_id,device_id=None,chat_id=None):
+        session = self.Session()
+        inv = session.query(Inventives).filter(
+            Inventives.id == inventive_id
+        ).first()
+
+        if not inv:
+            return {"success":False,"error": "Сообщение не найдено"}
+        d = json.loads(inv.message)
+        if device_id:
+            d["devices"].remove(device_id)
+        if chat_id:
+            d["chatid"]=chat_id
+            inv.status=1
+        inv.message = json.dumps(d) 
+        session.commit()
+
+        return {
+            "success": True,
+        }
 
     def get_user_chats(self, user_id):
         session = self.Session()
@@ -362,6 +404,16 @@ class DataBaseManager:
             if not user:
                 return []
             return [self._to_dict(chat) for chat in user.chats]
+        finally:
+            session.close()
+
+    def get_chat(self,chat_id):
+        session = self.Session()
+        try:
+            chat = session.get(Chat, chat_id)
+            if not chat:
+                return None
+            return self._to_dict(chat)
         finally:
             session.close()
 
@@ -379,16 +431,18 @@ class DataBaseManager:
     def get_user_Inventives(self, user_email):
         session = self.Session()
         try:
-            inventives = session.query(Inventives).filter_by(emailrecive=user_email).all()
+            inventives = session.query(Inventives).filter(or_(Inventives.emailsent==user_email,Inventives.emailrecive==user_email)).all()
             return [
                 {"id": d.id,
                   "emailsent": d.emailsent,
-                    "message": d.message,
+                  "emailrecive":d.emailrecive,
+                    "message":json.loads(d.message),
                     "publickey":d.publickey,
                     "senderencryptedkey":d.senderencryptedkey,
                     "reciverencryptedkey":d.reciverencryptedkey,
                       "typeinventive": d.typeinventive,
-                        "time":d.time}
+                        "time":d.time,
+                        "status":d.status}
                 for d in inventives
             ]
         finally:
@@ -626,15 +680,15 @@ class DataBaseManager:
         finally:
             session.close()
 
-    def get_messages_before(self, chat_id, before_id=None, limit=30):
+    def get_messages_after(self, chat_id, after_id=None, limit=30):
         session = self.Session()
         try:
             q = session.query(Message).filter(Message.chat_id == chat_id)
-            if before_id:
-                q = q.filter(Message.internal_id < before_id)
+            if after_id:
+                q = q.filter(Message.id > after_id)
 
             messages = (
-                q.order_by(Message.internal_id.desc())
+                q.order_by(Message.id.desc())
                 .limit(limit)
                 .all()
             )
@@ -642,6 +696,16 @@ class DataBaseManager:
             return [self._to_dict(msg)  for msg in messages if msg is not None]
         finally:
             session.close()
+
+    def get_max_lastread(self,chat_id,my_id):
+        session = self.Session()
+        stmt = (
+            select(func.max(chat_participants.c.last_read))
+            .where(chat_participants.c.chat_id == chat_id, chat_participants.c.user_id != my_id)
+        )
+
+        result = session.execute(stmt)
+        return result.scalar() or 0
 
     def get_unread_messages(self, user_id, chat_id):
         session = self.Session()
