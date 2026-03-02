@@ -316,6 +316,12 @@
                 const status = el.querySelector(".status");
                 if (status) status.textContent = statusIcon;
             }
+
+            setNewID(old_id,new_id){
+                const el = this.chat.querySelector(`[data-id="${old_id}"]`);
+                if (!el) return;
+                el.dataset.id = new_id;
+            }
         }
         //localStorage.clear();
         var CurrentChat = null;
@@ -339,6 +345,7 @@
         }
         try {
             var lastreadchat = JSON.parse(localStorage.getItem("lastreadchat"));
+            console.log(lastreadchat)
             if (lastreadchat === null) {
                 lastreadchat = {};
             }
@@ -350,10 +357,6 @@
         var readtimer = null
         const GraphicChat = document.getElementById("chat");
         const graphic = new Graphic(document.getElementById("chat"), (lastReadId) => {
-            console.log({
-                type: "reading",
-                last_read_id: lastReadId
-            })
 
             if (lastreadchat[CurrentChat]["my"] < lastReadId) {
                 lastreadchat[CurrentChat]["my"] = currentlastread;
@@ -608,6 +611,8 @@
             } else {
                 var classn = "message-left";
             }
+            var readingflag  = Boolean(classn === "message-right" && lastreadchat[CurrentChat]["other"] >= msg.id)
+            console.log(lastreadchat[CurrentChat],readingflag,lastreadchat[CurrentChat]["other"] , msg.id)
             if (msg.datatype === "txt") {
                 console.log(content)
                 if (!start) {
@@ -618,7 +623,7 @@
                         time: `${date.getHours()}:${date.getMinutes()}`,
                         namesender: name,
                         classname: classn
-                    })
+                    },readingflag)
                 } else {
                     graphic.prepend({
                         type: msg.datatype,
@@ -627,7 +632,7 @@
                         time: `${date.getHours()}:${date.getMinutes()}`,
                         namesender: name,
                         classname: classn
-                    })
+                    },readingflag)
                 }
 
             }
@@ -647,7 +652,7 @@
                         time: `${date.getHours()}:${date.getMinutes()}`,
                         namesender: name,
                         classname: classn
-                    })
+                    },readingflag)
                 } else {
                     graphic.prepend({
                         type: msg.datatype,
@@ -656,7 +661,7 @@
                         time: `${date.getHours()}:${date.getMinutes()}`,
                         namesender: name,
                         classname: classn
-                    })
+                    },readingflag)
                 }
             }
 
@@ -765,8 +770,11 @@
                 datae.chat.privatekeycrypt = await hybridDecrypt(jsonkey, Data.privatekeycrypt)
                 console.log(datae.chat)
                 ChatsData[datae.chat.id] = datae.chat
-                lastreadchat[Number(datae.chat.id)] = {"my":0,"other":0}
-                localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
+                if (lastreadchat.length===0 || ! (Number(datae.chat.id) in lastreadchat)){
+                    lastreadchat[Number(datae.chat.id)] = {"my":0,"other":0}
+                    localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
+                }
+                    
                 localStorage.setItem("Chats", JSON.stringify(ChatsData));
                 LoadChats();
                 console.log(localStorage.getItem("Chats"))
@@ -774,6 +782,7 @@
 
             } else if (datae.type === "addmymsg") {
                 SavemyMsg(datae)
+                graphic.setNewID(old_id=`my${datae.uniknownid}`,new_id=datae.message_id)
             } else if (datae.type === "addmsg") {
                 SaveMsg(datae)
                 if (datae.chat_id === CurrentChat) {
@@ -783,6 +792,11 @@
                         created: datae.datatime,
                         datatype: datae.typemsg
                     }
+                    graphic.add({
+                            type: "tmc",
+                            content: `Новые сообщения`,
+                            classname: "message-center"
+                        })
                     UpdateGUI({
                         id: datae.message_id,
                         created: datae.datatime,
@@ -806,12 +820,16 @@
 
                 }
             } else if (datae.type === "newread") {
-                lastreadchat["other"] = datae.last_read_id;
+                lastreadchat[datae.chat_id]["other"] = datae.last_read_id;
                 localStorage.setItem("lastreadchat",JSON.stringify(lastreadchat))
                 if (datae.chat_id === CurrentChat){
                     graphic.markRead(datae.last_read_id)
                 }
-            } 
+            } else if (datae.type === "newlastdata"){
+                localStorage.setItem("lastreadchat",JSON.stringify(datae.lastdata))
+                lastreadchat=datae.lastdata
+                console.log(lastreadchat)
+            }
             try {
                 navigator.serviceWorker.ready.then(reg => {
                     reg.showNotification('Привет!', {

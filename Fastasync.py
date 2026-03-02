@@ -430,10 +430,12 @@ async def websocket_endpoint(ws: WebSocket):
                         other = MyLastIDs[key]["other"]
                         m1= Database.get_max_msgid(key)
                         o1=Database.get_max_lastread(key,msg["id"])
+                        print(o1)
                         if my < m1:
                             MyLastIDs[key]["my"]=m1
-                        if other<o1:
-                            MyLastIDs[key]["my"]=o1
+                        if other<=o1:
+                            MyLastIDs[key]["other"]=o1
+                    print(MyLastIDs)
                     await ws.send_json({"type":"newlastdata",
                                         "lastdata":MyLastIDs})
                     
@@ -444,8 +446,7 @@ async def websocket_endpoint(ws: WebSocket):
                 last_read_id = int(msg["last_read_id"])
                 Database.update_lastread_participant(chat_id=int(msg["chat_id"]),participant_id=int(msg["user_id"]),lastread_id=last_read_id)
                 sm=Database.get_max_lastread(msg["chat_id"],msg["user_id"])
-                if sm>fm:
-                    print(Database.get_ChatParticipants(msg["chat_id"]))
+                if sm>=fm:
                     for p in Database.get_ChatParticipants(msg["chat_id"]):
                         eml = Database.get_user_by_id(p["id"])["email"]
                         await send_WS_msg(eml,{"type":"newread","last_read_id":msg["last_read_id"],"chat_id":msg["chat_id"]},wait=False)
