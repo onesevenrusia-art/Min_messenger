@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MIN Messenger - Свободу слову!</title>
-    <link rel="stylesheet" href="static/css/style22.css">
+    <link rel="stylesheet" href="static/css/style4.css">
 </head>
-<style src="static/css/style2.css"></style>
+
 
 <body>
     <div class="background-container">
-        <img id="fon" src="" alt="Фон" class="background-image">
+        <img id="fon" src="" alt="Фон" >
     </div>
 
     <div class="shapes">
@@ -52,11 +52,9 @@
             <div class="input_msg">
                 <textarea id="input_message"></textarea>
                 <button id="send">Send</button>
-                <button id="sendmedia" class="microphone" style="        background-color: black;
-                border: 1px solid white;
-                border-radius: 25px;
-                font-size: 22px;
-                padding: 4px;">🎙️</button>
+                <button id="sendmedia" class="microphone">🎙️</button>
+                <button id="uploadfile" class="microphone" title="Загрузить файл" style="        margin-left: 5px;
+        margin-right: 5px;">📎</button>
             </div>
         </div>
     </div>
@@ -529,7 +527,16 @@
             //    body: "Привет!"
             //});
         }
-
+        async function DownloadingMSGs(chat_id, current_lastid, maxid) {
+            if (current_lastid<maxid){
+                ws.send(JSON.stringify({
+                    "type": "get_msg_interval",
+                    "chat_id": chat_id,
+                    "min": current_lastid+1,
+                    "max": maxid
+                }))
+            }
+        }
 
         async function UpdateGUI(msg, start = false) {
             var th = ChatsData[CurrentChat].type !== "tehnic"
@@ -771,7 +778,7 @@
                 console.log(datae.chat)
                 ChatsData[datae.chat.id] = datae.chat
                 if (lastreadchat.length===0 || ! (Number(datae.chat.id) in lastreadchat)){
-                    lastreadchat[Number(datae.chat.id)] = {"my":0,"other":0}
+                    lastreadchat[Number(datae.chat.id)] = {"my":0,"other":0,"this_device":0}
                     localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
                 }
                     
@@ -828,7 +835,30 @@
             } else if (datae.type === "newlastdata"){
                 localStorage.setItem("lastreadchat",JSON.stringify(datae.lastdata))
                 lastreadchat=datae.lastdata
+                DownloadingMSGs(CurrentChat,lastreadchat[CurrentChat]["this_device"],lastreadchat[CurrentChat]['other'])
                 console.log(lastreadchat)
+            } else if (datae.type === "old_msgs"){
+                for (var msg of datae.msgs){
+                    await messagedb.save({           
+                        id: parseInt(msg.id),
+                        internal_id: parseInt(msg.internal_id),
+                        chat_id: parseInt(msg.chat_id),
+                        user_id: parseInt(msg.user_id),
+                        datatype: msg.datatype,
+                        msg: msg.content,
+                        created: msg.datatime
+                    })
+                    UpdateGUI({
+                        id: msg.id,
+                        created: msg.created,
+                        msg: msg.content,
+                        datatype: msg.datatype,
+                        user_id: msg.user_id
+                    }, true)
+                }
+            } else if (datae.type === "delete_msg"){
+                messagedb.deleteById(Number(datae.id))
+                graphic.remove(Number(datae.id))
             }
             try {
                 navigator.serviceWorker.ready.then(reg => {
@@ -987,7 +1017,7 @@
             localStorage.setItem("Chats", JSON.stringify(ChatsData));
             UpdataChats();
         }
-
+            //messagedb.deleteDB()
         document.getElementById("inputsearchuser").addEventListener("focus", function() {
             document.querySelector("#SearchUser").style.display = "flex";
         });
@@ -1007,6 +1037,15 @@
                 console.log("Верх — можно подгружать старые сообщения");
                 if (parseInt(GraphicChat.firstElementChild.dataset.id) < lastIdload || lastIdload === -1) {
                     var newmsgs = await messagedb.getChatMessages(chatId = parseInt(CurrentChat), 5, parseInt(GraphicChat.firstElementChild.dataset.id))
+                    if (newmsgs.length<1 ){
+                        ws.send(JSON.stringify({
+                            "type":"load_some_msg",
+                            "chat_id":CurrentChat,
+                            "id":parseInt(GraphicChat.firstElementChild.dataset.id),
+                            "limit":10
+                            
+                        }))
+                    }
                     for (let msg of newmsgs.reverse()) {
                         console.log(msg)
                         UpdateGUI(msg, true)
@@ -1042,6 +1081,8 @@
 
         function showMenu_msg(x, y) {
             //msg_menu.remove("hidden_m")
+            msg_menu.classList.remove("hidden_m")
+            msg_menu.classList.add("show_m");
             const menuRect = msg_menu.getBoundingClientRect();
             const padding = 8;
             let posX = x;
@@ -1075,12 +1116,17 @@
 
         });
 
-        document.getElementById("deleteMsg").addEventListener("click", function() {
+        document.getElementById("deleteMsg").addEventListener("click",async function() {
             graphic.remove(activeMessageId);
-            if (!("my" in activeMessageId)) {
+            console.log(typeof activeMessageId,typeof activeMessageId===Number)
+            if (!String(activeMessageId).includes("my")) {
+                
                 ws.send(JSON.stringify({
-                    id: activeMessageId
+                    type: "deletemsg",
+                    id: Number(activeMessageId),
+                    chat_id:  Number(CurrentChat)
                 }))
+                await messagedb.deleteById(Number(activeMessageId));
             }
         });
 
@@ -1153,7 +1199,8 @@
                 })
                 for (let msg of chatmsgs) {
                     console.log(msg)
-                    await UpdateGUI(msg)
+                    try{
+                    await UpdateGUI(msg)}catch{}
 
                 }
             }
@@ -1312,12 +1359,14 @@
                 console.log(res);
                 if (res.result === false && (res.what == "auth" || res.what == "server")) {
                     localStorage.clear();
+                    messagedb.deleteDB()
                     window.close();
                     window.location.href = '/';
                     return true;
                 } else if (res.result === true) {
                     if (res.result.answ == "yes") {
                         localStorage.clear();
+                        messagedb.deleteDB()
                         window.close();
                         window.location.href = '/';
                     } else {
@@ -1594,6 +1643,7 @@
                     try {
                         if (challengeResult.wh === "not") {
                             localStorage.clear()
+                            messagedb.deleteDB()
                             window.location.href = window.location.origin;
                         }
                     } catch {}
@@ -1934,6 +1984,9 @@
                 Send_Message(blob, "voice")
             };
         }
+        document.getElementById("uploadfile").addEventListener("click",async function () {
+            
+        });
 
 
     });

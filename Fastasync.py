@@ -257,9 +257,9 @@ async def websocket_endpoint(ws: WebSocket):
                 await clients[device_id]["ws"].send_json(message)
                 wait_for[device_id].remove(message)
         #print(f'#{Database.get_user_Inventives(device_id.split("|")[0])}#')
-        this_deviceid = device_id.split("|")[1]
+        this_deviceid =device_id.split("|id")[1]
         this_email = device_id.split("|")[0]
-        this_userid = Database.get_user_by_email(this_email)["id"]
+        this_userid =int(Database.get_user_by_email(this_email)["id"])
         for inventive in Database.get_user_Inventives(device_id.split("|")[0]):
             inventive["time"]=inventive["time"].isoformat()
             if inventive["typeinventive"]=="newchat" and inventive["emailsent"] != device_id.split("|")[0] and int(inventive["status"])==0:
@@ -279,9 +279,16 @@ async def websocket_endpoint(ws: WebSocket):
                                                                        "publickeycrypt":needchat["publickeycrypt"],
                                                                        "privatekeycrypt":inventive["senderencryptedkey"]}})
                         Database.update_reciver_inventive(inventive["id"],this_email,int(this_deviceid))
+        for event in Database.get_Events_before(this_userid,Database.get_device_by_id(this_deviceid)["last_seen"]):
+            await ws.send_json({
+                "type":"new_event",
+                "message": Database.get_message_by_id(event["msg_id"]),
+                "chat_id":event["chat_id"],
+                "datatime":event["datatime"]
+            })
 
     except Exception as e:
-        print(e)
+        print(291,e,traceback.format_exc())
     try:
         while True:
             msg = await ws.receive_json()
@@ -435,7 +442,7 @@ async def websocket_endpoint(ws: WebSocket):
                             MyLastIDs[key]["my"]=m1
                         if other<=o1:
                             MyLastIDs[key]["other"]=o1
-                    print(MyLastIDs)
+
                     await ws.send_json({"type":"newlastdata",
                                         "lastdata":MyLastIDs})
                     
@@ -451,6 +458,22 @@ async def websocket_endpoint(ws: WebSocket):
                         eml = Database.get_user_by_id(p["id"])["email"]
                         await send_WS_msg(eml,{"type":"newread","last_read_id":msg["last_read_id"],"chat_id":msg["chat_id"]},wait=False)
 
+            if msg["type"] == "load_some_msg":
+                msgs=Database.get_messages_more_less(msg["chat_id"],msg["id"],msg["limit"],True)
+                await ws.send_json({"type":"old_msgs","msgs":msgs})
+            
+            if msg["type"] == "deletemsg":
+                Database.delete_message(int(msg["id"]))
+                Database.add_Event(msg["chat_id"],int(msg["id"]),"delete")
+                for p in Database.get_ChatParticipants(msg["chat_id"]):
+                    eml = Database.get_user_by_id(p["id"])["email"]
+                    if eml != this_email:
+                        await send_WS_msg(eml,{"type":"delete_msg","id":int(msg["id"])},False)
+
+            if msg["type"] == "get_msg_interval":
+                Database.get_messages_more_less(int(msg["chat_id"]),msg["min"],msg[""])
+                #Database.get.....
+             
 
                 
     except WebSocketDisconnect as wserror:
@@ -459,9 +482,13 @@ async def websocket_endpoint(ws: WebSocket):
             if device_id.split("|id")[1]!="newdevice":
                 WebSocketDevices.remove(device_id)
             clients.pop(device_id, None)
+            if this_deviceid!="newdevice":
+                Database.update_device(int(this_deviceid),last_seen=datetime.now())
         except Exception as e:
-            print(f"❌❌❌error removing {e}")
+            print(f"❌❌❌error removing {e, traceback.format_exc()}")
     except Exception as e:print(f"error work ws {e, traceback.format_exc()}")
+
+#about:debugging#/runtime/this-firefox
 
 # ПРОВЕРКА КОДА ЕМАИЛ 1 РЕГИСТРАЦИЯ
 @app.post('/registrform')
@@ -955,4 +982,4 @@ if __name__ == "__main__":
         ssl_certfile=r'fullchain.pem',
         ssl_keyfile=r'privkey.pem',
         ssl_ciphers="ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20"
-    )
+    ) 

@@ -109,6 +109,14 @@ class Message(Base):
     chat = relationship("Chat", back_populates="messages")
     user = relationship("User", back_populates="messages")
 
+class Events(Base):
+    __tablename__ = "events"
+    id = Column(Integer, primary_key=True)
+    chat_id = Column(Integer, nullable=False)
+    msg_id = Column(Integer, nullable=False)
+    type = Column(String)
+    datatime = Column(DateTime, default=datetime.now())
+
 class DataBaseManager:
 
     def __init__(self, database_url="sqlite:///Databases/Main.db"):
@@ -248,6 +256,43 @@ class DataBaseManager:
             return {"success": True, "user_id": user.id, "email": user.email, "name": user.name}
         finally:
             session.close()
+
+    def add_Event(self, chat_id, msg_id, type_ev):
+        session = self.Session()
+        try:
+            event = Events(
+                chat_id=chat_id,
+                msg_id=msg_id,
+                type=type_ev
+            )
+
+            session.add(event)
+            session.commit()
+            return {"success": True, "event_id": event.id}
+        except Exception as e:
+            print(e)
+        finally:
+            session.close()
+
+    def get_Events_before(self,user_id,my_last_seen):
+        session = self.Session() 
+        try:
+            chat_ids = self.get_user_chats(user_id)
+            ids = [i["id"] for i in chat_ids]
+
+            events = (
+                session.query(Events)
+                .filter(Events.chat_id.in_(ids))
+                .filter(Events.datatime > my_last_seen)
+                .order_by(Events.id)
+                .all()
+            )
+
+            return [self._to_dict(e)  for e in events]
+        finally:
+            session.close()
+
+
 
     def add_chat(self, name, user_ids, type="tehnic", about=None, photo=None, publickeycrypt=None):
         session = self.Session()
@@ -468,6 +513,16 @@ class DataBaseManager:
         finally:
             session.close()
 
+    def get_device_by_id(self, id):
+        session = self.Session()
+        try:
+            device = session.get(Device, id)
+            if not device:
+                return None
+            return self._to_dict(device)
+        finally:
+            session.close()
+
     def get_message_by_id(self, id):
         session = self.Session()
         try:
@@ -603,14 +658,17 @@ class DataBaseManager:
             device = session.query(Device).filter(Device.id == id).first()
             if not device:
                 return {"success":False,"error":"id не найден"}
-            allowed_fields = ['publickey', 'publickeycrypt', 'lastseen']
+            allowed_fields = ['publickey', 'publickeycrypt', 'last_seen']
             for field, value in kwargs.items():
                 if field in allowed_fields and hasattr(device, field):
-                    setattr(device, field, str(value))
+                    if field == 'last_seen':
+                        setattr(device, field, value)
+                    setattr(device, field, value)
             session.commit()
             return {"success": True}
         except Exception as e:
             session.rollback()
+            print(e)
             return {"success":False,
                 "error": str(e)}
         finally:
@@ -680,13 +738,15 @@ class DataBaseManager:
         finally:
             session.close()
 
-    def get_messages_after(self, chat_id, after_id=None, limit=30):
+    def get_messages_more_less(self, chat_id, after_id=None, limit=30, reverse=False):
         session = self.Session()
         try:
             q = session.query(Message).filter(Message.chat_id == chat_id)
             if after_id:
-                q = q.filter(Message.id > after_id)
-
+                if reverse:
+                    q = q.filter(Message.id < after_id)
+                else:
+                    q = q.filter(Message.id > after_id)
             messages = (
                 q.order_by(Message.id.desc())
                 .limit(limit)
