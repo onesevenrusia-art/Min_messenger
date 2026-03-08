@@ -204,11 +204,12 @@ async def send_swjs():
         media_type="application/javascript",
         filename="sw.js"
     )
-#
+#""
 
-async def send_WS_msg(reciver, msg, wait=True):
+
+async def send_WS_msg(reciver, msg, wait=True, exception=[]):
     flag=False
-    for client in filter(lambda x: reciver in x and reciver+"|idnewdevice" not in x, clients):
+    for client in filter(lambda x: reciver in x and reciver+"|idnewdevice" not in x and x.split("|id")[1] not in exception, clients):
         try:
             client = clients[client]
             await client["ws"].send_json(msg)
@@ -402,17 +403,10 @@ async def websocket_endpoint(ws: WebSocket):
                                   "typemsg":msg["typemsg"],
                                   "datatime": str(answ["time"]),
                                   "success":True})
-                    emails=[]
+
                     for id in Database.get_ChatParticipants(chat_id=msg["chatid"]):
                         email = Database.get_user_by_id(id)["email"]
-                        emails.append(email)
-                    #print(clients)
-                    for client in clients:
-                        print(client.split("|id")[0] , emails)
-                        if client.split("|id")[0] in emails and client.split("|id")[1] != "newdevice" and device_id.split("|")[0] not in client:
-                            print("sending to ...")
-                            try:
-                                await clients[client]["ws"].send_json({"type":"addmsg",
+                        await send_WS_msg(email,{"type":"addmsg",
                                     "message_id":answ["message_id"],
                                     "internal_id":answ["internal_id"],
                                     "chat_id": msg["chatid"],
@@ -420,8 +414,8 @@ async def websocket_endpoint(ws: WebSocket):
                                     "typemsg": msg["typemsg"],
                                     "message": msg["message"],
                                     "datatime": str(answ["time"])
-                                    })
-                            except Exception as e:print("337❌ ",e,traceback.format_exc())
+                                    },False,[str(this_deviceid)])
+                 
                 else:
                     await ws.send_json({"type":"addmymsg",
                                   "uniknownid":msg["uniknownid"],
@@ -467,13 +461,13 @@ async def websocket_endpoint(ws: WebSocket):
                 Database.add_Event(msg["chat_id"],int(msg["id"]),"delete")
                 for p in Database.get_ChatParticipants(msg["chat_id"]):
                     eml = Database.get_user_by_id(p["id"])["email"]
-                    if eml != this_email:
-                        await send_WS_msg(eml,{"type":"delete_msg","id":int(msg["id"])},False)
+                    await send_WS_msg(eml,{"type":"delete_msg","id":int(msg["id"])},False,str([this_deviceid]))
 
             if msg["type"] == "get_msg_interval":
-                Database.get_messages_more_less(int(msg["chat_id"]),msg["min"],msg[""])
-                #Database.get.....
-             
+                print(474, msg)
+                n_messages=Database.get_messages_interval(int(msg["chat_id"]) ,int(msg["min"]), int(msg["max"]))
+                await ws.send_json({"type":"post_msg_interval","messages":n_messages,"chat_id":int(msg["chat_id"])})
+            
 
                 
     except WebSocketDisconnect as wserror:

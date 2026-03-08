@@ -190,4 +190,16 @@ class MessageStore {
             req.onerror = () => reject(req.error);
         });
     }
+    
+    async countMessages(store, minId, maxId) {
+        return new Promise((resolve, reject) => {
+    
+            const range = IDBKeyRange.bound(minId, maxId);
+            const req = store.count(range);
+    
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+    
+        });
+    }
 }

@@ -221,7 +221,6 @@
                 }
                 if (msg.type !== "tmc") {
                     div.dataset.id = msg.id;
-                    this.observer.observe(div);
                     const user = document.createElement("p");
                     user.className = "name";
                     user.textContent = msg.namesender;
@@ -250,6 +249,9 @@
                         status.className = "status";
                         status.textContent = msg.status || st[read]; // по умолчанию — отправлено
                         data_t.appendChild(status);
+                    }
+                    if (msg.classname === "message-left"){
+                        this.observer.observe(div);
                     }
                     data_t.insertAdjacentText("afterbegin", msg.time + " ");
                     div.append(user, text, data_t);
@@ -546,7 +548,7 @@
                 var tag = false;
                 var date = new Date(msg.created)
                 console.log(date)
-                if (!isSameDay(lastDate, date) && lastDate !== null) {
+                if (!isSameDay(lastDate, date) && lastDate !== null && msg.user_id !== Data.my_id) {
                     if (start) {
                         graphic.prepend({
                             type: "tmc",
@@ -835,7 +837,11 @@
             } else if (datae.type === "newlastdata"){
                 localStorage.setItem("lastreadchat",JSON.stringify(datae.lastdata))
                 lastreadchat=datae.lastdata
-                DownloadingMSGs(CurrentChat,lastreadchat[CurrentChat]["this_device"],lastreadchat[CurrentChat]['other'])
+                console.log(lastreadchat[CurrentChat])
+                for (const [k, v] of Object.entries(lastreadchat)){
+                    DownloadingMSGs(Number(k),v.this_device,v.other)
+                }
+
                 console.log(lastreadchat)
             } else if (datae.type === "old_msgs"){
                 for (var msg of datae.msgs){
@@ -848,17 +854,40 @@
                         msg: msg.content,
                         created: msg.datatime
                     })
+                    if (CurrentChat === msg.chat_id){
                     UpdateGUI({
                         id: msg.id,
                         created: msg.created,
                         msg: msg.content,
                         datatype: msg.datatype,
                         user_id: msg.user_id
-                    }, true)
+                    }, true)}
                 }
             } else if (datae.type === "delete_msg"){
                 messagedb.deleteById(Number(datae.id))
                 graphic.remove(Number(datae.id))
+            } else if (datae.type === "post_msg_interval"){
+                for (let m of datae.messages){
+                    messagedb.save({           
+                        id: parseInt(m.id),
+                        internal_id: parseInt(m.internal_id),
+                        chat_id: parseInt(m.chat_id),
+                        user_id: parseInt(m.user_id),
+                        datatype: m.datatype,
+                        msg: m.content,
+                        created: m.created
+                    })
+                    if (datae.chat_id === CurrentChat){
+                        UpdateGUI({
+                            id: msg.id,
+                            created: msg.created,
+                            msg: msg.content,
+                            datatype: msg.datatype,
+                            user_id: msg.user_id
+                        }, false)
+                    }
+                }
+
             }
             try {
                 navigator.serviceWorker.ready.then(reg => {

@@ -757,6 +757,21 @@ class DataBaseManager:
         finally:
             session.close()
 
+    def get_messages_interval(self, chat_id, min_id, max_id, lim=15):
+        session = self.Session()
+        try:
+            #Message.beetwen(min, max)
+            q = session.query(Message).filter(Message.chat_id == chat_id, Message.id >= min_id, Message.id <= max_id)
+            messages = (
+                q.order_by(Message.id.desc())
+                .limit(lim)
+                .all()
+            )
+
+            return [self._to_dict(msg)  for msg in messages]
+        finally:
+            session.close()
+
     def get_max_lastread(self,chat_id,my_id):
         session = self.Session()
         stmt = (
