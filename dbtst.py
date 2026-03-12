@@ -10,5 +10,12 @@ from datetime import datetime
 Database = MessengerDataBase.DataBaseManager()
 s = Database.get_Events_before(1,datetime.now())
 print(s)
-for i in {1:"a",2:"b"}:
-    print(i)
+p=[{'id': 1}, {'id': 2}]
+f=[False,-1]
+for k in p:
+    print(k["id"])
+    if k["id"]==str(2):
+        f[0]=True
+    else:f[1]=k["id"]
+if f[0] and f[1]!= -1:
+    print("ok")

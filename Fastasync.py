@@ -468,6 +468,25 @@ async def websocket_endpoint(ws: WebSocket):
                 n_messages=Database.get_messages_interval(int(msg["chat_id"]) ,int(msg["min"]), int(msg["max"]))
                 await ws.send_json({"type":"post_msg_interval","messages":n_messages,"chat_id":int(msg["chat_id"])})
             
+            if msg["type"] == "call_client":
+                p=Database.get_ChatParticipants(msg["chat_id"])
+                if len(p)==2:
+                    print(msg)
+                    f=[False,-1]
+                    for k in p:
+                        if str(k["id"])==str(this_userid):
+                            f[0]=True
+                        else:f[1]=k["id"]
+                    if f[0] and f[1]!= -1:
+                        em=Database.get_user_by_id(int(f[1]))["email"]
+                        r = await send_WS_msg(em,{"type":"call","user_id":f[1],"chat_id":int(msg["chat_id"])})
+                        await ws.send_json({"type":"call_answ","success":r["status"]!="sent","chat_id":int(msg["chat_id"])})
+                    else:print(f)
+                else:
+                    await ws.send_json({"type":"call_answ","success":False})
+                            
+
+            
 
                 
     except WebSocketDisconnect as wserror:

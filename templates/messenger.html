@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MIN Messenger - Свободу слову!</title>
-    <link rel="stylesheet" href="static/css/style4.css">
+    <link rel="stylesheet" href="static/css/style_messenger.css">
 </head>
 
 
@@ -43,8 +43,8 @@
             <div id="chatshape">
                 <button id="shapebackbtn" style="padding: 0px;">⬅️</button>
                 <img id="shapechatavatar" style="width: 40px; height:40px" class="chat-avatar">
-                <p id="shapechatname"></p>
-                <button id="delchat">🗑️</button>
+                <p id="shapechatname" style="margin-right: 10px;"></p>
+                <button id="optchat">#</button>
             </div>
             <div id="chat">
 
@@ -183,11 +183,30 @@
             <button id="stopRec">Стоп</button>
         </div>
     </div>
+
+    <div id="ChatOptions" class="hide_chm">
+        <button style="color:rgb(0, 252, 34);" id="StartCallBtn">Позвонить</button>
+        <button id="infochat">Информация</button>
+        <button style="color: red; " id="delchat">Удалить чат</button>
+    </div>
+
+    <div id="start_call">
+        <div class="call_block">
+            <img id="call_ava" class="chat-avatar" style="width: 50%; height: 20%; justify-self: center; margin-left: 50px;">
+            <p id="call_p" style="justify-self: center; margin-left: 50px;"></p>
+            <div class="call_btnbox" >
+                <button style="margin-left: 10px;" class="call_btn" id="accept_call">🟢</button>
+                <button style="margin-right: 10px;" class="call_btn" id="disaccept">🔴</button>
+            </div>
+        </div>
+    </div>
+
+    <audio style="display: none;" id="audio_stream"></audio>
 </body>
 <script src="/static/js/appCrypto.js"></script>
 <script src="static/js/MessagesDB_3.js"></script>
 <script>
-    //🔴🟠🟡🟢🔵🟣✅️⚠️❗❌⋮🔗
+    //🔴🟠🟡🟢🔵🟣✅️⚠️❗❌⋮🔗📞
     document.addEventListener('DOMContentLoaded', async function() {
         class Graphic {
             constructor(chatElement, onReadCallback) {
@@ -888,6 +907,16 @@
                     }
                 }
 
+            } else if (datae.type === "call_answ"){
+                if (datae.success === true){
+                    document.getElementById("start_call").style.display = "flex";
+                    document.getElementById("call_p").innerText = ChatsData[datae.chat_id]["name"]
+                    document.getElementById("call_ava").src = ChatsData[datae.chat_id]["photo"]
+
+                }
+                else{
+                    alert("Собеседник не в сети!")
+                }
             }
             try {
                 navigator.serviceWorker.ready.then(reg => {
@@ -989,6 +1018,8 @@
             const chats = JSON.parse(localStorage.getItem("Chats"))
             for (var key of Object.keys(chats)) {
                 var chat = chats[parseInt(key)]
+                console.log(lastreadchat[Number])
+                //if (lastreadchat[Number(chat.id)]["my"]-lastreadchat[Number(chat.id)]["other"]>0)
                 ChatBox.innerHTML += `
                 <div data-chat-id=${'chat'+chat.id} class=${'chatinfo'}>
                     <img src="${chat.photo}" class=${'chat-avatar'} alt="${0} ">
@@ -2013,10 +2044,42 @@
                 Send_Message(blob, "voice")
             };
         }
-        document.getElementById("uploadfile").addEventListener("click",async function () {
-            
+        const chopt_el = document.getElementById("optchat")
+        chopt_el.addEventListener("click",async function (e) {
+            const el = document.getElementById("ChatOptions")
+            el.classList.remove("hide_chm")
+            el.classList.add("show_chm");
+            el.style.marginLeft = "8px"
+            const Rect = el.getBoundingClientRect();
+            const padding = 8;
+            var x=e.pageX
+            var y=e.pageY
+            let posX = x;
+            let posY = y;
+            // 👉 не вылезать вправо
+            if (x + Rect.width > window.innerWidth) {
+                posX = window.innerWidth - Rect.width - padding;
+            }
+            // 👉 не вылезать вниз
+            if (y + Rect.height > window.innerHeight) {
+                posY = window.innerHeight - Rect.height - padding;
+            }
+            // 👉 не вылезать влево / вверх
+            posX = Math.max(padding, posX);
+            posY = Math.max(padding, posY);
+            el.style.left = posX + "px";
+            el.style.top = posY + "px";
+            el.classList.remove("hide_chm")
+            el.classList.add("show_chm");
+        
         });
 
+        document.getElementById("StartCallBtn").addEventListener("click", async function(e) {
+            ws.send(JSON.stringify({
+                type: "call_client",
+                chat_id: Number(CurrentChat)
+            }))
+        });
 
     });
 </script>
