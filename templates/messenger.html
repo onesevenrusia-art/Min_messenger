@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MIN Messenger - Свободу слову!</title>
-    <link rel="stylesheet" href="static/css/style_messenger.css">
+    <link rel="stylesheet" href="static/css/style_messenger_2.css">
 </head>
 
 
@@ -42,7 +42,7 @@
         <div class="wind">
             <div id="chatshape">
                 <button id="shapebackbtn" style="padding: 0px;">⬅️</button>
-                <img id="shapechatavatar" style="width: 40px; height:40px" class="chat-avatar">
+                <img id="shapechatavatar" style="width: 40px; height:40px; margin-left: 12px;" class="chat-avatar">
                 <p id="shapechatname" style="margin-right: 10px;"></p>
                 <button id="optchat">#</button>
             </div>
@@ -192,16 +192,20 @@
 
     <div id="start_call">
         <div class="call_block">
-            <img id="call_ava" class="chat-avatar" style="width: 50%; height: 20%; justify-self: center; margin-left: 50px;">
-            <p id="call_p" style="justify-self: center; margin-left: 50px;"></p>
-            <div class="call_btnbox" >
-                <button style="margin-left: 10px;" class="call_btn" id="accept_call">🟢</button>
-                <button style="margin-right: 10px;" class="call_btn" id="disaccept">🔴</button>
+            <p id="call_status" style="font-size: 11px;">ожидание ответа пользователя</p>
+            <img id="call_ava" class="chat-avatar" style="width: 128px; height: 128px; margin-top: 25px;">
+    
+            <p id="call_p">Incoming call</p>
+    
+            <div class="call_btnbox">
+                <button class="call_btn" id="accept_call" style="justify-self: flex-start;" title="Принять">🟢</button>
+                <button class="call_btn" id="disaccept" style="justify-self: flex-end;" title="Сбросить">🔴</button>
             </div>
+    
         </div>
     </div>
 
-    <audio style="display: none;" id="audio_stream"></audio>
+    <audio style="display: none;" id="audio_stream" autoplay></audio>
 </body>
 <script src="/static/js/appCrypto.js"></script>
 <script src="static/js/MessagesDB_3.js"></script>
@@ -347,6 +351,8 @@
         var UnCookMessages = {};
         var lastDate = null;
         var currentlastread = 0;
+        let pc = null
+        let iceBuffer = []
         try {
             var ChatsData = JSON.parse(localStorage.getItem("Chats"));
         } catch {
@@ -422,6 +428,7 @@
         msg_menu.classList.remove("hidden_m")
         var activeMessageId = null;
         var lastIdload = -1;
+        var current_call_id = null;
         const Month = {
             0: "январь",
             1: "февраль",
@@ -910,13 +917,45 @@
             } else if (datae.type === "call_answ"){
                 if (datae.success === true){
                     document.getElementById("start_call").style.display = "flex";
+                    document.getElementById("accept_call").style.display="none";
                     document.getElementById("call_p").innerText = ChatsData[datae.chat_id]["name"]
                     document.getElementById("call_ava").src = ChatsData[datae.chat_id]["photo"]
-
+                    current_call_id=datae.call_id
                 }
                 else{
                     alert("Собеседник не в сети!")
                 }
+            } else if (datae.type === "call"){
+                document.getElementById("start_call").style.display = "flex";
+                document.getElementById("accept_call").style.display="flex";
+                document.getElementById("call_p").innerText = ChatsData[datae.chat_id]["name"]
+                document.getElementById("call_ava").src = ChatsData[datae.chat_id]["photo"]
+                current_call_id = datae.call_id;
+            }
+            else if (datae.type === "offer"){
+                handleOffer(datae)
+            }
+
+            else if (datae.type === "answer"){
+                await pc.setRemoteDescription(datae.sdp);
+            }
+
+            else if (datae.type === "ice"){
+                await pc.addIceCandidate(datae.candidate);
+            }
+        
+            else if (datae.type==="kill_webrtc"){
+                console.log(current_call_id,datae.call_id)
+                current_call_id=datae.call_id
+                if (current_call_id === datae.call_id){
+
+                    endCall()
+                }
+                
+            } else if (datae.type === "call_accepted"){
+                document.getElementById("call_status").innerText="Устанавливаем соединение"
+                await initPeer()
+                await createOffer()
             }
             try {
                 navigator.serviceWorker.ready.then(reg => {
@@ -925,8 +964,8 @@
                         icon: '/icon.png'
                     });
                 });
-            } catch {
-
+            } catch (e){
+                console.log(e)
             }
         };
 
@@ -1022,7 +1061,7 @@
                 //if (lastreadchat[Number(chat.id)]["my"]-lastreadchat[Number(chat.id)]["other"]>0)
                 ChatBox.innerHTML += `
                 <div data-chat-id=${'chat'+chat.id} class=${'chatinfo'}>
-                    <img src="${chat.photo}" class=${'chat-avatar'} alt="${0} ">
+                    <img src="${chat.photo}" class=${'chat-avatar'} style='margin-left:12px;' alt="${0} ">
                     <b class=${'chat-name'}>${chat.name}</b> 
                 </div>
                 `;
@@ -2081,7 +2120,113 @@
             }))
         });
 
+        document.getElementById("accept_call").addEventListener("click",async function(){
+            ws.send(JSON.stringify({
+                type:"accept_call",
+                call_id:current_call_id
+            }))
+            await initPeer()
+            document.getElementById("call_status").innerText="Устанавливаем соединение"
+            document.getElementById("accept_call").style.display="none";
+        })
+
+        document.getElementById("disaccept").addEventListener("click",function(){
+            ws.send(JSON.stringify({
+                type:"disaccept_call",
+                call_id:current_call_id
+            }))
+            endCall()
+        })
+
+        async function initPeer(){
+
+            pc = new RTCPeerConnection({
+                iceServers:[
+                    {urls:"stun:stun.l.google.com:19302"}
+                ]
+            })
+
+            pc.ontrack = e=>{
+                document.getElementById("audio_stream").srcObject = e.streams[0]
+            }
+
+            pc.onicecandidate = e=>{
+                if(e.candidate){
+                    ws.send(JSON.stringify({
+                        type:"ice",
+                        candidate:e.candidate,
+                        call_id:current_call_id
+                    }))
+                }
+            }
+
+            pc.onconnectionstatechange = () => {
+                console.log("connectionState:", pc.connectionState)
+            }
+
+            pc.oniceconnectionstatechange = () => {
+                console.log("iceConnectionState:", pc.iceConnectionState)
+            }
+
+            pc.onicegatheringstatechange = () => {
+                console.log("iceGatheringState:", pc.iceGatheringState)
+            }
+
+            pc.onsignalingstatechange = () => {
+                console.log("signalingState:", pc.signalingState)
+            }
+            pc.onicecandidateerror = e=>{
+                console.error("ICE candidate error:",e)
+            }
+            localStream = await navigator.mediaDevices.getUserMedia({audio:true})
+
+            localStream.getTracks().forEach(track=>{
+                pc.addTrack(track,localStream)
+            })
+
+            // добавить ICE которые пришли раньше
+            //iceBuffer.forEach(c=>{
+            //    pc.addIceCandidate(c)
+            //})
+//
+            //iceBuffer = []
+        }
+
+        async function createOffer(){
+            let offer = await pc.createOffer()
+            await pc.setLocalDescription(offer)
+            ws.send(JSON.stringify({
+                type:"offer",
+                sdp:offer,
+                call_id: current_call_id
+            }))
+        }
+        function endCall(){
+            if(pc){
+                pc.close()
+                pc = null
+            }
+            current_call_id = null
+            document.getElementById("start_call").style.display = "none";
+            localStream.getTracks().forEach(t=>t.stop())
+
+        }
+
+        async function handleOffer(data) {
+            await pc.setRemoteDescription(data.sdp);
+            let answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            ws.send(JSON.stringify({
+                type:"answer",
+                sdp:answer,
+                call_id: current_call_id
+            }));
+        }
+
     });
+
+
 </script>
 </body>
 

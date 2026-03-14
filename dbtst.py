@@ -19,3 +19,5 @@ for k in p:
     else:f[1]=k["id"]
 if f[0] and f[1]!= -1:
     print("ok")
+
+print("mx",max({1:8,2:7}.keys()))
