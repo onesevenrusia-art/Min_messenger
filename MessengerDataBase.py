@@ -68,6 +68,7 @@ class Device(Base):
     platform = Column(String(50))
     publickey = Column(String)
     publickeycrypt = Column(String)
+    subscription_data = Column(JSON, default=None)
     last_seen = Column(DateTime, default=datetime.now())
     created = Column(DateTime, default=datetime.now())
 
@@ -184,7 +185,7 @@ class DataBaseManager:
         result = []
         for u in users:
                 devices = [
-                    {"id": d.id, "name": d.name, "platform": d.platform, "last_seen": d.last_seen, "publickey": d.publickey, "publickeycrypt": d.publickeycrypt}
+                    {"id": d.id, "name": d.name, "platform": d.platform, "last_seen": d.last_seen, "publickey": d.publickey, "publickeycrypt": d.publickeycrypt,"subscription_data": d.subscription_data }
                     for d in u.devices
                 ]
         result.append({
@@ -201,22 +202,25 @@ class DataBaseManager:
                 })
         return result
 
-    def _to_dict(self,obj):
+    def _to_dict(self, obj):
         if obj is None:
             return None
         try:
             return {
                 key: (
-                    value.isoformat() 
-                    if hasattr(value, 'isoformat') 
-                    else str(value) if hasattr(value, '__str__') and not isinstance(value, (int, float, bool, str))
+                    value.isoformat()
+                    if hasattr(value, 'isoformat')
+                    else str(value)
+                    if hasattr(value, '__str__') and not isinstance(value, (int, float, bool, str, dict, list))
                     else value
                 )
                 for key, value in obj.__dict__.items()
                 if not key.startswith('_')
             }
-        except:return None
-
+        except Exception as e:
+            print("to_dict error:", e)
+            return None
+        
     def _delete_obj(self,obj,id):
         session = self.Session()
         try:
@@ -392,6 +396,7 @@ class DataBaseManager:
                 platform=platform,
                 publickey=publickey,
                 publickeycrypt=publickeycrypt,
+                subscription_data={},
                 last_seen=datetime.now(),
                 created=datetime.now()
             )
@@ -467,7 +472,7 @@ class DataBaseManager:
         try:
             devices = session.query(Device).filter_by(user_id=user_id).all()
             return [
-                {"id": d.id, "name": d.name, "platform": d.platform, "last_seen": d.last_seen}
+                {"id": d.id, "name": d.name, "platform": d.platform, "last_seen": d.last_seen, "subscription_data":d.subscription_data}
                 for d in devices
             ]
         finally:
@@ -515,13 +520,11 @@ class DataBaseManager:
 
     def get_device_by_id(self, id):
         session = self.Session()
-        try:
-            device = session.get(Device, id)
-            if not device:
-                return None
-            return self._to_dict(device)
-        finally:
-            session.close()
+        
+        device = session.query(Device).filter_by(id=id).first()
+        if not device:
+            return None
+        return self._to_dict(device)
 
     def get_message_by_id(self, id):
         session = self.Session()
@@ -658,7 +661,7 @@ class DataBaseManager:
             device = session.query(Device).filter(Device.id == id).first()
             if not device:
                 return {"success":False,"error":"id не найден"}
-            allowed_fields = ['publickey', 'publickeycrypt', 'last_seen']
+            allowed_fields = ['publickey', 'publickeycrypt', 'last_seen', 'subscription_data']
             for field, value in kwargs.items():
                 if field in allowed_fields and hasattr(device, field):
                     if field == 'last_seen':

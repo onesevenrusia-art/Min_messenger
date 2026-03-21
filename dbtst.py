@@ -8,6 +8,10 @@ from datetime import datetime
 #print("PUBLIC:", v.public_key)
 
 Database = MessengerDataBase.DataBaseManager()
+#z=Database.add_device(1,"enc","z","e","macos",)
+d = Database.get_user_by_id(1)
+print(d)
+"""
 s = Database.get_Events_before(1,datetime.now())
 print(s)
 p=[{'id': 1}, {'id': 2}]
@@ -21,3 +25,6 @@ if f[0] and f[1]!= -1:
     print("ok")
 
 print("mx",max({1:8,2:7}.keys()))
+
+print()
+"""

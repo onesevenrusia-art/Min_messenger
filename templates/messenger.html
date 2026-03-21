@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="ru">
 
 <head>
@@ -413,18 +414,38 @@
         const photoUpload = document.getElementById('photo_upload');
         const myPhoto = document.getElementById('my_photo');
         const DataUser = localStorage.getItem('Userdata');
-        if (DataUser === null) {
+        if (DataUser === null) { 
+           //const reg = await navigator.serviceWorker.ready
+           //const sub = await reg.pushManager.getSubscription()
+           //console.log(reg,sub)
+           //if (sub) {
+           //    await sub.unsubscribe()
+           //}
             console.log(DataUser, window.location.origin)
             localStorage.clear()
             window.location.href = window.location.origin; // https://basicmimimummessenger.duckdns.org
 
         }
+
+
+        async function ServerRequest(f) {
+            var res = await fetch(f, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            })
+            var result = await res.json()
+            return result;
+        }
+
         const Data = JSON.parse(DataUser);
         const ChatBox = document.getElementById("chatbox");
         const msg_menu = document.getElementById("msgMenu");
         const mediabtn = document.getElementById("sendmedia");
-        const messagedb = new MessageStore(dbName = `${Data.my_id}/${Data.device_id}`);
+        const messagedb = new MessageStore(dbName = Data.db_created);
         await messagedb.open();
+
         msg_menu.classList.remove("hidden_m")
         var activeMessageId = null;
         var lastIdload = -1;
@@ -473,6 +494,7 @@
             console.log(result);
             if (result.result === false && result.what == "server") {
                 console.error("ошибка установления соединения с сервером");
+                alert("0")
                 delay++;
                 if (delay > 25) {
                     delay = 25;
@@ -546,15 +568,6 @@
         });
         LoadChats()
 
-        async function askNotificationPermission() {
-            if (Notification.permission !== "granted") {
-                await Notification.requestPermission();
-            }
-
-            //new Notification("Новое сообщение", {
-            //    body: "Привет!"
-            //});
-        }
         async function DownloadingMSGs(chat_id, current_lastid, maxid) {
             if (current_lastid<maxid){
                 ws.send(JSON.stringify({
@@ -733,11 +746,46 @@
             })
         }
 
-        await askNotificationPermission();
-        if ("serviceWorker" in navigator) {
-            navigator.serviceWorker.register("/static/js/sw.js")
-                .then(() => console.log("SW registered"));
+
+        async function initPush() {
+
+            if (!("serviceWorker" in navigator)) return
+            navigator.serviceWorker.ready.then(r => console.log(r.scope))
+            let reg = await navigator.serviceWorker.getRegistration()
+            if (!reg) {
+                reg = await navigator.serviceWorker.register("/sw.js")
+                console.log(reg)
+            }
+            let sub = await reg.pushManager.getSubscription()
+            console.log(reg,sub)
+            if (sub) {
+                console.log("Already subscribed")
+                return
+            }
+
+            if (Notification.permission === "denied") {
+                console.log("Permission denied")
+                return
+            }
+            if (Notification.permission !== "granted") {
+                const perm = await Notification.requestPermission()
+                if (perm !== "granted") return
+            }
+
+            const res = await fetch("/push_key")
+            const data = await res.json()
+            const PUBLIC_KEY = data.key
+            sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(PUBLIC_KEY)
+            })
+            ws.send(JSON.stringify({
+                type:"subscription",
+                sub:sub
+            }))
         }
+
+
 
         const device_id = Data.email + "|id" + Data.device_id;
         console.log(device_id)
@@ -753,6 +801,7 @@
                 id: Data.my_id,
                 lastids: lastreadchat
             }))
+            initPush()
         };
 
         ws.onmessage = async function(event) {
@@ -797,13 +846,18 @@
                         break;
                 }
             } else if (datae.type === "new_chat") { // приглашение от инициатора
-                console.log("call true func")
+                //console.log("call true func")
+                new Notification(title="MIN-поддержка", options={
+                    body: `${datae.user.name} хочет создать чат с вами`,
+                    icon: localStorage.getItem("logo"),
+                    badge: localStorage.getItem("logo"),
+                })
                 CreateChat(flag = true, user = datae.user)
             } else if (datae.type === "addchat") { // для инициатора и получателя  - успешный ответ пользователя = sava chat 
-                console.log(datae.chat)
+                //console.log(datae.chat)
                 var jsonkey = deepJsonParse(datae.chat.privatekeycrypt.replace(/'/g, '"'))
                 datae.chat.privatekeycrypt = await hybridDecrypt(jsonkey, Data.privatekeycrypt)
-                console.log(datae.chat)
+                //console.log(datae.chat)
                 ChatsData[datae.chat.id] = datae.chat
                 if (lastreadchat.length===0 || ! (Number(datae.chat.id) in lastreadchat)){
                     lastreadchat[Number(datae.chat.id)] = {"my":0,"other":0,"this_device":0}
@@ -812,7 +866,7 @@
                     
                 localStorage.setItem("Chats", JSON.stringify(ChatsData));
                 LoadChats();
-                console.log(localStorage.getItem("Chats"))
+                //e.log(localStorage.getItem("Chats"))
             } else if (datae.type === "delete_chat") {
 
             } else if (datae.type === "addmymsg") {
@@ -820,6 +874,28 @@
                 graphic.setNewID(old_id=`my${datae.uniknownid}`,new_id=datae.message_id)
             } else if (datae.type === "addmsg") {
                 SaveMsg(datae)
+
+
+                if (datae.user_id in UserNames) {
+                        name = UserNames[datae.user_id]["name"]
+                        console.log(name)
+                    } else {
+                        name = await GetName(id = datae.user_id)
+                        name = name["name"]
+                        if (name !== null) {
+                            UserNames[datae.user_id] = {
+                                "name": name
+                            }
+                            localStorage.setItem("UserNames", UserNames)
+                        }
+                    }
+
+
+                new Notification(title=localChats[datae.chat_id], options={
+                    body: `${UserNames[datae.user_id].name}: yjdjt cjj,otybt `,
+                    icon: localChats[datae.chat_id].photo,
+                    badge: localStorage.getItem("logo"),
+                })
                 if (datae.chat_id === CurrentChat) {
                     var msg = {
                         msg: datae.message,
@@ -958,12 +1034,7 @@
                 await createOffer()
             }
             try {
-                navigator.serviceWorker.ready.then(reg => {
-                    reg.showNotification('Привет!', {
-                        body: 'Тестовое уведомление',
-                        icon: '/icon.png'
-                    });
-                });
+
             } catch (e){
                 console.log(e)
             }
@@ -1072,7 +1143,7 @@
             var localChats = JSON.parse(localStorage.getItem("Chats"))
 
             console.log(" loading chats...")
-            console.log(localChats)
+            //console.log(localChats)
             ChatsData = {}
             const response = await fetch("/userchatlist", {
                 method: 'POST',
@@ -1083,14 +1154,16 @@
                     id: JSON.parse(localStorage.getItem("Userdata")).my_id
                 }),
             });
-
+            if (!(response)){
+                return
+            }
             const chats = await response.json();
-            console.log(chats)
+            //console.log(chats)
             for (const chat of chats) {
                 if (!chat.photo || chat.photo === "None") {
                     if (chat.type === "p2p") {
                         var id = chat.name.split("/")
-                        console.log(chat)
+                        //console.log(chat)
                         if (String(id[0]) === String(Data.my_id)) {
                             id = id[1]
                         } else {
@@ -1108,7 +1181,7 @@
                     chat.photo = await imageToBase64(chat.photo);
                 }
                 try {
-                    console.log(localChats, localChats[parseInt(chat.id)])
+                   //console.log(localChats, localChats[parseInt(chat.id)])
                     chat.privatekeycrypt = localChats[parseInt(chat.id)].privatekeycrypt
                 } catch {}
                 ChatsData[parseInt(chat.id)] = chat
@@ -1453,7 +1526,8 @@
             if (res) {
                 let res = await confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
                     x: "removedevice",
-                    device: Data.device
+                    device: Data.device,
+                    device_id: Data.device_id
                 });
                 console.log(res);
                 if (res.result === false && (res.what == "auth" || res.what == "server")) {
@@ -1465,6 +1539,7 @@
                 } else if (res.result === true) {
                     if (res.result.answ == "yes") {
                         localStorage.clear();
+
                         messagedb.deleteDB()
                         window.close();
                         window.location.href = '/';
@@ -1743,6 +1818,12 @@
                         if (challengeResult.wh === "not") {
                             localStorage.clear()
                             messagedb.deleteDB()
+                            //const reg = await navigator.serviceWorker.ready
+                            //const sub = await reg.pushManager.getSubscription()
+//
+                            //if (sub) {
+                            //    await sub.unsubscribe()
+                            //}
                             window.location.href = window.location.origin;
                         }
                     } catch {}
@@ -2226,6 +2307,35 @@
 
     });
 
+    function urlBase64ToUint8Array(base64String) {
+
+        const padding = '='.repeat((4 - base64String.length % 4) % 4)
+
+        const base64 = (base64String + padding)
+            .replace(/-/g, '+')
+            .replace(/_/g, '/')
+
+        const rawData = window.atob(base64)
+
+        const outputArray = new Uint8Array(rawData.length)
+
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i)
+        }
+
+        return outputArray
+    }
+
+    async function ServerRequest(req) {
+        var res = await fetch(req, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+        })
+        var result = await res.json()
+        return result;
+    }
 
 </script>
 </body>

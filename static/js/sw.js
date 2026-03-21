@@ -1,23 +1,17 @@
-self.addEventListener('install', event => {
-    console.log('Service Worker installed');
-    self.skipWaiting(); // активировать сразу
-});
-
-self.addEventListener('activate', event => {
-    console.log('Service Worker activated');
-});
-
-self.addEventListener('fetch', event => {
-    // Можно перехватывать запросы
-    event.respondWith(fetch(event.request));
-});
-
-self.addEventListener('push', event => {
-    const data = event.data ? event.data.text() : 'No payload';
+self.addEventListener("push", function(event){
+    console.log("push event")
+    
     event.waitUntil(
-        self.registration.showNotification('Push Received', {
-            body: data,
-            icon: '/icon.png'
+        self.registration.showNotification("TEST PUSH",{
+            body: "push received"
         })
-    );
-});
+    )
+})
+
+self.addEventListener("notificationclick", function(event){
+    event.notification.close()
+    event.waitUntil(
+        clients.openWindow("/")
+    )
+
+})

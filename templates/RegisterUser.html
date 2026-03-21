@@ -359,6 +359,7 @@
                                                 MyKeys.email = formData.email;
                                                 MyKeys.my_id = result.user_id;
                                                 MyKeys.device_id = result.device_id
+                                                MyKeys.db_created = String(new Date())
                                                 localStorage.setItem('Userdata', JSON.stringify(MyKeys));
                                                 console.log("✅ Данные сохранены в localStorage");
                                                 alert("✅ Регистрация прошла успешно.");
@@ -453,7 +454,8 @@
                                                                         email: formData.email,
                                                                         device: Mydevice,
                                                                         my_id: result.userid,
-                                                                        device_id: datae.device_id
+                                                                        device_id: datae.device_id,
+                                                                        db_created: String(new Date())
                                                                     }
                                                                     localStorage.clear();
                                                                     console.log(UserData_new)
