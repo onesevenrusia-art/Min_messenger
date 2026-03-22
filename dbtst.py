@@ -9,7 +9,7 @@ from datetime import datetime
 
 Database = MessengerDataBase.DataBaseManager()
 #z=Database.add_device(1,"enc","z","e","macos",)
-d = Database.get_user_by_id(1)
+d = Database.get_messages_more_less(1,1,5,0)
 print(d)
 """
 s = Database.get_Events_before(1,datetime.now())

@@ -288,7 +288,7 @@ async def send_swjs():
 #""
 
 
-async def send_WS_msg(reciver, msg, wait=True, exception=[], need=[],notify=None):
+async def send_WS_msg(reciver, msg, wait=False, exception=[], need=[],notify=None):
     try:
         if reciver not in clients.keys():
             if wait:
@@ -554,10 +554,12 @@ async def websocket_endpoint(ws: WebSocket):
                                     "message": msg["message"],
                                     "datatime": str(answ["time"])
                                     },False,[str(this_deviceid)])
+                        print(s)
                         if s["status"] == "offline":
                             if u["photo"] == None:
                                 u["photo"]="/"
-                            SendWEBpush(notify=notify,user_id=int(u["id"]),device_id="all")
+                            w=SendWEBpush(notify=notify,user_id=int(u["id"]),device_id="all")
+                            print()
                  
                 else:
                     await ws.send_json({"type":"addmymsg",
@@ -582,7 +584,6 @@ async def websocket_endpoint(ws: WebSocket):
 
                     await ws.send_json({"type":"newlastdata",
                                         "lastdata":MyLastIDs})
-                    
 
             if msg["type"] == "reading":
                 print(msg)
@@ -599,6 +600,10 @@ async def websocket_endpoint(ws: WebSocket):
                 msgs=Database.get_messages_more_less(msg["chat_id"],msg["id"],msg["limit"],True)
                 await ws.send_json({"type":"old_msgs","msgs":msgs})
             
+            if msg["type"] == "load_some_msg_new":
+                msgs=Database.get_messages_more_less(msg["chat_id"],msg["id"],msg["limit"],False)
+                await ws.send_json({"type":"new_msgs","msgs":msgs})
+
             if msg["type"] == "deletemsg":
                 Database.delete_message(int(msg["id"]))
                 Database.add_Event(msg["chat_id"],int(msg["id"]),"delete")
@@ -667,7 +672,13 @@ async def websocket_endpoint(ws: WebSocket):
 
             if msg["type"] == "subscription" and this_deviceid != "newdevice":
                 Database.update_device(id=int(this_deviceid),subscription_data=msg["sub"])
-              
+
+            if msg["type"] == "get_last":
+                print(msg)
+                msgs=Database.get_messages_more_less(chat_id=int(msg["chat_id"]),after_id=Database.get_min_msgid(int(msg["chat_id"])),limit=15,reverse=False)
+
+                msgs=Database.get_messages_more_less(int(msg["chat_id"]),Database.get_min_msgid(int(msg["chat_id"]))-1,15,False)
+                await ws.send_json({"type":"new_msgs","msgs":msgs})
 
                 
     except WebSocketDisconnect as wserror:
@@ -679,6 +690,8 @@ async def websocket_endpoint(ws: WebSocket):
             for c in clients.get(this_email):
                 if c["id"]==this_deviceid:
                     clients.get(this_email).remove(c)
+            if len(clients.get(this_email)) == 0:
+                clients.pop(this_email)
             if this_deviceid!="newdevice":
                 Database.update_device(int(this_deviceid),last_seen=datetime.now())
             if CurrentCallID != -1:
@@ -924,7 +937,7 @@ async def podpis(request:Request):
                 try:
                     os.remove(user["photo"]) 
                 except:pass
-                Database.delete_user(email=email)
+                Database.delete_User(user_email=email)
                 print(f"Deleted user {email}")
                 return {"success":True}
             print("blocked")
@@ -1006,7 +1019,7 @@ async def podpis(request:Request):
 
         if data["what"]["x"] == "removedevice":
             dname=data["device"]
-            devices = Database.get_user_devices(data["id"])
+            devices = Database.get_user_devices(int(data["id"]))
             print("devices",devices)
             if len(devices)<2:
                 return {"success":True,"answ":"no"}
@@ -1097,7 +1110,7 @@ async def GetUserInfo(request:Request):
                     "name":user['name'],
                     "photo":user["photo"],
                     "phone":user['phone'],
-                    "publickeys":{"publickey":user["devices"][0]["publickey"],"publickeycrypt":user["devices"][0]["publickeycrypt"]}}
+                    "publickeys":{"publickey":user["publickey"],"publickeycrypt":user["publickeycrypt"]}}
     if user["about"]!=None:
         for d in user["about"].split("\n"):
             if len(d.split(":")) == 2:
@@ -1155,7 +1168,9 @@ async def cancel(request: Request):
 async def getus(request: Request):
     data = await request.json()
     try:
-        us = Database.get_user_by_id(data["id"])
+        us = Database.get_user_by_id(int(data["id"]))
+        if us==None:
+            return {}
     except:
         return {}
     if data["photo"]:

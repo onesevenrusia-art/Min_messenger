@@ -360,6 +360,13 @@ class DataBaseManager:
             ).filter_by(chat_id=chat_id).scalar() or 0
         return last_id
     
+    def get_min_msgid(self, chat_id):
+        session = self.Session()
+        last_id = session.query(
+                func.min(Message.id)
+            ).filter_by(chat_id=chat_id).scalar() or 0
+        return last_id
+
     def get_max_lastread(self, chat_id: int):
         session = self.Session()
         stmt = (
@@ -567,11 +574,15 @@ class DataBaseManager:
             session.close()
 
     def delete_User(self, user_id=None,user_email=None):
+
         if user_email is not None:
-            id=self.get_user_by_email(user_email)["user_id"]
-            return self._delete_obj(User, id)
+            u=self.get_user_by_email(user_email)
+            self._delete_obj(User, u["id"])
         if user_id is not None:
-            return self._delete_obj(User, user_id)
+            self._delete_obj(User, user_id)
+            u=self.get_user_by_id(user_id)
+        for d in u["devices"]:
+            self.delete_Device(d["id"])
         return None
     
     def delete_Chat(self, chat_id):
@@ -763,7 +774,6 @@ class DataBaseManager:
     def get_messages_interval(self, chat_id, min_id, max_id, lim=15):
         session = self.Session()
         try:
-            #Message.beetwen(min, max)
             q = session.query(Message).filter(Message.chat_id == chat_id, Message.id >= min_id, Message.id <= max_id)
             messages = (
                 q.order_by(Message.id.desc())

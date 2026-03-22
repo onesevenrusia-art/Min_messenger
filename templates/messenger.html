@@ -313,6 +313,12 @@
                 el.remove();
             }
 
+            is_id(id){
+                const el = this.chat.querySelector(`[data-id="${id}"]`);
+                if (!el) return false;
+                else return true;
+            }
+
             prepend(msg,read=false) {
                 if (!msg) return;
                 const oldscrolltop = this.chat.scrollTop;
@@ -379,11 +385,24 @@
             localStorage.setItem("lastreadchat", JSON.stringify({}));
             var lastreadchat = {};
         }
+
+        try {
+            var localChats = JSON.parse(localStorage.getItem("Chats"))
+            console.log(localChats)
+            if (localChats=== null) {
+                localChats = {};
+            }
+        } catch {
+            localStorage.setItem("Chats", JSON.stringify({}));
+            var localChats = {};
+        }
+
+       
         console.log(lastreadchat)
         var readtimer = null
         const GraphicChat = document.getElementById("chat");
         const graphic = new Graphic(document.getElementById("chat"), (lastReadId) => {
-
+            try{
             if (lastreadchat[CurrentChat]["my"] < lastReadId) {
                 lastreadchat[CurrentChat]["my"] = currentlastread;
                 currentlastread = lastReadId
@@ -404,6 +423,7 @@
                 }
 
             }
+            }catch{}
 
         });
 
@@ -659,8 +679,9 @@
             } else {
                 var classn = "message-left";
             }
+            //l>>>
             var readingflag  = Boolean(classn === "message-right" && lastreadchat[CurrentChat]["other"] >= msg.id)
-            console.log(lastreadchat[CurrentChat],readingflag,lastreadchat[CurrentChat]["other"] , msg.id)
+            console.log(lastreadchat)
             if (msg.datatype === "txt") {
                 console.log(content)
                 if (!start) {
@@ -718,6 +739,7 @@
         async function SavemyMsg(datae) {
             if (datae.success) {
                 var msgencrypt_g = UnCookMessages[datae["uniknownid"]]
+                console.log(datae)
                 await messagedb.save({
                     id: parseInt(datae.message_id),
                     internal_id: parseInt(datae.internal_id),
@@ -735,6 +757,7 @@
         }
 
         async function SaveMsg(datae) {
+            console.log(datae)
             await messagedb.save({
                 id: parseInt(datae.message_id),
                 internal_id: parseInt(datae.internal_id),
@@ -890,12 +913,14 @@
                         }
                     }
 
-
-                new Notification(title=localChats[datae.chat_id], options={
-                    body: `${UserNames[datae.user_id].name}: yjdjt cjj,otybt `,
-                    icon: localChats[datae.chat_id].photo,
-                    badge: localStorage.getItem("logo"),
-                })
+                console.log(localChats[datae.chat_id],localChats)
+                if (datae.user_id !== Data.my_id){
+                    new Notification(title=localChats[datae.chat_id], options={
+                        body: `${UserNames[datae.user_id].name}: новое сообщение`,
+                        icon: localChats[datae.chat_id].photo,
+                        badge: localStorage.getItem("logo"),
+                    })
+                }
                 if (datae.chat_id === CurrentChat) {
                     var msg = {
                         msg: datae.message,
@@ -903,11 +928,16 @@
                         created: datae.datatime,
                         datatype: datae.typemsg
                     }
-                    graphic.add({
-                            type: "tmc",
-                            content: `Новые сообщения`,
-                            classname: "message-center"
-                        })
+                    if (msg.user_id !== Data.my_id){
+                        if (graphic.is_id("new_messages")===false){
+                            graphic.remove("new_messages")
+                            graphic.add({
+                                type: "tmc",
+                                content: `Новые сообщения`,
+                                classname: "message-center",
+                                id: "new_messages"
+                            })}
+                        }
                     UpdateGUI({
                         id: datae.message_id,
                         created: datae.datatime,
@@ -947,6 +977,7 @@
                 console.log(lastreadchat)
             } else if (datae.type === "old_msgs"){
                 for (var msg of datae.msgs){
+                    console.log(msg)
                     await messagedb.save({           
                         id: parseInt(msg.id),
                         internal_id: parseInt(msg.internal_id),
@@ -965,11 +996,34 @@
                         user_id: msg.user_id
                     }, true)}
                 }
-            } else if (datae.type === "delete_msg"){
+            } else if (datae.type === "new_msgs"){
+                for (var msg of datae.msgs){
+                    console.log(msg)
+                    await messagedb.save({           
+                        id: parseInt(msg.id),
+                        internal_id: parseInt(msg.internal_id),
+                        chat_id: parseInt(msg.chat_id),
+                        user_id: parseInt(msg.user_id),
+                        datatype: msg.datatype,
+                        msg: msg.content,
+                        created: msg.datatime
+                    })
+                    if (Number(CurrentChat) === Number(msg.chat_id)){
+                    UpdateGUI({
+                        id: msg.id,
+                        created: msg.created,
+                        msg: msg.content,
+                        datatype: msg.datatype,
+                        user_id: msg.user_id
+                    }, false)}
+                }
+            }
+            else if (datae.type === "delete_msg"){
                 messagedb.deleteById(Number(datae.id))
                 graphic.remove(Number(datae.id))
             } else if (datae.type === "post_msg_interval"){
                 for (let m of datae.messages){
+                    console.log(m)
                     messagedb.save({           
                         id: parseInt(m.id),
                         internal_id: parseInt(m.internal_id),
@@ -1201,7 +1255,22 @@
             // ВНИЗ
             if (GraphicChat.scrollTop + chat.clientHeight >= chat.scrollHeight - 5) {
                 console.log("Низ — можно подгружать новые сообщения");
-                GraphicChat.firstElementChild
+                if (parseInt(GraphicChat.lastElementChild.dataset.id) < Math.max(lastreadchat[Number(CurrentChat)].my,lastreadchat[Number(CurrentChat)].other)) {
+                    var newmsgs = await messagedb.getChatMessages(chatId = parseInt(CurrentChat), 5, parseInt(GraphicChat.firstElementChild.dataset.id))
+                    if (newmsgs.length<1 ){
+                        ws.send(JSON.stringify({
+                            "type":"load_some_msg_new",
+                            "chat_id":CurrentChat,
+                            "id":parseInt(GraphicChat.lastElementChild.dataset.id),
+                            "limit":10
+                            
+                        }))
+                    }
+                    for (let msg of newmsgs.reverse()) {
+                        console.log(msg)
+                        UpdateGUI(msg, false)
+                    }
+                }
             }
 
             // ВВЕРХ
@@ -1371,9 +1440,16 @@
                 })
                 for (let msg of chatmsgs) {
                     console.log(msg)
-                    try{
-                    await UpdateGUI(msg)}catch{}
 
+                    await UpdateGUI(msg)
+
+                }
+                if (chatmsgs.length===0){
+                   ws.send(JSON.stringify(
+                     {type:"get_last",
+                        chat_id:Number(CurrentChat)
+                     }
+                   ))
                 }
             }
             //if (e.target.closest(".message-right")){
@@ -1592,7 +1668,8 @@
             if (result.success === true) {
                 console.log('🎉 Вход выполнен!');
                 localStorage.removeItem("Userdata");
-                window.location.herf = "/";
+                window.location.href = window.location.origin;
+                messagedb.deleteDB()
             }
 
         });
