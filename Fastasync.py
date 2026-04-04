@@ -359,7 +359,9 @@ async def websocket_endpoint(ws: WebSocket):
         if this_email in wait_for and this_deviceid != "newdevice":
             for message in wait_for[this_email]:
                 await ws.send_json(message)
-                wait_for[device_id].remove(message)
+                try:
+                    wait_for[this_email][device_id].remove(message)
+                except:pass
         #print(f'#{Database.get_user_Inventives(device_id.split("|")[0])}#')
         if this_deviceid != "newdevice":
             for inventive in Database.get_user_Inventives(this_email):
@@ -567,6 +569,7 @@ async def websocket_endpoint(ws: WebSocket):
                                   "success":False})
                     
             if msg["type"] == "Getnewlast":
+                print(msg)
                 if Database.get_user_by_id(msg["id"])["email"] == device_id.split("|id")[0] and device_id.split("|id")[1] != "newdevice":
                     MyLastIDs = msg["lastids"]
                     print(MyLastIDs)
@@ -602,7 +605,7 @@ async def websocket_endpoint(ws: WebSocket):
             
             if msg["type"] == "load_some_msg_new":
                 msgs=Database.get_messages_more_less(msg["chat_id"],msg["id"],msg["limit"],False)
-                await ws.send_json({"type":"new_msgs","msgs":msgs})
+                await ws.send_json({"type":"new_msgs","msgs":msgs,"chat_id":msg["chat_id"]})
 
             if msg["type"] == "deletemsg":
                 Database.delete_message(int(msg["id"]))
@@ -848,26 +851,34 @@ async def challenge(request:Request):
     user = Database.get_user_by_email(data["email"])
     if user is not None:
         challenge=os.urandom(32).hex()
+        not_in = False
         if data["what"]["x"]=="auth":
             if data["email"] not in challenges_auth:
                 challenges_auth[data["email"]]={"challenge":challenge,"datatime": datetime.now()}
+                not_in=True
         elif data["what"]["x"]=="del":
             if data["email"] not in challenges_del:
                 challenges_del[data["email"]]={"challenge":challenge,"datatime": datetime.now()}
+                not_in=True
         elif data["what"]["x"]=="prof":
             if data["email"] not in challenges_prof:
                 challenges_prof[data["email"]]={"challenge":challenge,"datatime": datetime.now()}  
+                not_in=True
         elif data["what"]["x"]=="no_i_not" or data["what"]["x"]=="yes_i_my" :
             if data["email"] not in challenges_conn_device:
-                challenges_conn_device[data["email"]]={"challenge":challenge,"datatime": datetime.now()}        
+                challenges_conn_device[data["email"]]={"challenge":challenge,"datatime": datetime.now()}
+                not_in=True  
         elif data["what"]["x"]=="removedevice" :
             if data["email"] not in removedevicekeys:
-                removedevicekeys[data["email"]]={"challenge":challenge,"datatime": datetime.now()}        
+                removedevicekeys[data["email"]]={"challenge":challenge,"datatime": datetime.now()}
+                not_in=True  
         else:
-            return {"success":False}
+            print("uncorrect challenge format",not_in)
+            return {"success":False,"wh":"unc"}
         return {"success":True, "challenge":challenge}
     else:
-        return {"success":False,"wh":"not"}
+        print("user non")
+        return {"success":False,"wh":"notdb"}
 
 @app.post("/podpis")
 async def podpis(request:Request):
@@ -1018,29 +1029,14 @@ async def podpis(request:Request):
 
 
         if data["what"]["x"] == "removedevice":
-            dname=data["device"]
             devices = Database.get_user_devices(int(data["id"]))
             print("devices",devices)
             if len(devices)<2:
                 return {"success":True,"answ":"no"}
             else:
-                flaf=False
-                for d in devices:
-                    if d["name"]==dname:
-                        if d["publickey"] is not None:
-                            id1=d["id"]
-                            pbk=d["publickey"]
-                            pbkcrypt=d["publickeycrypt"]
-                            flaf=True
-                            break
-                if flaf:
-                    for d2 in devices:
-                        if d2["publickey"] is None:
-                            if Database.update_device(id=d2["id"],publickey=pbk,publickeycrypt=pbkcrypt)["success"]:
-                                Database.delete_Device(id1)
-                                return {"success":True,"answ":"yes"}
-                            else:break
-                return {"success":True,"answ":"no"}
+                Database.delete_Device(int(data["device_id"]))
+                return {"success":True,"answ":"yes"}
+
                             
 
     else:

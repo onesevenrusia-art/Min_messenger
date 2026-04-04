@@ -127,7 +127,7 @@ class MessageStore {
     }
 
     /* ---------- PAGINATION: NEWER MESSAGES ---------- */
-    async loadNewerMessages(chatId, afterGlobalId) {
+    async loadNewerMessages(chatId, afterGlobalId,limit=10) {
         const store = await this._store();
         const index = store.index("chat_global");
 
@@ -139,7 +139,7 @@ class MessageStore {
             const req = index.openCursor(range); // идём вперёд
             req.onsuccess = (e) => {
                 const cursor = e.target.result;
-                if (cursor) {
+                if (cursor && result.length < limit) {
                     result.push(cursor.value);
                     cursor.continue();
                 } else {
@@ -150,36 +150,49 @@ class MessageStore {
         });
     }
 
-    async getChatMessages(chatId, limit = 30, beforeGlobalId = Infinity) {
-        const store = await this._store();
-        const index = store.index("chat_global"); // ["chat_id", "id"]
+    async getChatMessages(chatId, limit = 30, beforeGlobalId = null) {
+
+        chatId = Number(chatId)
     
-        // фиксируем chatId
+        if (!beforeGlobalId) {
+            beforeGlobalId = Number.MAX_SAFE_INTEGER
+        }
+    
+        beforeGlobalId = Number(beforeGlobalId)
+    
+        const store = await this._store()
+        const index = store.index("chat_global")
+    
         const range = IDBKeyRange.bound(
-            [chatId, 0],                  // нижняя граница
-            [chatId, beforeGlobalId],     // верхняя
-            false,                        // включаем нижнюю
-            true                          // исключаем beforeGlobalId
-        );
+            [chatId, 0],
+            [chatId, beforeGlobalId],
+            false,
+            true
+        )
     
-        const result = [];
+        const result = []
     
         return new Promise((resolve, reject) => {
-            const req = index.openCursor(range, "prev");
+    
+            const req = index.openCursor(range, "prev")
     
             req.onsuccess = (e) => {
-                const cursor = e.target.result;
+    
+                const cursor = e.target.result
     
                 if (cursor && result.length < limit) {
-                    result.push(cursor.value);
-                    cursor.continue();
-                } else {
-                    resolve(result.reverse());
-                }
-            };
     
-            req.onerror = () => reject(req.error);
-        });
+                    result.push(cursor.value)
+                    cursor.continue()
+    
+                } else {
+    
+                    resolve(result.reverse())
+                }
+            }
+    
+            req.onerror = reject
+        })
     }
     /* ---------- CLEAR DB (опционально) ---------- */
     async deleteDB() {

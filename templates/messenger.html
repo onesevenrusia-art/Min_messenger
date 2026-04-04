@@ -237,7 +237,6 @@
                 });
             }
             _createMessage(msg,read=false) {
-                console.log(msg)
                 const div = document.createElement("div");
                 div.className = msg.classname
                 var st={true:"🟢",
@@ -248,7 +247,6 @@
                     const user = document.createElement("p");
                     user.className = "name";
                     user.textContent = msg.namesender;
-                    console.log(msg.type)
                     if (msg.type === "txt") {
                         var text = document.createElement("p");
                         text.className = "text";
@@ -289,10 +287,19 @@
                 }
             }
 
-            add(msg,read=false) {
-                const el = this._createMessage(msg,read);
+            add(msg, read = false) {
+
+                const isAtBottom =
+                    this.chat.scrollTop + this.chat.clientHeight >=
+                    this.chat.scrollHeight - 20;
+
+                const el = this._createMessage(msg, read);
+
                 this.chat.appendChild(el);
-                this.chat.scrollTop = this.chat.scrollHeight;
+
+                if (isAtBottom) {
+                    this.chat.scrollTop = this.chat.scrollHeight;
+                }
             }
 
             update(id, msg) {
@@ -388,7 +395,7 @@
 
         try {
             var localChats = JSON.parse(localStorage.getItem("Chats"))
-            console.log(localChats)
+            //console.log(localChats)
             if (localChats=== null) {
                 localChats = {};
             }
@@ -398,7 +405,7 @@
         }
 
        
-        console.log(lastreadchat)
+        //console.log(lastreadchat)
         var readtimer = null
         const GraphicChat = document.getElementById("chat");
         const graphic = new Graphic(document.getElementById("chat"), (lastReadId) => {
@@ -441,7 +448,7 @@
            //if (sub) {
            //    await sub.unsubscribe()
            //}
-            console.log(DataUser, window.location.origin)
+            //console.log(DataUser, window.location.origin)
             localStorage.clear()
             window.location.href = window.location.origin; // https://basicmimimummessenger.duckdns.org
 
@@ -505,7 +512,7 @@
 
         if (DataUser) {
             const Data = JSON.parse(DataUser);
-            console.log(Data);
+            //console.log(Data);
             const delay = 1;
 
             const result = await confirmIdentity(Data.my_id, Data.device_id, Data.email, Data.privatekey, Data.device, {
@@ -590,10 +597,11 @@
 
         async function DownloadingMSGs(chat_id, current_lastid, maxid) {
             if (current_lastid<maxid){
+                console.log(chat_id, current_lastid, maxid)
                 ws.send(JSON.stringify({
                     "type": "get_msg_interval",
                     "chat_id": chat_id,
-                    "min": current_lastid+1,
+                    "min": current_lastid,
                     "max": maxid
                 }))
             }
@@ -606,7 +614,7 @@
                 //console.log(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
                 var tag = false;
                 var date = new Date(msg.created)
-                console.log(date)
+                //console.log(date)
                 if (!isSameDay(lastDate, date) && lastDate !== null && msg.user_id !== Data.my_id) {
                     if (start) {
                         graphic.prepend({
@@ -636,7 +644,7 @@
                 } else {
                     try {
                         if (th) {
-                            console.log(msg)
+                            //console.log(msg)
                             var prepared = await prepareEncryptedPackage({
                                 encryptedKeyPath: `/media/encrypted/${msg.id}.key`,
                                 encryptedDataPath: `/media/encrypted/${msg.id}.bin`,
@@ -654,7 +662,6 @@
                 if (th) {
                     if (msg.user_id in UserNames) {
                         name = UserNames[msg.user_id]["name"]
-                        console.log(name)
                     } else {
                         name = await GetName(id = msg.user_id)
                         name = name["name"]
@@ -681,15 +688,15 @@
             }
             //l>>>
             var readingflag  = Boolean(classn === "message-right" && lastreadchat[CurrentChat]["other"] >= msg.id)
-            console.log(lastreadchat)
+            //console.log(lastreadchat)
             if (msg.datatype === "txt") {
-                console.log(content)
+                //console.log(content)
                 if (!start) {
                     graphic.add({
                         type: msg.datatype,
                         id: msg.id,
                         content: content,
-                        time: `${date.getHours()}:${date.getMinutes()}`,
+                        time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
                         namesender: name,
                         classname: classn
                     },readingflag)
@@ -706,13 +713,13 @@
 
             }
             if (msg.datatype === "img" || msg.datatype === "voice") {
-                console.log(msg)
+                //console.log(msg)
                 if (msg.datatype === "img") {
                     var img = await convertImage(content)
                 } else {
                     var img = content
                 }
-                console.log(img)
+                //console.log(img)
                 if (!start) {
                     graphic.add({
                         type: msg.datatype,
@@ -739,7 +746,7 @@
         async function SavemyMsg(datae) {
             if (datae.success) {
                 var msgencrypt_g = UnCookMessages[datae["uniknownid"]]
-                console.log(datae)
+                //console.log(datae)
                 await messagedb.save({
                     id: parseInt(datae.message_id),
                     internal_id: parseInt(datae.internal_id),
@@ -757,7 +764,7 @@
         }
 
         async function SaveMsg(datae) {
-            console.log(datae)
+            //console.log(datae)
             await messagedb.save({
                 id: parseInt(datae.message_id),
                 internal_id: parseInt(datae.internal_id),
@@ -883,7 +890,7 @@
                 //console.log(datae.chat)
                 ChatsData[datae.chat.id] = datae.chat
                 if (lastreadchat.length===0 || ! (Number(datae.chat.id) in lastreadchat)){
-                    lastreadchat[Number(datae.chat.id)] = {"my":0,"other":0,"this_device":0}
+                    lastreadchat[Number(datae.chat.id)] = {"my":0,"other":0,"this_device":0,"max_load":0}
                     localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
                 }
                     
@@ -895,8 +902,15 @@
             } else if (datae.type === "addmymsg") {
                 SavemyMsg(datae)
                 graphic.setNewID(old_id=`my${datae.uniknownid}`,new_id=datae.message_id)
+                var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
+                lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
+                localStorage.setItem("lastreadchat",JSON.stringify(lsrd))
             } else if (datae.type === "addmsg") {
                 SaveMsg(datae)
+                var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
+                lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
+                localStorage.setItem("lastreadchat",JSON.stringify(lsrd))
+
 
 
                 if (datae.user_id in UserNames) {
@@ -972,6 +986,7 @@
                 console.log(lastreadchat[CurrentChat])
                 for (const [k, v] of Object.entries(lastreadchat)){
                     DownloadingMSGs(Number(k),v.this_device,v.other)
+
                 }
 
                 console.log(lastreadchat)
@@ -997,6 +1012,11 @@
                     }, true)}
                 }
             } else if (datae.type === "new_msgs"){
+                var i = 0;
+                var last = 0
+                if (datae.chat_id !== null){
+                    i = Number(datae.chat_id)
+                }
                 for (var msg of datae.msgs){
                     console.log(msg)
                     await messagedb.save({           
@@ -1008,6 +1028,7 @@
                         msg: msg.content,
                         created: msg.datatime
                     })
+                    last =  parseInt(msg.id)
                     if (Number(CurrentChat) === Number(msg.chat_id)){
                     UpdateGUI({
                         id: msg.id,
@@ -1017,13 +1038,26 @@
                         user_id: msg.user_id
                     }, false)}
                 }
+                //if (i>0){
+                //    var l = JSON.parse(localStorage.getItem("lastreadchat"))
+                //    if (l[i].last_load < last){
+                //        l[i].last_load = last
+                //        localStorage.setItem("lastreadchat",JSON.stringify(l))
+                //    }
+                //}
             }
             else if (datae.type === "delete_msg"){
                 messagedb.deleteById(Number(datae.id))
                 graphic.remove(Number(datae.id))
             } else if (datae.type === "post_msg_interval"){
-                for (let m of datae.messages){
-                    console.log(m)
+                let m = null
+                var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
+                for (let m of datae.messages.reverse()){
+                    //console.log(m)
+                    if (m.id > lsrd[Number(m.chat_id)].this_device){
+                        lsrd[Number(m.chat_id)].this_device = Number(m.id)
+                    }
+
                     messagedb.save({           
                         id: parseInt(m.id),
                         internal_id: parseInt(m.internal_id),
@@ -1043,6 +1077,9 @@
                         }, false)
                     }
                 }
+                localStorage.setItem("lastreadchat",JSON.stringify(lsrd))
+                
+
 
             } else if (datae.type === "call_answ"){
                 if (datae.success === true){
@@ -1250,25 +1287,27 @@
         document.getElementById("inputsearchuser").addEventListener("blur", function() {
             document.querySelector("#SearchUser").style.display = "none";
         });
-
+        var scrolling_flag = false;
         GraphicChat.addEventListener("scroll", async function() {
-            // ВНИЗ
-            if (GraphicChat.scrollTop + chat.clientHeight >= chat.scrollHeight - 5) {
-                console.log("Низ — можно подгружать новые сообщения");
+            if (GraphicChat.scrollTop + chat.clientHeight >= chat.scrollHeight - 5 && scrolling_flag === false) {
+                console.log("Низ — можно подгружать новые сообщения",GraphicChat.lastElementChild.dataset.id);
                 if (parseInt(GraphicChat.lastElementChild.dataset.id) < Math.max(lastreadchat[Number(CurrentChat)].my,lastreadchat[Number(CurrentChat)].other)) {
-                    var newmsgs = await messagedb.getChatMessages(chatId = parseInt(CurrentChat), 5, parseInt(GraphicChat.firstElementChild.dataset.id))
-                    if (newmsgs.length<1 ){
-                        ws.send(JSON.stringify({
-                            "type":"load_some_msg_new",
-                            "chat_id":CurrentChat,
-                            "id":parseInt(GraphicChat.lastElementChild.dataset.id),
-                            "limit":10
-                            
-                        }))
-                    }
-                    for (let msg of newmsgs.reverse()) {
-                        console.log(msg)
-                        UpdateGUI(msg, false)
+                    if (parseInt(GraphicChat.lastElementChild.dataset.id) !== null && parseInt(CurrentChat)!==null){
+                        scrolling_flag=true;
+                        var newmsgs = await messagedb.loadNewerMessages(parseInt(CurrentChat), parseInt(GraphicChat.lastElementChild.dataset.id)+1,5)
+                        console.log(newmsgs,parseInt(CurrentChat),5, parseInt(GraphicChat.lastElementChild.dataset.id))
+                        if (newmsgs.length<1 ){
+                            ws.send(JSON.stringify({
+                                "type":"load_some_msg_new",
+                                "chat_id":CurrentChat,
+                                "id":parseInt(GraphicChat.lastElementChild.dataset.id),
+                                "limit":10
+                            }))
+                        }
+                        for (let msg of newmsgs) {
+                            UpdateGUI(msg, false)
+                        }
+                        scrolling_flag=false;
                     }
                 }
             }
@@ -1278,17 +1317,16 @@
                 console.log("Верх — можно подгружать старые сообщения");
                 if (parseInt(GraphicChat.firstElementChild.dataset.id) < lastIdload || lastIdload === -1) {
                     var newmsgs = await messagedb.getChatMessages(chatId = parseInt(CurrentChat), 5, parseInt(GraphicChat.firstElementChild.dataset.id))
+                    console.log(newmsgs)
                     if (newmsgs.length<1 ){
                         ws.send(JSON.stringify({
                             "type":"load_some_msg",
                             "chat_id":CurrentChat,
                             "id":parseInt(GraphicChat.firstElementChild.dataset.id),
                             "limit":10
-                            
                         }))
                     }
                     for (let msg of newmsgs.reverse()) {
-                        console.log(msg)
                         UpdateGUI(msg, true)
                     }
                     lastIdload = parseInt(GraphicChat.firstElementChild.dataset.id)
@@ -1359,7 +1397,7 @@
 
         document.getElementById("deleteMsg").addEventListener("click",async function() {
             graphic.remove(activeMessageId);
-            console.log(typeof activeMessageId,typeof activeMessageId===Number)
+            //console.log(typeof activeMessageId,typeof activeMessageId===Number)
             if (!String(activeMessageId).includes("my")) {
                 
                 ws.send(JSON.stringify({
@@ -1430,7 +1468,7 @@
                     //console.log(chatmsgs)
                 document.getElementById("shapechatavatar").src = ChatsData[CurrentChat].photo;
                 document.getElementById("shapechatname").innerText = ChatsData[CurrentChat].name;
-                console.log(ChatsData[CurrentChat].type)
+                //console.log(ChatsData[CurrentChat].type)
                 if (!(innerWidth > 480))
                     document.getElementById("chatbox").classList.add("hide");
                 document.querySelectorAll(".wind").forEach(e => {
@@ -1439,7 +1477,7 @@
                         e.style.width = "67%"
                 })
                 for (let msg of chatmsgs) {
-                    console.log(msg)
+                    //console.log(msg)
 
                     await UpdateGUI(msg)
 
@@ -1606,13 +1644,7 @@
                     device_id: Data.device_id
                 });
                 console.log(res);
-                if (res.result === false && (res.what == "auth" || res.what == "server")) {
-                    localStorage.clear();
-                    messagedb.deleteDB()
-                    window.close();
-                    window.location.href = '/';
-                    return true;
-                } else if (res.result === true) {
+                if (res.result === true) {
                     if (res.result.answ == "yes") {
                         localStorage.clear();
 
@@ -1892,7 +1924,7 @@
                 const challengeResult = await challengeResponse.json();
                 if (challengeResult.success === false) {
                     try {
-                        if (challengeResult.wh === "not") {
+                        if (challengeResult.wh === "notdb") {
                             localStorage.clear()
                             messagedb.deleteDB()
                             //const reg = await navigator.serviceWorker.ready
