@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encrypt file</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body, html {
+            height: 100%;
+            width: 100%;
+        }
+        
+        .main {
+            height: 100%;
+            width: 100%;
+            background-color: rgb(202, 202, 202);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1;
+            position: relative; /* для позиционирования loading относительно main */
+        }
+        
+        .loadingbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 100vw;
+            background-color: rgba(0, 0, 0, 0.671);  
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* Показываем loadingbox как flex */
+        .loadingbox.active {
+            display: flex;
+        }
+        
+        .white-load {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px;
+            min-width: 300px;
+            border-radius: 10px;
+            border: 1px solid black;
+            background-color: aliceblue;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        
+        .white-load h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .white-load p {
+            margin-top: 15px;
+            color: #666;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .rowel {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px;
+        }
+        
+        .keyinput {
+            min-width: 35%;
+            margin-top: 1px;
+            margin-bottom: 1px;
+        }
+        
+        .keybox {
+            margin: 0;
+            padding: 10px; /* исправлено с 10 на 10px */
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #generatekey {
+            border: 1px solid black;
+            border-radius: 15px;
+            font-size: 20px;
+            color: rgb(0, 0, 0);
+            background-color: rgb(130, 255, 47);
+            min-width: none;
+            padding: 7px;
+        }
+        
+        #generatekey:hover {
+            background-color: rgb(31, 201, 54);
+            transform: scale(108%);
+        }
+        
+        #copykeydiv {
+            display: none;
+        }
+        
+        .cryptobtn {
+            border: 1px solid black;
+            border-radius: 8px;
+            font-size: 15px;
+            color: rgb(0, 0, 0);
+            background-color: rgb(80, 92, 248);
+            min-width: none;
+            padding: 7px;
+        }
+        
+        .cryptobtn:hover {
+            background-color: rgb(133, 31, 201);
+            transform: scale(110%);
+        }
+    </style>
+</head>
+<body>
+    <div class="main">
+        <div class="keybox">
+            <h2 style="margin: 5px;">Сгенерировать ключи</h2>
+            <div class="rowel">
+                <button id="generatekey">generate</button>
+                <div id="copykeydiv">
+                    <div class="rowel">
+                        <p>publickey:</p>
+                        <button class="download" id="savepubkeyasfile" title="сохранить в файл">📥</button>
+                        <button class="clipboard" id="savepubkeyasbo" title="сохранить в буфер обмена">⿻</button>
+                        <button id="default">Сделать ключом по умолчанию</button>
+                    </div>
+                    <div class="rowel">
+                        <p>privatekeykey:</p>
+                        <button class="download" id="saveprivkeyasfile" title="сохранить в файл">📥</button>
+                        <button class="clipboard" id="saveprivkeyasbo" title="сохранить в буфер обмена">⿻</button>
+                    </div>
+                </div> 
+            </div>
+        </div>
+
+        <div class="keybox">
+            <h2 style="margin: 5px;">Загрузить ключи</h2>
+            <div class="rowel">
+                <p>publickey:</p>
+                <input id="input_publickey" class="keyinput" placeholder="default">
+                <button id="loadpubfromfile" title="загрузить из файла" accept=".txt">📥</button>
+                <input type="file" id="fileInputpub" accept=".txt" style="display:none">
+            </div>
+            <div class="rowel">
+                <p>privatekeykey:</p>
+                <input id="input_privatekey" class="keyinput">
+                <button id="loadprivfromfile" title="загрузить из файла" accept=".txt">📥</button>
+                <input type="file" id="fileInputpriv" accept=".txt" style="display:none">
+            </div>
+        </div>
+
+        <div class="keybox">
+            <h2 style="margin: 5px;">Зашифровать файл</h2>
+            <input type="file" id="encryptfileInput" multiple>
+            <button class="cryptobtn" id="startencrypt">Encrypt</button>
+        </div>
+
+        <div class="keybox">
+            <h2 style="margin: 5px;">Расшифровать файл</h2>
+            <input type="file" accept=".enc" id="decryptfileInput" multiple>
+            <button class="cryptobtn" id="startdecrypt">Decrypt</button>
+        </div>
+    </div>
+
+    <div id="loading" class="loadingbox">
+        <div class="white-load">
+            <h2>Пожалуйста, подождите</h2>
+            <div class="loading-spinner"></div>
+            <p>Идет обработка данных...</p>
+        </div>
+    </div>
+
+    <script>
+
+
+        // 1. Вспомогательные функции
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        // 2. Генерация ключей шифрования
+        async function generateEncryptionKeyPair() {
+            const keyPair = await crypto.subtle.generateKey({
+                    name: "RSA-OAEP",
+                    modulusLength: 2048,
+                    publicExponent: new Uint8Array([1, 0, 1]),
+                    hash: "SHA-256",
+                },
+                true, ["encrypt", "decrypt"]
+            );
+
+            const exportedPublicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey);
+            const exportedPrivateKey = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+
+            return {
+                publicKey: arrayBufferToBase64(exportedPublicKey),
+                privateKey: arrayBufferToBase64(exportedPrivateKey)
+            };
+        }
+
+        // 3. Импорт ключей
+        async function importPublicKey(publicKeyB64) {
+            const keyData = base64ToArrayBuffer(publicKeyB64);
+            return await crypto.subtle.importKey(
+                "spki",
+                keyData, {
+                    name: "RSA-OAEP",
+                    hash: "SHA-256"
+                },
+                true, ["encrypt"]
+            );
+        }
+
+        async function importPrivateKey(privateKeyB64) {
+            const keyData = base64ToArrayBuffer(privateKeyB64);
+            return await crypto.subtle.importKey(
+                "pkcs8",
+                keyData, {
+                    name: "RSA-OAEP",
+                    hash: "SHA-256"
+                },
+                true, ["decrypt"]
+            );
+        }
+
+        async function encryptFile(file, publicKeyB64) {
+            const publicKey = await importPublicKey(publicKeyB64);
+            // 1️⃣ читаем файл
+            const fileBuffer = await file.arrayBuffer();
+
+            // 2️⃣ генерируем AES ключ
+            const aesKey = await crypto.subtle.generateKey(
+                { name: "AES-GCM", length: 256 },
+                true,
+                ["encrypt"]
+            );
+
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+
+            const encryptedData = await crypto.subtle.encrypt(
+                { name: "AES-GCM", iv },
+                aesKey,
+                fileBuffer
+            );
+
+            // 3️⃣ шифруем AES ключ через RSA
+            const rawAesKey = await crypto.subtle.exportKey("raw", aesKey);
+
+            const encryptedKey = await crypto.subtle.encrypt(
+                { name: "RSA-OAEP" },
+                publicKey,
+                rawAesKey
+            );
+
+            // 4️⃣ кодируем имя файла
+            const encoder = new TextEncoder();
+            const nameBytes = encoder.encode(file.name);
+            const nameLength = new Uint32Array([nameBytes.length]);
+
+            const keyLength = new Uint32Array([encryptedKey.byteLength]);
+
+            // 5️⃣ собираем финальный Blob
+            const finalBlob = new Blob([
+                nameLength.buffer,
+                nameBytes,
+                keyLength.buffer,
+                encryptedKey,
+                iv,
+                encryptedData
+            ], { type: "application/octet-stream" });
+
+            return finalBlob;
+        }
+
+        async function decryptFile(encFile, privateKeyB64) {
+            const privateKey = await importPrivateKey(privateKeyB64)
+            const buffer = await encFile.arrayBuffer();
+            const view = new DataView(buffer);
+
+            let offset = 0;
+
+            // 1️⃣ читаем длину имени
+            const nameLength = view.getUint32(offset, true);
+            offset += 4;
+
+            // 2️⃣ читаем имя
+            const nameBytes = buffer.slice(offset, offset + nameLength);
+            const fileName = new TextDecoder().decode(nameBytes);
+            offset += nameLength;
+
+            // 3️⃣ длина RSA ключа
+            const keyLength = view.getUint32(offset, true);
+            offset += 4;
+
+            // 4️⃣ зашифрованный AES ключ
+            const encryptedKey = buffer.slice(offset, offset + keyLength);
+            offset += keyLength;
+
+            // 5️⃣ IV
+            const iv = buffer.slice(offset, offset + 12);
+            offset += 12;
+
+            // 6️⃣ зашифрованные данные
+            const encryptedData = buffer.slice(offset);
+
+            // 7️⃣ расшифровываем AES ключ
+            const rawAesKey = await crypto.subtle.decrypt(
+                { name: "RSA-OAEP" },
+                privateKey,
+                encryptedKey
+            );
+
+            const aesKey = await crypto.subtle.importKey(
+                "raw",
+                rawAesKey,
+                { name: "AES-GCM" },
+                false,
+                ["decrypt"]
+            );
+
+            // 8️⃣ расшифровываем данные
+            const decryptedData = await crypto.subtle.decrypt(
+                { name: "AES-GCM", iv: new Uint8Array(iv) },
+                aesKey,
+                encryptedData
+            );
+
+            return {
+                blob: new Blob([decryptedData]),
+                fileName: fileName
+            };
+        }
+
+    document.addEventListener('DOMContentLoaded', async function(){
+            const keypairdiv = document.getElementById("copykeydiv");
+            const generate_btn = document.getElementById("generatekey");
+            const encrypt_btn = document.getElementById("startencrypt");
+            const decrypt_btn = document.getElementById("startdecrypt");
+            const savepubkeyasfile_btn = document.getElementById("savepubkeyasfile");
+            const savepubkeyasbo_btn = document.getElementById("savepubkeyasbo");
+            const saveprivkeyasfile_btn = document.getElementById("saveprivkeyasfile");
+            const saveprivkeyasbo_btn = document.getElementById("saveprivkeyasbo");
+            const loadpubfromfile_btn = document.getElementById("loadpubfromfile");
+            const loadprivfromfile_btn = document.getElementById("loadprivfromfile");
+            const input_publickey = document.getElementById("input_publickey");
+            const input_privatekey = document.getElementById("input_privatekey");
+            const pastfilenecrypt = document.getElementById("encryptfileInput");
+            const pastfiledecrypt = document.getElementById("decryptfileInput");
+            const loadingbox = document.getElementById("loading");
+            var currentPublickey = null
+            var currentPrivatekey = null
+            var fileencrypt = null
+            var filedecrypt = null
+            var publickeydefault = JSON.parse(localStorage.getItem("publickeydefault"))
+            console.log(publickeydefault)
+            if (publickeydefault === null){
+                input_publickey.placeholder = "введите ключ";
+            }
+            var generatedkeys = {
+                public:"",
+                private:""
+            }
+
+            document.getElementById("default").addEventListener("click", function(){
+                if (input_publickey.value !== ""){
+                    localStorage.setItem("publickeydefault",JSON.stringify({v:input_publickey.value}))
+                }
+            });
+            
+            function downloadTXTFile(fileName,fileContent) {
+                const blob = new Blob([fileContent], { type: "text/plain" });
+
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = fileName;
+
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            }
+
+            function downloadEnc(file,name){
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(file);
+                link.download = name + ".enc";
+                link.click();
+                URL.revokeObjectURL(link.href);
+            }
+
+            function downloadnorm(result){
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(result.blob);
+                link.download = result.fileName;
+                link.click();
+
+                URL.revokeObjectURL(link.href);
+            }
+            
+            function showLoading() {
+                loadingbox.classList.add('active');
+            }
+            
+            function hideLoading() {
+                loadingbox.classList.remove('active');
+            }
+
+            generate_btn.addEventListener("click", async function(){
+                showLoading();
+                var keypair = await generateEncryptionKeyPair();
+                keypairdiv.style.display = "block";
+                console.log(keypair)
+                generatedkeys.public = keypair.publicKey
+                generatedkeys.private = keypair.privateKey
+                setTimeout(() => {
+                    hideLoading();
+                }, 500);
+            });
+
+            savepubkeyasbo_btn.addEventListener("click", async () => {
+                const text = generatedkeys.public
+
+            });
+            document.querySelectorAll(".clipboard").forEach(el => {
+                el.addEventListener("click", async function (e) {
+                    console.log(e.srcElement.id)
+                    switch (e.srcElement.id){
+                        case "savepubkeyasbo":{
+                            var text = generatedkeys.public
+                            break;
+                        }
+                        case "saveprivkeyasbo":{
+                            var text = generatedkeys.private
+                            break;
+                        }
+                    }
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        //alert("Скопировано!");
+                    } catch (err) {
+                        console.error("Ошибка копирования:", err);
+                    }
+                })
+            });
+
+            document.querySelectorAll(".download").forEach(el => {
+                el.addEventListener("click", async function (e) {
+                    console.log(e.srcElement.id)
+                    switch (e.srcElement.id){
+                        case "savepubkeyasfile":{
+                            var text = generatedkeys.public
+                            var name = "publickey.txt"
+                            break;
+                        }
+                        case "saveprivkeyasfile":{
+                            var text = generatedkeys.private
+                            var name = "privatekey.txt"
+                            break;
+                        }
+                    }
+                    downloadTXTFile(fileName=name,fileContent=text)
+                })
+            });
+
+            function readFileAsText(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = () => reject(reader.error);
+                    reader.readAsText(file);
+                });
+            }
+
+            function selectFile(InputElement, acceptedtype=".txt") {
+                return new Promise((resolve, reject) => {
+                    InputElement.type = "file";
+                    InputElement.accept = acceptedtype;
+
+                    InputElement.onchange = () => {
+                        const file = InputElement.files[0];
+                        if (file) resolve(file);
+                        else reject("Файл не выбран");
+                    };
+                    InputElement.click();
+                });
+            }
+
+            loadpubfromfile_btn.addEventListener("click", async function(){
+                var file = await selectFile(document.getElementById("fileInputpub"));
+                var content = await readFileAsText(file)
+                currentPublickey = content
+                input_publickey.value = content
+            })
+
+            loadprivfromfile_btn.addEventListener("click", async function(){
+                var file = await selectFile(document.getElementById("fileInputpriv"));
+                var content = await readFileAsText(file)
+                currentPrivatekey = content
+                input_privatekey.value = content
+            })
+
+            encrypt_btn.addEventListener("click", async function () {
+                if (input_publickey.value !== "" && fileencrypt !== null){
+                    try{
+                        showLoading()
+                        var enc = await encryptFile(fileencrypt, input_publickey.value)
+                        setTimeout(hideLoading,300)
+                        downloadEnc(enc,fileencrypt.name)
+                    }
+                    catch (error){
+                        alert("ошибка шифрования")
+                        console.log(error)
+                        hideLoading()
+                    }
+                }
+            })
+
+            decrypt_btn.addEventListener("click", async function () {
+                if (input_privatekey.value !== "" && filedecrypt !== null){
+                    try{
+                        showLoading()
+                        var dec = await decryptFile(filedecrypt, input_privatekey.value)
+                        setTimeout(hideLoading,300)
+                        downloadnorm(dec)
+                    }
+                    catch(error){
+                        alert("ошибка расшифровки")
+                        console.log(error)
+                        hideLoading()
+                    }
+                }
+            })
+
+            pastfilenecrypt.addEventListener("change",() => {
+                fileencrypt = pastfilenecrypt.files[0]
+            },{once:true})
+
+            pastfiledecrypt.addEventListener("change",() => {
+                filedecrypt = pastfiledecrypt.files[0]
+            },{once:true})
+
+        });
+    </script>
+</body>
+</html>

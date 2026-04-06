@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<button onclick="startCall()">Call</button>
+<audio id="remoteAudio" autoplay></audio>
+
+<script>
+
+const ws = new WebSocket("wss://" + window.location.hostname + ":443/ws"); // твой сервер
+
+let pc;
+let localStream;
+
+async function init(){
+    pc = new RTCPeerConnection({
+        iceServers:[
+            {urls:"stun:stun.l.google.com:19302"}
+        ]
+    });
+    // микрофон
+    localStream = await navigator.mediaDevices.getUserMedia({audio:true});
+
+    localStream.getTracks().forEach(track=>{
+        pc.addTrack(track, localStream);
+    });
+
+    // принимаем аудио
+    pc.ontrack = e=>{
+        document.getElementById("remoteAudio").srcObject = e.streams[0];
+    };
+
+    // ICE кандидаты
+    pc.onicecandidate = e=>{
+        if(e.candidate){
+            console.log(e.candidate)
+            ws.send(JSON.stringify({
+                type:"ice",
+                candidate:e.candidate
+            }));
+        }
+    };
+}
+
+init();
+
+
+// начать звонок
+async function startCall(){
+
+    let offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    ws.send(JSON.stringify({
+        type:"offer",
+        sdp:offer
+    }));
+
+}
+
+
+// сообщения от websocket
+ws.onmessage = async (event)=>{
+
+    let data = JSON.parse(event.data);
+
+    if(data.type === "offer"){
+
+        await pc.setRemoteDescription(data.sdp);
+
+        let answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        ws.send(JSON.stringify({
+            type:"answer",
+            sdp:answer
+        }));
+    }
+
+
+    if(data.type === "answer"){
+
+        await pc.setRemoteDescription(data.sdp);
+
+    }
+
+
+    if(data.type === "ice"){
+
+        await pc.addIceCandidate(data.candidate);
+
+    }
+
+};
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Push test</title>
+</head>
+<body>
+
+<button id="sub">Subscribe</button>
+
+<script>
+
+async function ServerRequest() {
+    var res = await fetch("/public", {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+    })
+    var result = await res.json()
+    return result;
+}
+
+async function subscribe() {
+    navigator.serviceWorker.getRegistrations().then(r => console.log(r))
+    const reg = await navigator.serviceWorker.register("/static/sw.js")
+    const perm = await Notification.requestPermission()
+    if (perm !== "granted") {
+        alert("Notification permission denied")
+        return
+    }
+    const PUBLIC_KEY = "BG-HCyOguLy-TcAzvObLF_jXqc4L_uwx1s0dYePu0q4gyhDtaHczHR5UfCRojDEj9WGcPTrHKvjLGS-hYtYGGWY";
+    console.log(PUBLIC_KEY)
+    // подписка
+    const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(PUBLIC_KEY)
+    })
+
+    // отправить подписку серверу
+    await fetch("/subscribe", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(sub)
+    })
+
+    console.log("Subscribed", sub)
+}
+
+document.getElementById("sub").onclick = subscribe
+
+
+function urlBase64ToUint8Array(base64String) {
+
+    const padding = '='.repeat((4 - base64String.length % 4) % 4)
+
+    const base64 = (base64String + padding)
+        .replace(/-/g, '+')
+        .replace(/_/g, '/')
+
+    const rawData = window.atob(base64)
+
+    const outputArray = new Uint8Array(rawData.length)
+
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i)
+    }
+
+    return outputArray
+}
+
+</script>
+
+</body>
+</html>
