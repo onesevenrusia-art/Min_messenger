@@ -56,7 +56,7 @@
                 <button id="sendmedia" class="microphone">🎙️</button>
                 <button id="uploadfile" class="microphone" title="Загрузить файл" style="        margin-left: 5px;
         margin-right: 5px;">📎</button>
-                <input type="fileInput" id="fileInput" style="display: none;">
+                <input type="file" id="fileInput" style="display: none;">
             </div>
         </div>
     </div>
@@ -211,6 +211,7 @@
 </body>
 <script src="/static/js/appCrypto.js"></script>
 <script src="static/js/MessagesDB_3.js"></script>
+<script src="static/js/chunksDB.js"></script>
 <script>
     //🔴🟠🟡🟢🔵🟣✅️⚠️❗❌⋮🔗📞
     document.addEventListener('DOMContentLoaded', async function() {
@@ -237,83 +238,165 @@
                     threshold: 0.6
                 });
             }
-            _createMessage(msg,read=false) {
+
+            _createMessage(msg, read = false) {
                 const div = document.createElement("div");
-                div.className = msg.classname
-                var st={true:"🟢",
-                    false:"🔴"
-                }
+                div.className = msg.classname;
+
+                const st = { true: "🟢", false: "🔴" };
+
                 if (msg.type !== "tmc") {
                     div.dataset.id = msg.id;
+
                     const user = document.createElement("p");
                     user.className = "name";
                     user.textContent = msg.namesender;
-                    if (msg.type === "txt") {
-                        var text = document.createElement("p");
-                        text.className = "text";
-                        text.textContent = msg.content;
+
+                    let contentEl = null;
+
+                    switch (msg.type) {
+                        case "txt":
+                            contentEl = document.createElement("p");
+                            contentEl.className = "text";
+                            contentEl.textContent = msg.content;
+                            break;
+
+                        case "media":
+                            switch (msg.media_type) {
+                                case "image":
+                                    contentEl = document.createElement("img");
+                                    contentEl.style.maxWidth = "300px";
+                                    contentEl.style.maxHeight = "200px";
+                                    break;
+                                case "video":
+                                    contentEl = document.createElement("video");
+                                    contentEl.controls = true;
+                                    contentEl.style.maxWidth = "300px";
+                                    contentEl.style.maxHeight = "200px";
+                                    if (msg.poster)
+                                        contentEl.poster = msg.poster;
+                                    break;
+                                case "audio":
+                                    contentEl = document.createElement("audio");
+                                    contentEl.controls = true;
+                                    contentEl.style.maxWidth = "250px";
+                                    contentEl.style.maxHeight = "35px";
+                                    break;
+                                case "file":
+                                    contentEl = document.createElement("div");
+                                    contentEl.className = "file-block";
+
+                                    const name = document.createElement("p");
+                                    name.textContent = msg.filename || "file";
+
+                                    const size = document.createElement("p");
+                                    size.textContent = formatSize(msg.size || 0);
+
+                                    const download = document.createElement("a");
+                                    download.textContent = "Скачать";
+                                    download.download = msg.filename || "file";
+                                    contentEl.append(name, size, download);
+                                    break;
+                            }
+
+                            // Если у нас Blob уже есть, сразу ставим src
+                            if (contentEl && msg.content instanceof Blob) {
+                                if (msg.media_type === "file") {
+                                    contentEl.querySelector("a").href = URL.createObjectURL(msg.content);
+                                    contentEl.querySelector("p:last-child").textContent = formatSize(msg.size);
+                                } else {
+                                    contentEl.src = URL.createObjectURL(msg.content);
+                                }
+                            } else if (contentEl && msg.content) {
+                                if (msg.media_type === "file") {
+                                    contentEl.querySelector("a").href = msg.content;
+                                } else {
+                                    contentEl.src = msg.content;
+                                }
+                            }
+                            break;
                     }
-                    if (msg.type === "img") {
-                        var text = document.createElement("img");
-                        text.src = msg.content;
-                    }
-                    if (msg.type === "voice") {
-                        var text = document.createElement("audio");
-                        text.style.maxHeight = "35px"
-                        text.style.maxWidth = "250px"
-                        text.controls = true;
-                        text.src = URL.createObjectURL(msg.content);
-                    }
+
                     const data_t = document.createElement("p");
                     data_t.className = "time";
+                    data_t.insertAdjacentText("afterbegin", msg.time + " ");
 
                     if (msg.classname === "message-right") {
                         const status = document.createElement("span");
                         status.className = "status";
-                        status.textContent = msg.status || st[read]; // по умолчанию — отправлено
+                        status.textContent = msg.status || st[read];
                         data_t.appendChild(status);
-                    }
-                    if (msg.classname === "message-left"){
+                    } else if (msg.classname === "message-left") {
                         this.observer.observe(div);
                     }
-                    data_t.insertAdjacentText("afterbegin", msg.time + " ");
-                    div.append(user, text, data_t);
+
+                    if (contentEl) div.append(user, contentEl, data_t);
+                    else div.append(user, data_t);
+
                     return div;
+
                 } else {
                     div.className = "message-center";
                     const text = document.createElement("p");
                     text.textContent = msg.content;
-                    div.append(text)
+                    div.append(text);
                     return div;
                 }
             }
 
+            // ---- Обновление медиа и прогресса ----
+        update(id, msg) {
+            const el = this.chat.querySelector(`[data-id="${id}"]`);
+            if (!el) return;
+
+            if (msg.type === "txt") {
+                const textEl = el.querySelector(".text");
+                if (textEl) textEl.textContent = msg.content;
+            } else if (msg.type === "media") {
+                const mediaEl = (() => {
+                    switch (msg.media_type) {
+                        case "image": return el.querySelector("img");
+                        case "video": return el.querySelector("video");
+                        case "audio": return el.querySelector("audio");
+                        case "file": return el.querySelector(".file-block a");
+                    }
+                })();
+
+                if (mediaEl) {
+                    if (msg.content instanceof Blob) {
+                        if (msg.media_type === "file") {
+                            mediaEl.href = URL.createObjectURL(msg.content);
+                            el.querySelector(".file-block p:last-child").textContent = formatSize(msg.progress || msg.size);
+                        } else {
+                            mediaEl.src = URL.createObjectURL(msg.content);
+                        }
+                    } else if (msg.content) {
+                        if (msg.media_type === "file") mediaEl.href = msg.content;
+                        else mediaEl.src = msg.content;
+                    }
+                }
+
+                // обновление прогресса
+                if (msg.progress !== undefined && msg.media_type !== "file") {
+                    let progEl = el.querySelector(".progress-text");
+                    if (!progEl) {
+                        progEl = document.createElement("p");
+                        progEl.className = "progress-text";
+                        el.appendChild(progEl);
+                    }
+                    progEl.textContent = `${formatSize(msg.progress)}/${formatSize(msg.size)}`;
+                }
+            }
+            }
+      
             add(msg, read = false) {
-
-                const isAtBottom =
-                    this.chat.scrollTop + this.chat.clientHeight >=
-                    this.chat.scrollHeight - 20;
-
+                const isAtBottom = this.chat.scrollTop + this.chat.clientHeight >= this.chat.scrollHeight - 20;
                 const el = this._createMessage(msg, read);
-
                 this.chat.appendChild(el);
-
-                if (isAtBottom) {
-                    this.chat.scrollTop = this.chat.scrollHeight;
-                }
+                if (isAtBottom) this.chat.scrollTop = this.chat.scrollHeight;
             }
 
-            update(id, msg) {
-                const el = this.chat.querySelector(`[data-id="${id}"]`);
-                if (!el) return;
-                if (msg.type === "txt") {
-                    el.querySelector(".text").textContent = newcontent;
-                }
-                if (msg.type === "img" || msg.type === "voice") {
-                    el.querySelector(".text").src = newcontent;
-                }
-            }
-
+        
             remove(id) {
                 const el = this.chat.querySelector(`[data-id="${id}"]`);
                 if (!el) return;
@@ -406,10 +489,12 @@
         }
 
        
-        //console.log(lastreadchat)
+        console.log(lastreadchat)
+        console.log(localChats)
         var readtimer = null
         const GraphicChat = document.getElementById("chat");
-        const fileInput = document.getElementById("fileInput ");
+        const fileInput = document.getElementById("fileInput");
+        console.log(fileInput)
         const graphic = new Graphic(document.getElementById("chat"), (lastReadId) => {
             try{
             if (lastreadchat[CurrentChat]["my"] < lastReadId) {
@@ -455,26 +540,15 @@
             window.location.href = window.location.origin; // https://basicmimimummessenger.duckdns.org
 
         }
-
-
-        async function ServerRequest(f) {
-            var res = await fetch(f, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-            })
-            var result = await res.json()
-            return result;
-        }
-
+        var file = null;
         const Data = JSON.parse(DataUser);
         const ChatBox = document.getElementById("chatbox");
         const msg_menu = document.getElementById("msgMenu");
         const mediabtn = document.getElementById("sendmedia");
         const messagedb = new MessageStore(dbName = Data.db_created);
         await messagedb.open();
-
+        const chunkdb = new ChunkStore();
+        await chunkdb.open();
         msg_menu.classList.remove("hidden_m")
         var activeMessageId = null;
         var lastIdload = -1;
@@ -645,17 +719,17 @@
                     }
                 } else {
                     try {
-                        if (th) {
-                            //console.log(msg)
-                            var prepared = await prepareEncryptedPackage({
-                                encryptedKeyPath: `/media/encrypted/${msg.id}.key`,
-                                encryptedDataPath: `/media/encrypted/${msg.id}.bin`,
-                                ivPath: `/media/encrypted/${msg.id}.iv`
-                            })
-                            var content = await decryptBlob(deepJsonParse(prepared), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
-                        } else {
-                            var content = `media/unencrupted/{msg.is}`
-                        }
+              //         if (th) {
+              //             //console.log(msg)
+              //             var prepared = await prepareEncryptedPackage({
+              //                 encryptedKeyPath: `/media/encrypted/${msg.id}.key`,
+              //                 encryptedDataPath: `/media/encrypted/${msg.id}.bin`,
+              //                 ivPath: `/media/encrypted/${msg.id}.iv`
+              //             })
+              //             var content = await decryptBlob(deepJsonParse(prepared), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+              //         } else {
+              //             var content = `media/unencrupted/{msg.is}`
+              //         }
                     } catch {
                         return;
                     }
@@ -833,7 +907,7 @@
                 id: Data.my_id,
                 lastids: lastreadchat
             }))
-            initPush()
+            initPush();
         };
 
         ws.onmessage = async function(event) {
@@ -1125,6 +1199,26 @@
                 document.getElementById("call_status").innerText="Устанавливаем соединение"
                 await initPeer()
                 await createOffer()
+            } else if (datae.type==="answ_media"){
+                if (datae.success===true){
+                    await messagedb.save({
+                        id: parseInt(datae.message_id),
+                        internal_id: parseInt(datae.internal_id),
+                        chat_id: parseInt(datae.chat_id),
+                        user_id: parseInt(datae.user_id),
+                        datatype: "media",
+                        msg: "",
+                        created: datae.datatime
+                    })
+                    var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
+                    lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
+                    localStorage.setItem("lastreadchat",JSON.stringify(lsrd))
+                    //start chunking
+                    processFile(file,Data.publickey, parseInt(datae.message_id),datae.upload_id)
+                }
+                else{
+                    alert("Error connecting to server!")
+                }
             }
             try {
 
@@ -1221,7 +1315,7 @@
             const chats = JSON.parse(localStorage.getItem("Chats"))
             for (var key of Object.keys(chats)) {
                 var chat = chats[parseInt(key)]
-                console.log(lastreadchat[Number])
+                console.log(lastreadchat)
                 //if (lastreadchat[Number(chat.id)]["my"]-lastreadchat[Number(chat.id)]["other"]>0)
                 ChatBox.innerHTML += `
                 <div data-chat-id=${'chat'+chat.id} class=${'chatinfo'}>
@@ -2416,94 +2510,230 @@
             }));
         }
 
-    });
+        function urlBase64ToUint8Array(base64String) {
 
-    function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4)
 
-        const padding = '='.repeat((4 - base64String.length % 4) % 4)
+            const base64 = (base64String + padding)
+                .replace(/-/g, '+')
+                .replace(/_/g, '/')
 
-        const base64 = (base64String + padding)
-            .replace(/-/g, '+')
-            .replace(/_/g, '/')
+            const rawData = window.atob(base64)
 
-        const rawData = window.atob(base64)
+            const outputArray = new Uint8Array(rawData.length)
 
-        const outputArray = new Uint8Array(rawData.length)
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i)
+            }
 
-        for (let i = 0; i < rawData.length; ++i) {
-            outputArray[i] = rawData.charCodeAt(i)
+            return outputArray
         }
 
-        return outputArray
-    }
+        async function ServerRequest(req,data=null) {
+            var res = await fetch(req, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            var result = await res.json()
+            return result;
+            }
 
-    async function ServerRequest(req) {
-        var res = await fetch(req, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+        document.getElementById("uploadfile").addEventListener("click", function(){
+            fileInput.click();
         })
-        var result = await res.json()
-        return result;
-    }
 
-    document.getElementById("uploadfile").addEventListener("click", function(){
-        fileInput.click();
-    })
+            console.log(CurrentChat)
+        fileInput.addEventListener("change", function ()  {
+                    file = fileInput.files[0];
+                    if (CurrentChat !== null){
+                        ws.send(JSON.stringify({
+                            "type":"media_request",
+                            "chatid":CurrentChat
+                        }))
+                    }
+        });
 
-    fileInput.addEventListener("change", () => {
-                file = fileInput.files[0];
-                processFile(file,keys.publicKey)
+        function bufToB64(buffer) {
+
+            return new Promise((resolve) => {
+
+                const blob = new Blob([buffer]);
+
+                const reader = new FileReader();
+
+                reader.onload = () => {
+                    const base64 = reader.result.split(",")[1];
+                    resolve(base64);
+                };
+
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        async function processFile(file, publicKeyB64, id, upload_id, sys_type = false) {
+
+            const chunkSize = 512 * 1024;
+
+            const fileKey = await crypto.subtle.generateKey(
+                { name: "AES-GCM", length: 256 },
+                true,
+                ["encrypt", "decrypt"]
+            );
+
+            let media_type = "file";
+
+            if (file.type.startsWith("image")) media_type = "image";
+            else if (file.type.startsWith("video")) media_type = "video";
+            else if (file.type.startsWith("audio")) media_type = "audio";
+
+            const metadata = {
+                s_type: sys_type,
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                chunk_size: chunkSize,
+                chunk_count: Math.ceil(file.size / chunkSize)
+            };
+
+            // placeholder
+            const placeholder = {
+                type: "media",
+                media_type,
+                id,
+                filename: file.name,
+                size: file.size,
+                namesender: "Я",
+                classname: "message-right",
+                time: new Date().toLocaleTimeString(),
+                progress: 0,
+                content: null,
+                poster: null
+            };
+
+            graphic.add(placeholder);
+
+            // -------- thumbnail для видео --------
+            if (media_type === "video") {
+
+                try {
+                    const thumb = await getVideoThumbnail(file);
+                    placeholder.poster = thumb;
+                    graphic.update(id, placeholder);
+                } catch (e) {
+                    console.log("thumbnail error", e);
+                }
+            }
+
+            // -------- шифрование --------
+            const metadataEncrypted = await encryptMetadata(fileKey, metadata);
+            const encryptedFileKey = await encryptFileKey(fileKey, publicKeyB64);
+
+            const res = await ServerRequest("set_metadata", {
+                id,
+                user_id: Data.my_id,
+                upload_id,
+                metadata: {
+                    cipher: await bufToB64(metadataEncrypted.cipher),
+                    iv: await bufToB64(metadataEncrypted.iv)
+                },
+                key: await bufToB64(encryptedFileKey)
             });
 
-    async function processFile(file, publicKeyB64) {
-        const fileKey = await crypto.subtle.generateKey(
-            {
-                name: "AES-GCM",
-                length: 256
-            },
-            true,
-            ["encrypt", "decrypt"]
-        );
-        const metadata = {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            chunk_size: chunkSize,
-            chunk_count: Math.ceil(file.size / chunkSize)
-        };
-        console.log("metadata:", metadata);
-        // 3 encrypt metadata
-        const metadataEncrypted = await encryptMetadata(
-            fileKey,
-            metadata
-        );
-        console.log("metadata encrypted");
-        // 4 encrypt AES key
-        const encryptedFileKey = await encryptFileKey(
-            fileKey,
-            publicKeyB64
-        );
-        console.log("AES key encrypted");
-        // 5 разбиваем файл
-        for (let i = 0; i < metadata.chunk_count; i++) {
-            const start = i * chunkSize;
-            const end = start + chunkSize;
-            const blobChunk = file.slice(start, end);
-            const buffer = await blobChunk.arrayBuffer();
-            const encryptedChunk = await encryptChunk(
-                fileKey,
-                buffer
-            );
-            console.log(
-                "chunk",
-                i,
-                encryptedChunk
-            );
-            // тут будет отправка на сервер
+            if (!res.success) {
+                alert("Ошибка загрузки");
+                return;
+            }
+
+            // -------- загрузка чанков --------
+            let errors = []
+            let allChunks = [];
+
+            for (let i = 0; i < metadata.chunk_count; i++) {
+
+                const start = i * chunkSize;
+                const end = start + chunkSize;
+
+                const blobChunk = file.slice(start, end);
+                const buffer = await blobChunk.arrayBuffer();
+
+                const encryptedChunk = await encryptChunk(fileKey, buffer);
+
+                let chres = await ServerRequest("set_chunk", {
+                    id,
+                    user_id: Data.my_id,
+                    upload_id,
+                    chunk_id: i,
+                    chunk: await bufToB64(encryptedChunk.cipher),
+                    iv: await bufToB64(encryptedChunk.iv)
+                });
+
+                allChunks.push(blobChunk);
+
+                placeholder.progress = Math.min(end, file.size);
+                graphic.update(id, placeholder);
+            }
+
+            // -------- финальный blob --------
+            const finalBlob = new Blob(allChunks, { type: file.type });
+
+            placeholder.content = finalBlob;
+            placeholder.progress = file.size;
+
+            graphic.update(id, placeholder);
+
+            console.log("video uploaded");
         }
-    }
+
+        function formatSize(bytes) {
+            if (bytes === 0) return "0 B";
+            const k = 1024;
+            const sizes = ["B", "KB", "MB", "GB", "TB"];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return (bytes / Math.pow(k, i)).toFixed(2) + " " + sizes[i];
+        }
+
+        function detectMediaType(file) {
+            if (file.type.startsWith("image/")) return "image";
+            if (file.type.startsWith("video/")) return "video";
+            if (file.type.startsWith("audio/")) return "audio";
+            return "file";
+        }
+
+        async function getVideoThumbnail(file) {
+
+            return new Promise((resolve, reject) => {
+
+                const video = document.createElement("video");
+                video.preload = "metadata";
+                video.muted = true;
+                video.src = URL.createObjectURL(file);
+
+                video.onloadeddata = () => {
+
+                    const canvas = document.createElement("canvas");
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+
+                    const ctx = canvas.getContext("2d");
+                    ctx.drawImage(video, 0, 0);
+
+                    const dataURL = canvas.toDataURL("image/jpeg", 0.8);
+
+                    URL.revokeObjectURL(video.src);
+
+                    resolve(dataURL);
+                };
+
+                video.onerror = reject;
+            });
+        }
+
+    });
+
+
     
 </script>
 </body>

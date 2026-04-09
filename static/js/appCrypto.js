@@ -378,6 +378,75 @@
             }
         }
 
+        async function encryptMetadata(fileKey, metadata) {
+
+            const iv = crypto.getRandomValues(
+                new Uint8Array(12)
+            );
+        
+            const encoded = new TextEncoder().encode(
+                JSON.stringify(metadata)
+            );
+        
+            const cipher = await crypto.subtle.encrypt(
+                {
+                    name: "AES-GCM",
+                    iv: iv
+                },
+                fileKey,
+                encoded
+            );
+        
+            return {
+                cipher,
+                iv
+            };
+        }
+        
+        async function encryptChunk(fileKey, buffer) {
+        
+            const iv = crypto.getRandomValues(
+                new Uint8Array(12)
+            );
+        
+            const cipher = await crypto.subtle.encrypt(
+                {
+                    name: "AES-GCM",
+                    iv: iv
+                },
+                fileKey,
+                buffer
+            );
+        
+            return {
+                cipher,
+                iv
+            };
+        }
+        
+        async function encryptFileKey(fileKey, publicKeyB64) {
+        
+            const rawKey = await crypto.subtle.exportKey(
+                "raw",
+                fileKey
+            );
+        
+            const publicKey = await importPublicKey(
+                publicKeyB64
+            );
+        
+            const encrypted = await crypto.subtle.encrypt(
+                {
+                    name: "RSA-OAEP"
+                },
+                publicKey,
+                rawKey
+            );
+        
+            return encrypted;
+        }
+        
+
         window.generateEncryptionKeyPair = generateEncryptionKeyPair;
         window.generateKeyPair = generateEncryptionKeyPair;
         window.arrayBufferToBase64 = arrayBufferToBase64;
@@ -393,3 +462,6 @@
         window.hybridDecrypt = hybridDecrypt;
         window.encryptBlob = encryptBlob;
         window.decryptBlob = decryptBlob;
+        window.encryptMetadata = encryptMetadata;
+        window.encryptFileKey = encryptFileKey;
+        window.encryptChunk = encryptChunk;

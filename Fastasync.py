@@ -23,6 +23,7 @@ import uvicorn
 import base64, uuid
 import os, sys, traceback
 import ssl
+import secrets
 
 clients = {}
 calls = {0:[]}
@@ -35,6 +36,7 @@ challenges_auth={}
 challenges_del={}
 challenges_prof={}
 challenges_conn_device={}
+uploading_files = {}
 passwordf = open("C:/Users/SB/Desktop/gmailpassword.txt").read()
 
 
@@ -76,7 +78,7 @@ app = FastAPI()
 Database = MessengerDataBase.DataBaseManager()
 feedbacksdb = FeedBacks.Feedback_Manager()
 templates = Jinja2Templates(directory="templates")
-
+os.makedirs("media", exist_ok=True)
 
 def save_encrypted_media(payload: dict,id) -> str:
     media_id = id
@@ -412,6 +414,7 @@ async def websocket_endpoint(ws: WebSocket):
                                 print("248❌",e)
                         if len(ids)==0:
                             u=Database.get_user_by_email(msg["email"])
+                            print(u)
                             if u["photo"] == None:
                                 u["photo"]="/static/images/Uniknown.png"
                             for d in u["devices"]:
@@ -506,18 +509,22 @@ async def websocket_endpoint(ws: WebSocket):
                                                 user_id=int(msg["userid"]),
                                                 datatype=msg["typemsg"],
                                                 content=json.dumps(msg["message"].replace("\'", "\"")))
+                """
                 else:
                     msg["message"]=json.loads(msg["message"])
                     answ = Database.add_message(chat_id=int(msg["chatid"]),
                                                 user_id=int(msg["userid"]),
-                                                datatype=msg["typemsg"],
+                                                datatype="media",
                                                 content="")
                     if answ["success"]:
+                    
                         save_encrypted_media(msg["message"],answ["message_id"])
                         pathid=answ["message_id"]
                         answ1=Database.update_message(int(msg["chatid"]),int(answ["message_id"]),str(pathid),msg["typemsg"])
                         answ["success"]=answ1["success"]
                         print(344, answ, answ1)
+                """
+
                 ids = 0
                 if answ["success"]:
                     chat_ = Database.get_chat(int(msg["chatid"]))
@@ -529,8 +536,6 @@ async def websocket_endpoint(ws: WebSocket):
                                     chat_["photo"] = "/static/images/Uniknown.png"
                                 chat_["name"]=this_user["name"]
                                 m=f"{chat_['name']} отправил ....."
-                                
-                    print(chat_)
                     notify={
                             "title":chat_["name"],
                             "body":"new message" or m,
@@ -682,6 +687,29 @@ async def websocket_endpoint(ws: WebSocket):
 
                 msgs=Database.get_messages_more_less(int(msg["chat_id"]),Database.get_min_msgid(int(msg["chat_id"]))-1,15,False)
                 await ws.send_json({"type":"new_msgs","msgs":msgs})
+
+            if msg["type"] == "media_request":
+                answ = Database.add_message(chat_id=int(msg["chatid"]),
+                                 user_id=int(this_userid),
+                                datatype="media",content=None
+                )
+                upload_id = None
+                if answ["success"]==True:
+                    upload_id = secrets.token_urlsafe(32)
+                    if this_userid not in uploading_files:
+                        uploading_files[this_userid]={}
+                    uploading_files[this_userid]={"msg_id":int(answ["message_id"]),"upload_id":upload_id}
+                print(answ)
+                await ws.send_json({"type":"answ_media",
+                                    "success":answ["success"],
+                                    "message_id":answ["message_id"],
+                                    "internal_id":answ["internal_id"],
+                                    "datatime":str(answ["time"]),
+                                    "user_id":int(this_userid),
+                                    "chat_id":int(msg["chatid"]),
+                                    "upload_id":upload_id})
+                
+         
 
                 
     except WebSocketDisconnect as wserror:
@@ -1181,6 +1209,44 @@ async def getus(request: Request):
 @app.get("/push_key")
 async def push_key():
     return {"key": PUBLIC_KEY}
+
+@app.post("/set_metadata")
+async def set_metadata(request: Request):
+    data = await request.json()
+    s=False
+    if uploading_files.get(int(data['user_id'])):
+        if uploading_files[int(data["user_id"])]["upload_id"] == data["upload_id"]:
+            try:
+                os.makedirs("media/" + str(data["id"]), exist_ok=True)
+                metadata = {
+                    "cipher": data["metadata"]["cipher"],
+                    "iv": data["metadata"]["iv"]
+                }
+                with open(f"media/{data['id']}/metadata.json", "w") as f:
+                    json.dump(metadata, f)
+                key_bytes = base64.b64decode(data["key"])
+                with open(f"media/{data['id']}/filekey.bin", "wb") as f:
+                    f.write(key_bytes)
+                s=True
+            except Exception as e:
+                print(e)
+                s=False
+    return {"success": s}
+
+@app.post("/set_chunk")
+async def set_chunk(request: Request):
+    data = await request.json()
+    s=False
+    if uploading_files.get(int(data['user_id'])):
+        if uploading_files[int(data["user_id"])]["upload_id"] == data["upload_id"]:
+            try:
+                with open(f"media/{data['id']}/{data['chunk_id']}.bin", "wb") as f:
+                    f.write(base64.b64decode(data["iv"]))
+                    f.write(base64.b64decode(data["chunk"]))
+                s=True
+            except Exception as e:
+                s=False
+    return {"success": s}
 
 if __name__ == "__main__":    
     uvicorn.run(

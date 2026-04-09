@@ -103,9 +103,8 @@ class Message(Base):
 
     internal_id = Column(Integer, nullable=False)
     datatype = Column(String(32), nullable=False)
-    content = Column(Text, nullable=False)
+    content = Column(Text, default=None)
     created = Column(DateTime, default=datetime.now())
-    status = Column(Integer, default=0)
 
     chat = relationship("Chat", back_populates="messages")
     user = relationship("User", back_populates="messages")
@@ -350,6 +349,9 @@ class DataBaseManager:
             session.add(msg)
             session.commit()
             return {"success": True, "message_id": msg.id, "internal_id": msg.internal_id, "time": tmc}
+        except Exception as e:
+            print(e)
+            return {"success": False, "message_id": -1, "internal_id": -1, "time": -1}
         finally:
             session.close()
 
