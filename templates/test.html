@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>cryptotest!</title>
+</head>
+
+
+<body>
+    <script src="static\js\appCrypto.js"></script>
+    <script src="static\js\chunksDB.js"></script>
+    <script >
+        const DataUser = localStorage.getItem('Userdata');
+        const Data = JSON.parse(DataUser);
+        console.log(Data)
+
+        async function createTestChunk(fileKey) {
+
+            // 1. случайные данные (например 1–10 KB)
+            const size = 1024 + Math.floor(Math.random() * 9000);
+
+            const data = crypto.getRandomValues(new Uint8Array(size));
+
+            // 2. IV строго 12 байт
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+
+            // 3. encrypt AES-GCM
+            const cipher = await crypto.subtle.encrypt(
+                {
+                    name: "AES-GCM",
+                    iv: iv
+                },
+                fileKey,
+                data
+            );
+
+            return {
+                cipher,
+                iv,
+                original: data
+            };
+        }
+
+        async function main() {
+            const fileKey = await crypto.subtle.generateKey({
+                    name: "AES-GCM",
+                    length: 256
+                },
+                true, ["encrypt", "decrypt"]
+            );
+
+            console.log("start")
+            const encryptedFileKey = await encryptFileKey(fileKey, Data.publickeycrypt);
+            console.log(encryptedFileKey)
+            const decryptedFileKey = await decryptFileKey(encryptedFileKey, Data.privatekeycrypt);
+            console.log(decryptedFileKey)
+            console.log(fileKey===decryptedFileKey)
+            const metadata = {"1":1,"2":2}
+            const metadataEncrypted = await encryptMetadata(fileKey, metadata);
+            console.log(metadataEncrypted)
+            const metadatadecrypted = await decryptMetadata(
+                    fileKey,  
+                    metadataEncrypted.cipher,
+                    metadataEncrypted.iv
+                );
+            console.log(metadatadecrypted)
+            const encryptedChunk = await encryptChunk(fileKey, new Uint8Array(12));
+            console.log(encryptedChunk)
+            const decryptedChunk = await decryptChunk(fileKey, encryptedChunk)
+            console.log(decryptedChunk)
+        }
+        main()
+
+        async function testdb() {
+            const chunkdb = new ChunkStore("1234",1);
+            await chunkdb.open();
+            await chunkdb.saveChunk(1,5,new Blob())
+            var ch = await chunkdb.getChunk(4,5)
+            console.log(ch)
+        }
+        testdb()
+    </script>
+</body>
+</html>

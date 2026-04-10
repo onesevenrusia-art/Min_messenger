@@ -485,13 +485,21 @@
 
         try {
             var localChats = JSON.parse(localStorage.getItem("Chats"))
-                //console.log(localChats)
             if (localChats === null) {
                 localChats = {};
             }
         } catch {
             localStorage.setItem("Chats", JSON.stringify({}));
             var localChats = {};
+        }
+        try {
+            var UnloadChunks = JSON.parse(localStorage.getItem("UnloadChunks"))
+            if (UnloadChunks  === null) {
+                UnloadChunks  = {};
+            }
+        } catch {
+            localStorage.setItem("UnloadChunks", JSON.stringify({}));
+            var UnloadChunks  = {};
         }
 
 
@@ -500,6 +508,7 @@
         var readtimer = null
         const GraphicChat = document.getElementById("chat");
         const fileInput = document.getElementById("fileInput");
+        const chunkSize = 512 * 1024;
         console.log(fileInput)
         const graphic = new Graphic(document.getElementById("chat"), (lastReadId) => {
             try {
@@ -548,13 +557,15 @@
 
         }
         var file = null;
+        var End_save = true;
+        var errors = []
         const Data = JSON.parse(DataUser);
         const ChatBox = document.getElementById("chatbox");
         const msg_menu = document.getElementById("msgMenu");
         const mediabtn = document.getElementById("sendmedia");
         const messagedb = new MessageStore(dbName = Data.db_created);
         await messagedb.open();
-        const chunkdb = new ChunkStore();
+        const chunkdb = new ChunkStore("Data.db_created",1);
         await chunkdb.open();
         msg_menu.classList.remove("hidden_m")
         var activeMessageId = null;
@@ -604,7 +615,6 @@
             console.log(result);
             if (result.result === false && result.what == "server") {
                 console.error("ошибка установления соединения с сервером");
-                alert("0")
                 delay++;
                 if (delay > 25) {
                     delay = 25;
@@ -718,29 +728,7 @@
                 //console.log( ChatsData[parseInt(CurrentChat)].privatekeycrypt)
                 //console.log(await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt))
                 lastDate = date;
-                if (msg.datatype === "txt") {
-                    if (th) {
-                        var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
-                    } else {
-                        var content = msg.msg
-                    }
-                } else {
-                    try {
-                        //         if (th) {
-                        //             //console.log(msg)
-                        //             var prepared = await prepareEncryptedPackage({
-                        //                 encryptedKeyPath: `/media/encrypted/${msg.id}.key`,
-                        //                 encryptedDataPath: `/media/encrypted/${msg.id}.bin`,
-                        //                 ivPath: `/media/encrypted/${msg.id}.iv`
-                        //             })
-                        //             var content = await decryptBlob(deepJsonParse(prepared), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
-                        //         } else {
-                        //             var content = `media/unencrupted/{msg.is}`
-                        //         }
-                    } catch {
-                        return;
-                    }
-                }
+
                 var name = "Uniknown"
                 if (th) {
                     if (msg.user_id in UserNames) {
@@ -771,6 +759,31 @@
             }
             //l>>>
             var readingflag = Boolean(classn === "message-right" && lastreadchat[CurrentChat]["other"] >= msg.id)
+
+                if (msg.datatype === "txt") {
+                    if (th) {
+                        var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                    } else {
+                        var content = msg.msg
+                    }
+                } else {
+                    //try {
+                        if (th) {
+                           // console.log(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                           // var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                           // msg.msg = content
+                            var media = await loadMedia(msg,ChatsData[parseInt(CurrentChat)].privatekeycrypt,name,tag,date)
+                            if (media===null){
+                                return;
+                            }
+                        } else {
+                            var content = msg.msg
+                        }
+                   // } catch {
+                   //     return;
+                   // }
+                }
+
                 //console.log(lastreadchat)
             if (msg.datatype === "txt") {
                 //console.log(content)
@@ -795,33 +808,9 @@
                 }
 
             }
-            if (msg.datatype === "img" || msg.datatype === "voice") {
-                //console.log(msg)
-                if (msg.datatype === "img") {
-                    var img = await convertImage(content)
-                } else {
-                    var img = content
-                }
-                //console.log(img)
-                if (!start) {
-                    graphic.add({
-                        type: msg.datatype,
-                        id: msg.id,
-                        content: img,
-                        time: `${date.getHours()}:${date.getMinutes()}`,
-                        namesender: name,
-                        classname: classn
-                    }, readingflag)
-                } else {
-                    graphic.prepend({
-                        type: msg.datatype,
-                        id: msg.id,
-                        content: img,
-                        time: `${date.getHours()}:${date.getMinutes()}`,
-                        namesender: name,
-                        classname: classn
-                    }, readingflag)
-                }
+            if (msg.datatype === "media") {
+                console.log(msg)
+
             }
 
         }
@@ -1207,7 +1196,7 @@
                 await createOffer()
             } else if (datae.type === "answ_media") {
                 if (datae.success === true) {
-                    processFile(file, Data.publickey, parseInt(datae.message_id), datae.upload_id, datae)
+                    processFile(file, ChatsData[parseInt(datae.chat_id)].publickeycrypt, parseInt(datae.message_id), datae.upload_id, datae)
                 } else {
                     alert("Error connecting to server!")
                 }
@@ -2031,7 +2020,7 @@
                     //window.location.herf=""
                     return {
                         result: false,
-                        what: "server"
+                        what: "net"
                     };
                 }
                 const challenge = challengeResult.challenge;
@@ -2066,7 +2055,7 @@
                     console.log('❌ Подтверждение не удалось:', verifyResult.error);
                     return {
                         result: false,
-                        what: "auth"
+                        what: "net"
                     };
                 }
 
@@ -2074,7 +2063,7 @@
                 console.error('❌ Ошибка подтверждения:', error);
                 return {
                     result: false,
-                    what: "server"
+                    what: "net"
                 };
             }
         }
@@ -2524,15 +2513,19 @@
         }
 
         async function ServerRequest(req, data = null) {
-            var res = await fetch(req, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-            var result = await res.json()
-            return result;
+            try{
+                var res = await fetch(req, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                var result = await res.json()
+                return result;
+            }catch{
+                return {success:false};
+            }
         }
 
         document.getElementById("uploadfile").addEventListener("click", function() {
@@ -2568,9 +2561,6 @@
         }
 
         async function processFile(file, publicKeyB64, id, upload_id, datae, sys_type = false) {
-
-            const chunkSize = 512 * 1024;
-
             const fileKey = await crypto.subtle.generateKey({
                     name: "AES-GCM",
                     length: 256
@@ -2636,7 +2626,6 @@
                 },
                 key: await bufToB64(encryptedFileKey)
             });
-
             if (!res.success) {
                 alert("Ошибка загрузки");
                 return;
@@ -2648,18 +2637,17 @@
                 chat_id: parseInt(datae.chat_id),
                 user_id: parseInt(datae.user_id),
                 datatype: "media",
-                msg: metadataEncrypted,
+                msg: {metadata: metadataEncrypted, fileKey: encryptedFileKey},
                 created: datae.datatime
             })
-            loader_flag = true
+            loader_flag = Number(datae.chat_id)
             var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
             lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
             localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
                 //start chunking
                 // -------- загрузка чанков --------
-            let errors = []
             let allChunks = [];
-
+            save_all_chunks(file,metadata , fileKey, datae.message_id)
             for (let i = 0; i < metadata.chunk_count; i++) {
 
                 const start = i * chunkSize;
@@ -2678,6 +2666,9 @@
                     chunk: await bufToB64(encryptedChunk.cipher),
                     iv: await bufToB64(encryptedChunk.iv)
                 });
+                if (chres.success === false){
+                    errors.push({chunk_id:i,chunk:encryptedChunk, msg_id:datae.message_id})
+                }
 
                 allChunks.push(blobChunk);
 
@@ -2692,14 +2683,45 @@
             placeholder.progress = file.size;
 
             graphic.update(id, placeholder);
-            loader_flag = false
+            loader_flag = null
+            let maxRetries = 5;
+            let attempt = 0;
+
+            while (errors.length !== 0 && attempt < maxRetries) {
+                let newErrors = [];
+                for (let err of errors) {
+                    let r = await ServerRequest("set_chunk_unsuccess", err);
+
+                    if (!r.success) {
+                        newErrors.push(err);
+                    }
+                }
+                errors = newErrors;
+                attempt++;
+                await new Promise(r => setTimeout(r, 2000));
+            }
             console.log("video uploaded");
+            if (errors.length!==0){
+                UnloadChunks[errors[0].msg_id]=errors.map(x => x.chunk_id)
+                localStorage.setItem("UnloadChunks",JSON.stringify(UnloadChunks))
+            }
         }
 
-        async function save_all_chunks(file, msg_id) {
-            chunkdb.save({
-
-            })
+        async function save_all_chunks(file, metadata, fileKey, msg_id) {
+            End_save = true;
+            for (let i = 0; i < metadata.chunk_count; i++) {
+                const start = i * chunkSize;
+                const end = start + chunkSize;
+                const blobChunk = file.slice(start, end);
+                const buffer = await blobChunk.arrayBuffer();
+                const encryptedChunk = await encryptChunk(fileKey, buffer);
+                await chunkdb.saveChunk(
+                    msg_id,
+                    i,
+                    encryptedChunk
+                )
+            }
+            End_save = false;
         }
 
         function formatSize(bytes) {
@@ -2746,11 +2768,103 @@
             });
         }
         window.addEventListener("beforeunload", (e) => {
-            if (!loader_flag) {
-                e.preventDefault(); // обязательно
-                e.returnValue = ""; // обязательно для Chrome, Firefox
+            if (loader_flag !== null) {
+                e.preventDefault();
+                e.returnValue = "";
             }
         });
+
+        window.addEventListener("pagehide", () => {
+
+            if (localStorage.getItem("closing_attempt") === "1") {
+
+                console.log("пользователь подтвердил закрытие")
+                if (errors.length !== 0){
+                    localStorage.setItem("UnloadChunks",JSON.stringify(UnloadChunks))
+                }
+                if (loader_flag !== null) {
+                    if (End_save == true){
+                        UnloadChunks[loader_flag]={id:loader_flag,status:"save"}
+                    }else{
+                        UnloadChunks[loader_flag]={id:loader_flag,status:"unsave"}
+                    }
+                }
+            }
+        });
+
+        async function loadMedia(msg, privatekey, name, tag, date) {
+
+            try {
+                const metadata_enc = msg.msg.metadata;
+                const fileKey_enc = msg.msg.fileKey;
+                // 1. расшифровать fileKey
+                console.log(fileKey_enc,privatekey)
+                const fileKey = await decryptFileKey(
+                    fileKey_enc,
+                    privatekey
+                );
+                // 2. расшифровать metadata
+                const metadata = await decryptMetadata(
+                    fileKey,  
+                    metadata_enc.cipher,
+                    metadata_enc.iv
+                );
+                let media_type = "file";
+                console.log(metadata)
+                if (metadata.type.startsWith("image")) media_type = "image";
+                else if (metadata.type.startsWith("video")) media_type = "video";
+                else if (metadata.type.startsWith("audio")) media_type = "audio";
+                const placeholder = {
+                                type: "media",
+                                media_type,
+                                id,
+                                filename: metadata.name,
+                                size: metadata.size,
+                                namesender: name,
+                                classname: tag,
+                                time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+                                progress: 0,
+                                content: null,
+                                poster: null
+                            };
+
+                graphic.add(placeholder);
+                //var d = await chunkdb.getChunksByMsgId(msg.id)
+                //console.log(d)
+                let chunks = [];
+                // 3. получить чанки
+                for (let i = 0; i < metadata.chunk_count; i++) {
+                    let chunk_enc = await chunkdb.getChunk(msg.id, i);
+                    console.log(chunk_enc)
+                    if (!chunk_enc) {
+                        console.log("chunk missing", i);
+                        continue;
+                        //return null;
+                    }
+                    let buffer = await decryptChunk(
+                        fileKey,
+                        chunk_enc.cipher,
+                        chunk_enc.iv
+                    );
+                    chunks.push(new Uint8Array(buffer));
+                }
+                // 4. собрать файл
+                const blob = new Blob(
+                    chunks,
+                    { type: metadata.type }
+                );
+                console.log(blob,msg)
+                placeholder.content = blob;
+                graphic.update(msg.id, placeholder);
+                return {
+                    blob,
+                    metadata
+                };
+            } catch (e) {
+                console.log("loadMedia error", e);
+                return null;
+            }
+        }
 
     });
 </script>

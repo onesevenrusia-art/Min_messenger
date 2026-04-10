@@ -377,6 +377,28 @@
                 throw error;
             }
         }
+        
+        async function encryptFileKey(fileKey, publicKeyB64) {
+            const rawKey = await crypto.subtle.exportKey(
+                "raw",
+                fileKey
+            );
+        
+            const publicKey = await importPublicKey(
+                publicKeyB64
+            );
+        
+            const encrypted = await crypto.subtle.encrypt(
+                {
+                    name: "RSA-OAEP"
+                },
+                publicKey,
+                rawKey
+            );
+        
+            return encrypted;
+        }
+        
 
         async function encryptMetadata(fileKey, metadata) {
 
@@ -424,28 +446,103 @@
             };
         }
         
-        async function encryptFileKey(fileKey, publicKeyB64) {
+    
+
+        async function decryptFileKey(encryptedKeyB64, privateKey) {
+
+            // если ключ строка → импортируем
+            if (!(privateKey instanceof CryptoKey)) {
+                privateKey = await importPrivateKey(privateKey);
+            }
         
-            const rawKey = await crypto.subtle.exportKey(
-                "raw",
-                fileKey
-            );
+            // encrypted key
+            let encryptedKey;
         
-            const publicKey = await importPublicKey(
-                publicKeyB64
-            );
+            if (encryptedKeyB64 instanceof ArrayBuffer) {
+                encryptedKey = encryptedKeyB64;
+            } else {
+                encryptedKey = b64ToBuf(encryptedKeyB64);
+            }
         
-            const encrypted = await crypto.subtle.encrypt(
+            const rawKey = await crypto.subtle.decrypt(
                 {
                     name: "RSA-OAEP"
                 },
-                publicKey,
-                rawKey
+                privateKey,
+                encryptedKey
             );
         
-            return encrypted;
+            return crypto.subtle.importKey(
+                "raw",
+                rawKey,
+                {
+                    name: "AES-GCM"
+                },
+                true,
+                ["decrypt"]
+            );
         }
+        async function decryptMetadata(fileKey, cipherData, ivData) {
+            let cipher;
+            let iv;
+            // cipher
+            if (cipherData instanceof ArrayBuffer) {
+                cipher = cipherData;
+            } else {
+                cipher = b64ToBuf(cipherData);
+            }
         
+            // iv
+            if (ivData instanceof Uint8Array) {
+                iv = ivData;
+            } else if (ivData instanceof ArrayBuffer) {
+                iv = new Uint8Array(ivData);
+            } else {
+                iv = new Uint8Array(b64ToBuf(ivData));
+            }
+        
+            const decrypted = await crypto.subtle.decrypt(
+                {
+                    name: "AES-GCM",
+                    iv: iv
+                },
+                fileKey,
+                cipher
+            );
+        
+            return JSON.parse(
+                new TextDecoder().decode(decrypted)
+            );
+        }
+
+        async function decryptChunk(fileKey, cipherB64, ivB64) {
+
+            const cipher = b64ToBuf(cipherB64);
+            const iv = b64ToBuf(ivB64);
+        
+            const buffer = await crypto.subtle.decrypt(
+                {
+                    name: "AES-GCM",
+                    iv: iv
+                },
+                fileKey,
+                cipher
+            );
+        
+            return buffer;
+        }
+
+        function b64ToBuf(b64) {
+            const binary = atob(b64);
+            const len = binary.length;
+            const bytes = new Uint8Array(len);
+        
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+        
+            return bytes.buffer;
+        }
 
         window.generateEncryptionKeyPair = generateEncryptionKeyPair;
         window.generateKeyPair = generateEncryptionKeyPair;
@@ -462,6 +559,10 @@
         window.hybridDecrypt = hybridDecrypt;
         window.encryptBlob = encryptBlob;
         window.decryptBlob = decryptBlob;
+        window.b64ToBuf = b64ToBuf;
         window.encryptMetadata = encryptMetadata;
         window.encryptFileKey = encryptFileKey;
         window.encryptChunk = encryptChunk;
+        window.decryptMetadata = decryptMetadata;
+        window.decryptFileKey = decryptFileKey
+        window.decryptChunk = decryptChunk;
