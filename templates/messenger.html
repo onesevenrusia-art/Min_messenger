@@ -11,7 +11,7 @@
 
 <body>
     <div class="background-container">
-        <img id="fon" src="" alt="Фон" >
+        <img id="fon" src="" alt="Фон">
     </div>
 
     <div class="shapes">
@@ -196,14 +196,14 @@
         <div class="call_block">
             <p id="call_status" style="font-size: 11px;">ожидание ответа пользователя</p>
             <img id="call_ava" class="chat-avatar" style="width: 128px; height: 128px; margin-top: 25px;">
-    
+
             <p id="call_p">Incoming call</p>
-    
+
             <div class="call_btnbox">
                 <button class="call_btn" id="accept_call" style="justify-self: flex-start;" title="Принять">🟢</button>
                 <button class="call_btn" id="disaccept" style="justify-self: flex-end;" title="Сбросить">🔴</button>
             </div>
-    
+
         </div>
     </div>
 
@@ -243,7 +243,10 @@
                 const div = document.createElement("div");
                 div.className = msg.classname;
 
-                const st = { true: "🟢", false: "🔴" };
+                const st = {
+                    true: "🟢",
+                    false: "🔴"
+                };
 
                 if (msg.type !== "tmc") {
                     div.dataset.id = msg.id;
@@ -286,16 +289,15 @@
                                     contentEl = document.createElement("div");
                                     contentEl.className = "file-block";
 
-                                    const name = document.createElement("p");
-                                    name.textContent = msg.filename || "file";
+                                    const link = document.createElement("a");
+                                    link.textContent = msg.filename || "file";
+                                    link.href = "#";
+                                    link.download = msg.filename || "file";
 
                                     const size = document.createElement("p");
                                     size.textContent = formatSize(msg.size || 0);
 
-                                    const download = document.createElement("a");
-                                    download.textContent = "Скачать";
-                                    download.download = msg.filename || "file";
-                                    contentEl.append(name, size, download);
+                                    contentEl.append(link, size);
                                     break;
                             }
 
@@ -345,50 +347,54 @@
             }
 
             // ---- Обновление медиа и прогресса ----
-        update(id, msg) {
-            const el = this.chat.querySelector(`[data-id="${id}"]`);
-            if (!el) return;
+            update(id, msg) {
+                const el = this.chat.querySelector(`[data-id="${id}"]`);
+                if (!el) return;
 
-            if (msg.type === "txt") {
-                const textEl = el.querySelector(".text");
-                if (textEl) textEl.textContent = msg.content;
-            } else if (msg.type === "media") {
-                const mediaEl = (() => {
-                    switch (msg.media_type) {
-                        case "image": return el.querySelector("img");
-                        case "video": return el.querySelector("video");
-                        case "audio": return el.querySelector("audio");
-                        case "file": return el.querySelector(".file-block a");
-                    }
-                })();
-
-                if (mediaEl) {
-                    if (msg.content instanceof Blob) {
-                        if (msg.media_type === "file") {
-                            mediaEl.href = URL.createObjectURL(msg.content);
-                            el.querySelector(".file-block p:last-child").textContent = formatSize(msg.progress || msg.size);
-                        } else {
-                            mediaEl.src = URL.createObjectURL(msg.content);
+                if (msg.type === "txt") {
+                    const textEl = el.querySelector(".text");
+                    if (textEl) textEl.textContent = msg.content;
+                } else if (msg.type === "media") {
+                    const mediaEl = (() => {
+                        switch (msg.media_type) {
+                            case "image":
+                                return el.querySelector("img");
+                            case "video":
+                                return el.querySelector("video");
+                            case "audio":
+                                return el.querySelector("audio");
+                            case "file":
+                                return el.querySelector(".file-block a");
                         }
-                    } else if (msg.content) {
-                        if (msg.media_type === "file") mediaEl.href = msg.content;
-                        else mediaEl.src = msg.content;
-                    }
-                }
+                    })();
 
-                // обновление прогресса
-                if (msg.progress !== undefined && msg.media_type !== "file") {
-                    let progEl = el.querySelector(".progress-text");
-                    if (!progEl) {
-                        progEl = document.createElement("p");
-                        progEl.className = "progress-text";
-                        el.appendChild(progEl);
+                    if (mediaEl) {
+                        if (msg.content instanceof Blob) {
+                            if (msg.media_type === "file") {
+                                mediaEl.href = URL.createObjectURL(msg.content);
+                                el.querySelector(".file-block p:last-child").textContent = formatSize(msg.progress || msg.size);
+                            } else {
+                                mediaEl.src = URL.createObjectURL(msg.content);
+                            }
+                        } else if (msg.content) {
+                            if (msg.media_type === "file") mediaEl.href = msg.content;
+                            else mediaEl.src = msg.content;
+                        }
                     }
-                    progEl.textContent = `${formatSize(msg.progress)}/${formatSize(msg.size)}`;
+
+                    // обновление прогресса
+                    if (msg.progress !== undefined && msg.media_type !== "file") {
+                        let progEl = el.querySelector(".progress-text");
+                        if (!progEl) {
+                            progEl = document.createElement("p");
+                            progEl.className = "progress-text";
+                            el.appendChild(progEl);
+                        }
+                        progEl.textContent = `${formatSize(msg.progress)}/${formatSize(msg.size)}`;
+                    }
                 }
             }
-            }
-      
+
             add(msg, read = false) {
                 const isAtBottom = this.chat.scrollTop + this.chat.clientHeight >= this.chat.scrollHeight - 20;
                 const el = this._createMessage(msg, read);
@@ -396,7 +402,7 @@
                 if (isAtBottom) this.chat.scrollTop = this.chat.scrollHeight;
             }
 
-        
+
             remove(id) {
                 const el = this.chat.querySelector(`[data-id="${id}"]`);
                 if (!el) return;
@@ -404,17 +410,17 @@
                 el.remove();
             }
 
-            is_id(id){
+            is_id(id) {
                 const el = this.chat.querySelector(`[data-id="${id}"]`);
                 if (!el) return false;
                 else return true;
             }
 
-            prepend(msg,read=false) {
+            prepend(msg, read = false) {
                 if (!msg) return;
                 const oldscrolltop = this.chat.scrollTop;
                 const oldHeight = this.chat.scrollHeight;
-                const el = this._createMessage(msg,read);
+                const el = this._createMessage(msg, read);
                 this.chat.prepend(el);
                 const newHeight = this.chat.scrollHeight;
                 this.chat.scrollTop = oldscrolltop + (newHeight - oldHeight);
@@ -438,7 +444,7 @@
                 if (status) status.textContent = statusIcon;
             }
 
-            setNewID(old_id,new_id){
+            setNewID(old_id, new_id) {
                 const el = this.chat.querySelector(`[data-id="${old_id}"]`);
                 if (!el) return;
                 el.dataset.id = new_id;
@@ -479,8 +485,8 @@
 
         try {
             var localChats = JSON.parse(localStorage.getItem("Chats"))
-            //console.log(localChats)
-            if (localChats=== null) {
+                //console.log(localChats)
+            if (localChats === null) {
                 localChats = {};
             }
         } catch {
@@ -488,7 +494,7 @@
             var localChats = {};
         }
 
-       
+
         console.log(lastreadchat)
         console.log(localChats)
         var readtimer = null
@@ -496,28 +502,28 @@
         const fileInput = document.getElementById("fileInput");
         console.log(fileInput)
         const graphic = new Graphic(document.getElementById("chat"), (lastReadId) => {
-            try{
-            if (lastreadchat[CurrentChat]["my"] < lastReadId) {
-                lastreadchat[CurrentChat]["my"] = currentlastread;
-                currentlastread = lastReadId
+            try {
+                if (lastreadchat[CurrentChat]["my"] < lastReadId) {
+                    lastreadchat[CurrentChat]["my"] = currentlastread;
+                    currentlastread = lastReadId
 
-                if (readtimer === null) {
-                    var cth = CurrentChat
-                    readtimer = setTimeout(() => {
-                        readtimer = null
-                        ws.send(JSON.stringify({
-                            type: "reading",
-                            last_read_id: currentlastread,
-                            chat_id: cth,
-                            user_id: Data.my_id
-                        }));
+                    if (readtimer === null) {
+                        var cth = CurrentChat
+                        readtimer = setTimeout(() => {
+                            readtimer = null
+                            ws.send(JSON.stringify({
+                                type: "reading",
+                                last_read_id: currentlastread,
+                                chat_id: cth,
+                                user_id: Data.my_id
+                            }));
 
-                        localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
-                    }, 5000)
+                            localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
+                        }, 5000)
+                    }
+
                 }
-
-            }
-            }catch{}
+            } catch {}
 
         });
 
@@ -528,13 +534,14 @@
         const photoUpload = document.getElementById('photo_upload');
         const myPhoto = document.getElementById('my_photo');
         const DataUser = localStorage.getItem('Userdata');
-        if (DataUser === null) { 
-           //const reg = await navigator.serviceWorker.ready
-           //const sub = await reg.pushManager.getSubscription()
-           //console.log(reg,sub)
-           //if (sub) {
-           //    await sub.unsubscribe()
-           //}
+        var loader_flag = false;
+        if (DataUser === null) {
+            //const reg = await navigator.serviceWorker.ready
+            //const sub = await reg.pushManager.getSubscription()
+            //console.log(reg,sub)
+            //if (sub) {
+            //    await sub.unsubscribe()
+            //}
             //console.log(DataUser, window.location.origin)
             localStorage.clear()
             window.location.href = window.location.origin; // https://basicmimimummessenger.duckdns.org
@@ -672,7 +679,7 @@
         LoadChats()
 
         async function DownloadingMSGs(chat_id, current_lastid, maxid) {
-            if (current_lastid<maxid){
+            if (current_lastid < maxid) {
                 console.log(chat_id, current_lastid, maxid)
                 ws.send(JSON.stringify({
                     "type": "get_msg_interval",
@@ -690,7 +697,7 @@
                 //console.log(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
                 var tag = false;
                 var date = new Date(msg.created)
-                //console.log(date)
+                    //console.log(date)
                 if (!isSameDay(lastDate, date) && lastDate !== null && msg.user_id !== Data.my_id) {
                     if (start) {
                         graphic.prepend({
@@ -719,17 +726,17 @@
                     }
                 } else {
                     try {
-              //         if (th) {
-              //             //console.log(msg)
-              //             var prepared = await prepareEncryptedPackage({
-              //                 encryptedKeyPath: `/media/encrypted/${msg.id}.key`,
-              //                 encryptedDataPath: `/media/encrypted/${msg.id}.bin`,
-              //                 ivPath: `/media/encrypted/${msg.id}.iv`
-              //             })
-              //             var content = await decryptBlob(deepJsonParse(prepared), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
-              //         } else {
-              //             var content = `media/unencrupted/{msg.is}`
-              //         }
+                        //         if (th) {
+                        //             //console.log(msg)
+                        //             var prepared = await prepareEncryptedPackage({
+                        //                 encryptedKeyPath: `/media/encrypted/${msg.id}.key`,
+                        //                 encryptedDataPath: `/media/encrypted/${msg.id}.bin`,
+                        //                 ivPath: `/media/encrypted/${msg.id}.iv`
+                        //             })
+                        //             var content = await decryptBlob(deepJsonParse(prepared), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                        //         } else {
+                        //             var content = `media/unencrupted/{msg.is}`
+                        //         }
                     } catch {
                         return;
                     }
@@ -763,8 +770,8 @@
                 var classn = "message-left";
             }
             //l>>>
-            var readingflag  = Boolean(classn === "message-right" && lastreadchat[CurrentChat]["other"] >= msg.id)
-            //console.log(lastreadchat)
+            var readingflag = Boolean(classn === "message-right" && lastreadchat[CurrentChat]["other"] >= msg.id)
+                //console.log(lastreadchat)
             if (msg.datatype === "txt") {
                 //console.log(content)
                 if (!start) {
@@ -775,7 +782,7 @@
                         time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
                         namesender: name,
                         classname: classn
-                    },readingflag)
+                    }, readingflag)
                 } else {
                     graphic.prepend({
                         type: msg.datatype,
@@ -784,7 +791,7 @@
                         time: `${date.getHours()}:${date.getMinutes()}`,
                         namesender: name,
                         classname: classn
-                    },readingflag)
+                    }, readingflag)
                 }
 
             }
@@ -804,7 +811,7 @@
                         time: `${date.getHours()}:${date.getMinutes()}`,
                         namesender: name,
                         classname: classn
-                    },readingflag)
+                    }, readingflag)
                 } else {
                     graphic.prepend({
                         type: msg.datatype,
@@ -813,7 +820,7 @@
                         time: `${date.getHours()}:${date.getMinutes()}`,
                         namesender: name,
                         classname: classn
-                    },readingflag)
+                    }, readingflag)
                 }
             }
 
@@ -822,7 +829,7 @@
         async function SavemyMsg(datae) {
             if (datae.success) {
                 var msgencrypt_g = UnCookMessages[datae["uniknownid"]]
-                //console.log(datae)
+                    //console.log(datae)
                 await messagedb.save({
                     id: parseInt(datae.message_id),
                     internal_id: parseInt(datae.internal_id),
@@ -863,7 +870,7 @@
                 console.log(reg)
             }
             let sub = await reg.pushManager.getSubscription()
-            console.log(reg,sub)
+            console.log(reg, sub)
             if (sub) {
                 console.log("Already subscribed")
                 return
@@ -886,8 +893,8 @@
                 applicationServerKey: urlBase64ToUint8Array(PUBLIC_KEY)
             })
             ws.send(JSON.stringify({
-                type:"subscription",
-                sub:sub
+                type: "subscription",
+                sub: sub
             }))
         }
 
@@ -953,7 +960,7 @@
                 }
             } else if (datae.type === "new_chat") { // приглашение от инициатора
                 //console.log("call true func")
-                new Notification(title="MIN-поддержка", options={
+                new Notification(title = "MIN-поддержка", options = {
                     body: `${datae.user.name} хочет создать чат с вами`,
                     icon: localStorage.getItem("logo"),
                     badge: localStorage.getItem("logo"),
@@ -963,13 +970,18 @@
                 //console.log(datae.chat)
                 var jsonkey = deepJsonParse(datae.chat.privatekeycrypt.replace(/'/g, '"'))
                 datae.chat.privatekeycrypt = await hybridDecrypt(jsonkey, Data.privatekeycrypt)
-                //console.log(datae.chat)
+                    //console.log(datae.chat)
                 ChatsData[datae.chat.id] = datae.chat
-                if (lastreadchat.length===0 || ! (Number(datae.chat.id) in lastreadchat)){
-                    lastreadchat[Number(datae.chat.id)] = {"my":0,"other":0,"this_device":0,"max_load":0}
+                if (lastreadchat.length === 0 || !(Number(datae.chat.id) in lastreadchat)) {
+                    lastreadchat[Number(datae.chat.id)] = {
+                        "my": 0,
+                        "other": 0,
+                        "this_device": 0,
+                        "max_load": 0
+                    }
                     localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
                 }
-                    
+
                 localStorage.setItem("Chats", JSON.stringify(ChatsData));
                 LoadChats();
                 //e.log(localStorage.getItem("Chats"))
@@ -977,35 +989,35 @@
 
             } else if (datae.type === "addmymsg") {
                 SavemyMsg(datae)
-                graphic.setNewID(old_id=`my${datae.uniknownid}`,new_id=datae.message_id)
+                graphic.setNewID(old_id = `my${datae.uniknownid}`, new_id = datae.message_id)
                 var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
                 lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
-                localStorage.setItem("lastreadchat",JSON.stringify(lsrd))
+                localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
             } else if (datae.type === "addmsg") {
                 SaveMsg(datae)
                 var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
                 lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
-                localStorage.setItem("lastreadchat",JSON.stringify(lsrd))
+                localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
 
 
 
                 if (datae.user_id in UserNames) {
-                        name = UserNames[datae.user_id]["name"]
-                        console.log(name)
-                    } else {
-                        name = await GetName(id = datae.user_id)
-                        name = name["name"]
-                        if (name !== null) {
-                            UserNames[datae.user_id] = {
-                                "name": name
-                            }
-                            localStorage.setItem("UserNames", UserNames)
+                    name = UserNames[datae.user_id]["name"]
+                    console.log(name)
+                } else {
+                    name = await GetName(id = datae.user_id)
+                    name = name["name"]
+                    if (name !== null) {
+                        UserNames[datae.user_id] = {
+                            "name": name
                         }
+                        localStorage.setItem("UserNames", UserNames)
                     }
+                }
 
-                console.log(localChats[datae.chat_id],localChats)
-                if (datae.user_id !== Data.my_id){
-                    new Notification(title=localChats[datae.chat_id], options={
+                console.log(localChats[datae.chat_id], localChats)
+                if (datae.user_id !== Data.my_id) {
+                    new Notification(title = localChats[datae.chat_id], options = {
                         body: `${UserNames[datae.user_id].name}: новое сообщение`,
                         icon: localChats[datae.chat_id].photo,
                         badge: localStorage.getItem("logo"),
@@ -1018,16 +1030,17 @@
                         created: datae.datatime,
                         datatype: datae.typemsg
                     }
-                    if (msg.user_id !== Data.my_id){
-                        if (graphic.is_id("new_messages")===false){
+                    if (msg.user_id !== Data.my_id) {
+                        if (graphic.is_id("new_messages") === false) {
                             graphic.remove("new_messages")
                             graphic.add({
                                 type: "tmc",
                                 content: `Новые сообщения`,
                                 classname: "message-center",
                                 id: "new_messages"
-                            })}
+                            })
                         }
+                    }
                     UpdateGUI({
                         id: datae.message_id,
                         created: datae.datatime,
@@ -1052,24 +1065,24 @@
                 }
             } else if (datae.type === "newread") {
                 lastreadchat[datae.chat_id]["other"] = datae.last_read_id;
-                localStorage.setItem("lastreadchat",JSON.stringify(lastreadchat))
-                if (datae.chat_id === CurrentChat){
+                localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
+                if (datae.chat_id === CurrentChat) {
                     graphic.markRead(datae.last_read_id)
                 }
-            } else if (datae.type === "newlastdata"){
-                localStorage.setItem("lastreadchat",JSON.stringify(datae.lastdata))
-                lastreadchat=datae.lastdata
+            } else if (datae.type === "newlastdata") {
+                localStorage.setItem("lastreadchat", JSON.stringify(datae.lastdata))
+                lastreadchat = datae.lastdata
                 console.log(lastreadchat[CurrentChat])
-                for (const [k, v] of Object.entries(lastreadchat)){
-                    DownloadingMSGs(Number(k),v.this_device,v.other)
+                for (const [k, v] of Object.entries(lastreadchat)) {
+                    DownloadingMSGs(Number(k), v.this_device, v.other)
 
                 }
 
                 console.log(lastreadchat)
-            } else if (datae.type === "old_msgs"){
-                for (var msg of datae.msgs){
+            } else if (datae.type === "old_msgs") {
+                for (var msg of datae.msgs) {
                     console.log(msg)
-                    await messagedb.save({           
+                    await messagedb.save({
                         id: parseInt(msg.id),
                         internal_id: parseInt(msg.internal_id),
                         chat_id: parseInt(msg.chat_id),
@@ -1078,24 +1091,25 @@
                         msg: msg.content,
                         created: msg.datatime
                     })
-                    if (CurrentChat === msg.chat_id){
-                    UpdateGUI({
-                        id: msg.id,
-                        created: msg.created,
-                        msg: msg.content,
-                        datatype: msg.datatype,
-                        user_id: msg.user_id
-                    }, true)}
+                    if (CurrentChat === msg.chat_id) {
+                        UpdateGUI({
+                            id: msg.id,
+                            created: msg.created,
+                            msg: msg.content,
+                            datatype: msg.datatype,
+                            user_id: msg.user_id
+                        }, true)
+                    }
                 }
-            } else if (datae.type === "new_msgs"){
+            } else if (datae.type === "new_msgs") {
                 var i = 0;
                 var last = 0
-                if (datae.chat_id !== null){
+                if (datae.chat_id !== null) {
                     i = Number(datae.chat_id)
                 }
-                for (var msg of datae.msgs){
+                for (var msg of datae.msgs) {
                     console.log(msg)
-                    await messagedb.save({           
+                    await messagedb.save({
                         id: parseInt(msg.id),
                         internal_id: parseInt(msg.internal_id),
                         chat_id: parseInt(msg.chat_id),
@@ -1104,46 +1118,8 @@
                         msg: msg.content,
                         created: msg.datatime
                     })
-                    last =  parseInt(msg.id)
-                    if (Number(CurrentChat) === Number(msg.chat_id)){
-                    UpdateGUI({
-                        id: msg.id,
-                        created: msg.created,
-                        msg: msg.content,
-                        datatype: msg.datatype,
-                        user_id: msg.user_id
-                    }, false)}
-                }
-                //if (i>0){
-                //    var l = JSON.parse(localStorage.getItem("lastreadchat"))
-                //    if (l[i].last_load < last){
-                //        l[i].last_load = last
-                //        localStorage.setItem("lastreadchat",JSON.stringify(l))
-                //    }
-                //}
-            }
-            else if (datae.type === "delete_msg"){
-                messagedb.deleteById(Number(datae.id))
-                graphic.remove(Number(datae.id))
-            } else if (datae.type === "post_msg_interval"){
-                let m = null
-                var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
-                for (let m of datae.messages.reverse()){
-                    //console.log(m)
-                    if (m.id > lsrd[Number(m.chat_id)].this_device){
-                        lsrd[Number(m.chat_id)].this_device = Number(m.id)
-                    }
-
-                    messagedb.save({           
-                        id: parseInt(m.id),
-                        internal_id: parseInt(m.internal_id),
-                        chat_id: parseInt(m.chat_id),
-                        user_id: parseInt(m.user_id),
-                        datatype: m.datatype,
-                        msg: m.content,
-                        created: m.created
-                    })
-                    if (datae.chat_id === CurrentChat){
+                    last = parseInt(msg.id)
+                    if (Number(CurrentChat) === Number(msg.chat_id)) {
                         UpdateGUI({
                             id: msg.id,
                             created: msg.created,
@@ -1153,76 +1129,92 @@
                         }, false)
                     }
                 }
-                localStorage.setItem("lastreadchat",JSON.stringify(lsrd))
-                
+                //if (i>0){
+                //    var l = JSON.parse(localStorage.getItem("lastreadchat"))
+                //    if (l[i].last_load < last){
+                //        l[i].last_load = last
+                //        localStorage.setItem("lastreadchat",JSON.stringify(l))
+                //    }
+                //}
+            } else if (datae.type === "delete_msg") {
+                messagedb.deleteById(Number(datae.id))
+                graphic.remove(Number(datae.id))
+            } else if (datae.type === "post_msg_interval") {
+                let m = null
+                var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
+                for (let m of datae.messages.reverse()) {
+                    //console.log(m)
+                    if (m.id > lsrd[Number(m.chat_id)].this_device) {
+                        lsrd[Number(m.chat_id)].this_device = Number(m.id)
+                    }
+
+                    messagedb.save({
+                        id: parseInt(m.id),
+                        internal_id: parseInt(m.internal_id),
+                        chat_id: parseInt(m.chat_id),
+                        user_id: parseInt(m.user_id),
+                        datatype: m.datatype,
+                        msg: m.content,
+                        created: m.created
+                    })
+                    if (datae.chat_id === CurrentChat) {
+                        UpdateGUI({
+                            id: msg.id,
+                            created: msg.created,
+                            msg: msg.content,
+                            datatype: msg.datatype,
+                            user_id: msg.user_id
+                        }, false)
+                    }
+                }
+                localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
 
 
-            } else if (datae.type === "call_answ"){
-                if (datae.success === true){
+
+            } else if (datae.type === "call_answ") {
+                if (datae.success === true) {
                     document.getElementById("start_call").style.display = "flex";
-                    document.getElementById("accept_call").style.display="none";
+                    document.getElementById("accept_call").style.display = "none";
                     document.getElementById("call_p").innerText = ChatsData[datae.chat_id]["name"]
                     document.getElementById("call_ava").src = ChatsData[datae.chat_id]["photo"]
-                    current_call_id=datae.call_id
-                }
-                else{
+                    current_call_id = datae.call_id
+                } else {
                     alert("Собеседник не в сети!")
                 }
-            } else if (datae.type === "call"){
+            } else if (datae.type === "call") {
                 document.getElementById("start_call").style.display = "flex";
-                document.getElementById("accept_call").style.display="flex";
+                document.getElementById("accept_call").style.display = "flex";
                 document.getElementById("call_p").innerText = ChatsData[datae.chat_id]["name"]
                 document.getElementById("call_ava").src = ChatsData[datae.chat_id]["photo"]
                 current_call_id = datae.call_id;
-            }
-            else if (datae.type === "offer"){
+            } else if (datae.type === "offer") {
                 handleOffer(datae)
-            }
-
-            else if (datae.type === "answer"){
+            } else if (datae.type === "answer") {
                 await pc.setRemoteDescription(datae.sdp);
-            }
-
-            else if (datae.type === "ice"){
+            } else if (datae.type === "ice") {
                 await pc.addIceCandidate(datae.candidate);
-            }
-        
-            else if (datae.type==="kill_webrtc"){
-                console.log(current_call_id,datae.call_id)
-                current_call_id=datae.call_id
-                if (current_call_id === datae.call_id){
+            } else if (datae.type === "kill_webrtc") {
+                console.log(current_call_id, datae.call_id)
+                current_call_id = datae.call_id
+                if (current_call_id === datae.call_id) {
 
                     endCall()
                 }
-                
-            } else if (datae.type === "call_accepted"){
-                document.getElementById("call_status").innerText="Устанавливаем соединение"
+
+            } else if (datae.type === "call_accepted") {
+                document.getElementById("call_status").innerText = "Устанавливаем соединение"
                 await initPeer()
                 await createOffer()
-            } else if (datae.type==="answ_media"){
-                if (datae.success===true){
-                    await messagedb.save({
-                        id: parseInt(datae.message_id),
-                        internal_id: parseInt(datae.internal_id),
-                        chat_id: parseInt(datae.chat_id),
-                        user_id: parseInt(datae.user_id),
-                        datatype: "media",
-                        msg: "",
-                        created: datae.datatime
-                    })
-                    var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
-                    lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
-                    localStorage.setItem("lastreadchat",JSON.stringify(lsrd))
-                    //start chunking
-                    processFile(file,Data.publickey, parseInt(datae.message_id),datae.upload_id)
-                }
-                else{
+            } else if (datae.type === "answ_media") {
+                if (datae.success === true) {
+                    processFile(file, Data.publickey, parseInt(datae.message_id), datae.upload_id, datae)
+                } else {
                     alert("Error connecting to server!")
                 }
             }
             try {
 
-            } catch (e){
+            } catch (e) {
                 console.log(e)
             }
         };
@@ -1316,7 +1308,7 @@
             for (var key of Object.keys(chats)) {
                 var chat = chats[parseInt(key)]
                 console.log(lastreadchat)
-                //if (lastreadchat[Number(chat.id)]["my"]-lastreadchat[Number(chat.id)]["other"]>0)
+                    //if (lastreadchat[Number(chat.id)]["my"]-lastreadchat[Number(chat.id)]["other"]>0)
                 ChatBox.innerHTML += `
                 <div data-chat-id=${'chat'+chat.id} class=${'chatinfo'}>
                     <img src="${chat.photo}" class=${'chat-avatar'} style='margin-left:12px;' alt="${0} ">
@@ -1330,7 +1322,7 @@
             var localChats = JSON.parse(localStorage.getItem("Chats"))
 
             console.log(" loading chats...")
-            //console.log(localChats)
+                //console.log(localChats)
             ChatsData = {}
             const response = await fetch("/userchatlist", {
                 method: 'POST',
@@ -1341,7 +1333,7 @@
                     id: JSON.parse(localStorage.getItem("Userdata")).my_id
                 }),
             });
-            if (!(response)){
+            if (!(response)) {
                 return
             }
             const chats = await response.json();
@@ -1350,7 +1342,7 @@
                 if (!chat.photo || chat.photo === "None") {
                     if (chat.type === "p2p") {
                         var id = chat.name.split("/")
-                        //console.log(chat)
+                            //console.log(chat)
                         if (String(id[0]) === String(Data.my_id)) {
                             id = id[1]
                         } else {
@@ -1368,7 +1360,7 @@
                     chat.photo = await imageToBase64(chat.photo);
                 }
                 try {
-                   //console.log(localChats, localChats[parseInt(chat.id)])
+                    //console.log(localChats, localChats[parseInt(chat.id)])
                     chat.privatekeycrypt = localChats[parseInt(chat.id)].privatekeycrypt
                 } catch {}
                 ChatsData[parseInt(chat.id)] = chat
@@ -1376,7 +1368,7 @@
             localStorage.setItem("Chats", JSON.stringify(ChatsData));
             UpdataChats();
         }
-            //messagedb.deleteDB()
+        //messagedb.deleteDB()
         document.getElementById("inputsearchuser").addEventListener("focus", function() {
             document.querySelector("#SearchUser").style.display = "flex";
         });
@@ -1386,24 +1378,24 @@
         var scrolling_flag = false;
         GraphicChat.addEventListener("scroll", async function() {
             if (GraphicChat.scrollTop + chat.clientHeight >= chat.scrollHeight - 5 && scrolling_flag === false) {
-                console.log("Низ — можно подгружать новые сообщения",GraphicChat.lastElementChild.dataset.id);
-                if (parseInt(GraphicChat.lastElementChild.dataset.id) < Math.max(lastreadchat[Number(CurrentChat)].my,lastreadchat[Number(CurrentChat)].other)) {
-                    if (parseInt(GraphicChat.lastElementChild.dataset.id) !== null && parseInt(CurrentChat)!==null){
-                        scrolling_flag=true;
-                        var newmsgs = await messagedb.loadNewerMessages(parseInt(CurrentChat), parseInt(GraphicChat.lastElementChild.dataset.id)+1,5)
-                        console.log(newmsgs,parseInt(CurrentChat),5, parseInt(GraphicChat.lastElementChild.dataset.id))
-                        if (newmsgs.length<1 ){
+                console.log("Низ — можно подгружать новые сообщения", GraphicChat.lastElementChild.dataset.id);
+                if (parseInt(GraphicChat.lastElementChild.dataset.id) < Math.max(lastreadchat[Number(CurrentChat)].my, lastreadchat[Number(CurrentChat)].other)) {
+                    if (parseInt(GraphicChat.lastElementChild.dataset.id) !== null && parseInt(CurrentChat) !== null) {
+                        scrolling_flag = true;
+                        var newmsgs = await messagedb.loadNewerMessages(parseInt(CurrentChat), parseInt(GraphicChat.lastElementChild.dataset.id) + 1, 5)
+                        console.log(newmsgs, parseInt(CurrentChat), 5, parseInt(GraphicChat.lastElementChild.dataset.id))
+                        if (newmsgs.length < 1) {
                             ws.send(JSON.stringify({
-                                "type":"load_some_msg_new",
-                                "chat_id":CurrentChat,
-                                "id":parseInt(GraphicChat.lastElementChild.dataset.id),
-                                "limit":10
+                                "type": "load_some_msg_new",
+                                "chat_id": CurrentChat,
+                                "id": parseInt(GraphicChat.lastElementChild.dataset.id),
+                                "limit": 10
                             }))
                         }
                         for (let msg of newmsgs) {
                             UpdateGUI(msg, false)
                         }
-                        scrolling_flag=false;
+                        scrolling_flag = false;
                     }
                 }
             }
@@ -1414,12 +1406,12 @@
                 if (parseInt(GraphicChat.firstElementChild.dataset.id) < lastIdload || lastIdload === -1) {
                     var newmsgs = await messagedb.getChatMessages(chatId = parseInt(CurrentChat), 5, parseInt(GraphicChat.firstElementChild.dataset.id))
                     console.log(newmsgs)
-                    if (newmsgs.length<1 ){
+                    if (newmsgs.length < 1) {
                         ws.send(JSON.stringify({
-                            "type":"load_some_msg",
-                            "chat_id":CurrentChat,
-                            "id":parseInt(GraphicChat.firstElementChild.dataset.id),
-                            "limit":10
+                            "type": "load_some_msg",
+                            "chat_id": CurrentChat,
+                            "id": parseInt(GraphicChat.firstElementChild.dataset.id),
+                            "limit": 10
                         }))
                     }
                     for (let msg of newmsgs.reverse()) {
@@ -1491,15 +1483,15 @@
 
         });
 
-        document.getElementById("deleteMsg").addEventListener("click",async function() {
+        document.getElementById("deleteMsg").addEventListener("click", async function() {
             graphic.remove(activeMessageId);
             //console.log(typeof activeMessageId,typeof activeMessageId===Number)
             if (!String(activeMessageId).includes("my")) {
-                
+
                 ws.send(JSON.stringify({
                     type: "deletemsg",
                     id: Number(activeMessageId),
-                    chat_id:  Number(CurrentChat)
+                    chat_id: Number(CurrentChat)
                 }))
                 await messagedb.deleteById(Number(activeMessageId));
             }
@@ -1578,12 +1570,11 @@
                     await UpdateGUI(msg)
 
                 }
-                if (chatmsgs.length===0){
-                   ws.send(JSON.stringify(
-                     {type:"get_last",
-                        chat_id:Number(CurrentChat)
-                     }
-                   ))
+                if (chatmsgs.length === 0) {
+                    ws.send(JSON.stringify({
+                        type: "get_last",
+                        chat_id: Number(CurrentChat)
+                    }))
                 }
             }
             //if (e.target.closest(".message-right")){
@@ -2023,12 +2014,12 @@
                         if (challengeResult.wh === "notdb") {
                             localStorage.clear()
                             messagedb.deleteDB()
-                            //const reg = await navigator.serviceWorker.ready
-                            //const sub = await reg.pushManager.getSubscription()
-//
-                            //if (sub) {
-                            //    await sub.unsubscribe()
-                            //}
+                                //const reg = await navigator.serviceWorker.ready
+                                //const sub = await reg.pushManager.getSubscription()
+                                //
+                                //if (sub) {
+                                //    await sub.unsubscribe()
+                                //}
                             window.location.href = window.location.origin;
                         }
                     } catch {}
@@ -2370,15 +2361,15 @@
             };
         }
         const chopt_el = document.getElementById("optchat")
-        chopt_el.addEventListener("click",async function (e) {
+        chopt_el.addEventListener("click", async function(e) {
             const el = document.getElementById("ChatOptions")
             el.classList.remove("hide_chm")
             el.classList.add("show_chm");
             el.style.marginLeft = "8px"
             const Rect = el.getBoundingClientRect();
             const padding = 8;
-            var x=e.pageX
-            var y=e.pageY
+            var x = e.pageX
+            var y = e.pageY
             let posX = x;
             let posY = y;
             // 👉 не вылезать вправо
@@ -2396,7 +2387,7 @@
             el.style.top = posY + "px";
             el.classList.remove("hide_chm")
             el.classList.add("show_chm");
-        
+
         });
 
         document.getElementById("StartCallBtn").addEventListener("click", async function(e) {
@@ -2406,42 +2397,42 @@
             }))
         });
 
-        document.getElementById("accept_call").addEventListener("click",async function(){
+        document.getElementById("accept_call").addEventListener("click", async function() {
             ws.send(JSON.stringify({
-                type:"accept_call",
-                call_id:current_call_id
+                type: "accept_call",
+                call_id: current_call_id
             }))
             await initPeer()
-            document.getElementById("call_status").innerText="Устанавливаем соединение"
-            document.getElementById("accept_call").style.display="none";
+            document.getElementById("call_status").innerText = "Устанавливаем соединение"
+            document.getElementById("accept_call").style.display = "none";
         })
 
-        document.getElementById("disaccept").addEventListener("click",function(){
+        document.getElementById("disaccept").addEventListener("click", function() {
             ws.send(JSON.stringify({
-                type:"disaccept_call",
-                call_id:current_call_id
+                type: "disaccept_call",
+                call_id: current_call_id
             }))
             endCall()
         })
 
-        async function initPeer(){
+        async function initPeer() {
 
             pc = new RTCPeerConnection({
-                iceServers:[
-                    {urls:"stun:stun.l.google.com:19302"}
-                ]
+                iceServers: [{
+                    urls: "stun:stun.l.google.com:19302"
+                }]
             })
 
-            pc.ontrack = e=>{
+            pc.ontrack = e => {
                 document.getElementById("audio_stream").srcObject = e.streams[0]
             }
 
-            pc.onicecandidate = e=>{
-                if(e.candidate){
+            pc.onicecandidate = e => {
+                if (e.candidate) {
                     ws.send(JSON.stringify({
-                        type:"ice",
-                        candidate:e.candidate,
-                        call_id:current_call_id
+                        type: "ice",
+                        candidate: e.candidate,
+                        call_id: current_call_id
                     }))
                 }
             }
@@ -2461,40 +2452,43 @@
             pc.onsignalingstatechange = () => {
                 console.log("signalingState:", pc.signalingState)
             }
-            pc.onicecandidateerror = e=>{
-                console.error("ICE candidate error:",e)
+            pc.onicecandidateerror = e => {
+                console.error("ICE candidate error:", e)
             }
-            localStream = await navigator.mediaDevices.getUserMedia({audio:true})
+            localStream = await navigator.mediaDevices.getUserMedia({
+                audio: true
+            })
 
-            localStream.getTracks().forEach(track=>{
-                pc.addTrack(track,localStream)
+            localStream.getTracks().forEach(track => {
+                pc.addTrack(track, localStream)
             })
 
             // добавить ICE которые пришли раньше
             //iceBuffer.forEach(c=>{
             //    pc.addIceCandidate(c)
             //})
-//
+            //
             //iceBuffer = []
         }
 
-        async function createOffer(){
+        async function createOffer() {
             let offer = await pc.createOffer()
             await pc.setLocalDescription(offer)
             ws.send(JSON.stringify({
-                type:"offer",
-                sdp:offer,
+                type: "offer",
+                sdp: offer,
                 call_id: current_call_id
             }))
         }
-        function endCall(){
-            if(pc){
+
+        function endCall() {
+            if (pc) {
                 pc.close()
                 pc = null
             }
             current_call_id = null
             document.getElementById("start_call").style.display = "none";
-            localStream.getTracks().forEach(t=>t.stop())
+            localStream.getTracks().forEach(t => t.stop())
 
         }
 
@@ -2504,8 +2498,8 @@
             await pc.setLocalDescription(answer);
 
             ws.send(JSON.stringify({
-                type:"answer",
-                sdp:answer,
+                type: "answer",
+                sdp: answer,
                 call_id: current_call_id
             }));
         }
@@ -2529,7 +2523,7 @@
             return outputArray
         }
 
-        async function ServerRequest(req,data=null) {
+        async function ServerRequest(req, data = null) {
             var res = await fetch(req, {
                 method: 'POST',
                 headers: {
@@ -2539,21 +2533,21 @@
             })
             var result = await res.json()
             return result;
-            }
+        }
 
-        document.getElementById("uploadfile").addEventListener("click", function(){
+        document.getElementById("uploadfile").addEventListener("click", function() {
             fileInput.click();
         })
 
-            console.log(CurrentChat)
-        fileInput.addEventListener("change", function ()  {
-                    file = fileInput.files[0];
-                    if (CurrentChat !== null){
-                        ws.send(JSON.stringify({
-                            "type":"media_request",
-                            "chatid":CurrentChat
-                        }))
-                    }
+        console.log(CurrentChat)
+        fileInput.addEventListener("change", function() {
+            file = fileInput.files[0];
+            if (CurrentChat !== null) {
+                ws.send(JSON.stringify({
+                    "type": "media_request",
+                    "chatid": CurrentChat
+                }))
+            }
         });
 
         function bufToB64(buffer) {
@@ -2573,14 +2567,15 @@
             });
         }
 
-        async function processFile(file, publicKeyB64, id, upload_id, sys_type = false) {
+        async function processFile(file, publicKeyB64, id, upload_id, datae, sys_type = false) {
 
             const chunkSize = 512 * 1024;
 
-            const fileKey = await crypto.subtle.generateKey(
-                { name: "AES-GCM", length: 256 },
-                true,
-                ["encrypt", "decrypt"]
+            const fileKey = await crypto.subtle.generateKey({
+                    name: "AES-GCM",
+                    length: 256
+                },
+                true, ["encrypt", "decrypt"]
             );
 
             let media_type = "file";
@@ -2647,7 +2642,21 @@
                 return;
             }
 
-            // -------- загрузка чанков --------
+            await messagedb.save({
+                id: parseInt(datae.message_id),
+                internal_id: parseInt(datae.internal_id),
+                chat_id: parseInt(datae.chat_id),
+                user_id: parseInt(datae.user_id),
+                datatype: "media",
+                msg: metadataEncrypted,
+                created: datae.datatime
+            })
+            loader_flag = true
+            var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
+            lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
+            localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
+                //start chunking
+                // -------- загрузка чанков --------
             let errors = []
             let allChunks = [];
 
@@ -2675,16 +2684,22 @@
                 placeholder.progress = Math.min(end, file.size);
                 graphic.update(id, placeholder);
             }
-
-            // -------- финальный blob --------
-            const finalBlob = new Blob(allChunks, { type: file.type });
+            const finalBlob = new Blob(allChunks, {
+                type: file.type
+            });
 
             placeholder.content = finalBlob;
             placeholder.progress = file.size;
 
             graphic.update(id, placeholder);
-
+            loader_flag = false
             console.log("video uploaded");
+        }
+
+        async function save_all_chunks(file, msg_id) {
+            chunkdb.save({
+
+            })
         }
 
         function formatSize(bytes) {
@@ -2730,11 +2745,14 @@
                 video.onerror = reject;
             });
         }
+        window.addEventListener("beforeunload", (e) => {
+            if (!loader_flag) {
+                e.preventDefault(); // обязательно
+                e.returnValue = ""; // обязательно для Chrome, Firefox
+            }
+        });
 
     });
-
-
-    
 </script>
 </body>
 

@@ -37,8 +37,10 @@ challenges_del={}
 challenges_prof={}
 challenges_conn_device={}
 uploading_files = {}
-passwordf = open("C:/Users/SB/Desktop/gmailpassword.txt").read()
-
+try:
+    passwordf = open("C:/Users/SB/Desktop/gmailpassword.txt").read()
+except:
+    passwordf = "1234"
 
 
 KEY_FILE = "vapid.json"

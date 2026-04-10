@@ -8,7 +8,8 @@ pip install uvicorn
 pip install fastapi
 pip install sqlalchemy
 pip install cryptography
-pip install  requests
+pip install requests
+pip install pywebpush
 
 echo ✅ Библиотеки установлены!
 pause
