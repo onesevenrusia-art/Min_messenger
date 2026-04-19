@@ -545,11 +545,11 @@
             cipher = normalizeToBuffer(cipher, "cipher");
             iv = normalizeToBuffer(iv, "iv");
 
-            //console.log("IV length:", iv.byteLength);
-            //console.log("Cipher length:", cipher.byteLength);
-            //
-            //console.log("Key algo:", fileKey.algorithm);
-            //console.log("Key type:", fileKey.type);
+         // console.log("IV length:", iv.byteLength);
+         // console.log("Cipher length:", cipher.byteLength);
+         // 
+         // console.log("Key algo:", fileKey.algorithm);
+         // console.log("Key type:", fileKey.type);
 
             if (iv.byteLength !== 12) {
                 throw new Error("IV must be 12 bytes!");
@@ -559,8 +559,8 @@
             const cipherHash = await sha256(cipher);
             const ivHash = await sha256(iv);
 
-            //console.log("CIPHER HASH:", cipherHash);
-            //console.log("IV HASH:", ivHash);
+          //  console.log("CIPHER HASH:", cipherHash);
+          //  console.log("IV HASH:", ivHash);
 
             try {
                 const buffer = await crypto.subtle.decrypt({
@@ -571,7 +571,7 @@
                     cipher
                 );
 
-                //console.log("DECRYPT OK");
+               // console.log("DECRYPT OK");
 
                 const plainHash = await sha256(buffer);
                 //console.log("PLAIN HASH:", plainHash);
@@ -589,8 +589,8 @@
         }
 
         function b64ToBuf(b64) {
-            //console.log("B64:", b64);
-            //console.log("TYPE:", typeof b64);
+            console.log("B64:", b64);
+            console.log("TYPE:", typeof b64);
 
             return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
         }

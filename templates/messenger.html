@@ -209,7 +209,7 @@
 
     <audio style="display: none;" id="audio_stream" autoplay></audio>
 </body>
-<script src="/static/js/appCrypto_1.js"></script>
+<script src="/static/js/appCrypto_v10.js"></script>
 <script src="static/js/MessagesDB_3.js"></script>
 <script src="static/js/chunksDB.js"></script>
 <script>
@@ -792,13 +792,14 @@
                             return;
                         }
                         if (!media.success) {
-                            for (let f = 0; f < 5; f++) {
                                 console.log("start download")
-                                let re = await download_chunks(media.chunk_id, media.end, msg.id, media.place)
-                                if (re.length === 0) {
-                                    break
-                                }
-                            }
+                                ws.send(JSON.stringify({
+                                    type: "get_token",
+                                    msg_id: msg.id,
+                                    interval: [media.chunk_id, media.end,media.size]
+                                }))
+                                
+
                         }
 
                     } else {
@@ -1228,6 +1229,11 @@
                 } else {
                     alert("Error connecting to server!")
                 }
+            } else if(datae.type === "answ_token") {
+                if (datae.success===true){
+                    download_chunks(datae.interval[0],datae.interval[1],datae.msg_id,datae.token,datae.interval[2])
+                }
+
             }
             try {
 
@@ -2532,18 +2538,40 @@
             return outputArray
         }
 
-        async function ServerRequest(req, data = null) {
+        async function ServerRequest(req, data = null, options = {}) {
             try {
-                var res = await fetch(req, {
+                const res = await fetch(req, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        ...(options.headers || {})
                     },
-                    body: JSON.stringify(data)
-                })
-                var result = await res.json()
-                return result;
-            } catch {
+                    body: data ? JSON.stringify(data) : null
+                });
+
+                if (!res.ok) {
+                    return { success: false, status: res.status };
+                }
+
+                const contentType = res.headers.get("content-type") || "";
+                if (contentType.includes("application/json")) {
+                    return await res.json();
+                }
+                if (contentType.includes("application/octet-stream")) {
+                    const buffer = await res.arrayBuffer();
+                    return {
+                        success: true,
+                        buffer
+                    };
+                }
+                const text = await res.text();
+                return {
+                    success: true,
+                    data: text
+                };
+
+            } catch (e) {
+                console.error("ServerRequest error:", e);
                 return {
                     success: false
                 };
@@ -2833,7 +2861,6 @@
                 if (!meta.success) {
                     return
                 }
-                console.log(meta)
                 await messagedb.updateById(msg.id, {
                     msg: {
                         metadata: meta.metadata,
@@ -2870,9 +2897,11 @@
                 poster: null
             };
             graphic.add(placeholder);
+            console.log(metadata)
             let chunks = [];
             for (let i = 0; i < metadata.chunk_count; i++) {
                 let chunk_enc = await chunkdb.getChunk(msg.id, i);
+                console.log(typeof chunk_enc,chunk_enc)
                 if (!chunk_enc) {
                     console.log("chunk missing", i);
                     //continue;
@@ -2880,9 +2909,12 @@
                         success: false,
                         chunk_id: i,
                         end: metadata.chunk_count,
-                        place: placeholder
+                        place: placeholder,size:placeholder.size
                     };
+
                 }
+
+
                 let buffer = await decryptChunk(
                     fileKey,
                     chunk_enc.chunk.cipher,
@@ -2892,6 +2924,7 @@
                 const start = i * chunkSize;
                 const end = start + chunkSize;
                 placeholder.progress = Math.min(end, metadata.size);
+                console.log("upd g")
                 graphic.update(msg.id, placeholder)
             }
             // 4. собрать файл
@@ -2901,6 +2934,7 @@
                 }
             );
             placeholder.content = blob;
+            console.log(placeholder)
             graphic.update(msg.id, placeholder);
             return {
                 blob,
@@ -2912,33 +2946,46 @@
             //     return null;
             // }
         }
-        async function download_chunks(last_chunk, end, msg_id, placeholder) {
-            ws.send(JSON.stringify({
-                type: "get_token",
-                msg_id: msg_id
-            }))
-            return
+        function base64ToUint8Array(base64) {
+            const binary = atob(base64);
+            const len = binary.length;
+            const bytes = new Uint8Array(len);
+
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+
+            return bytes;
+        }
+        async function download_chunks(last_chunk, end, msg_id, token,size) {
             let get_errors = []
-            for (let i = last_chunk; i <= end; i++) {
+            for (let i = last_chunk; i < end; i++) {
                 get_errors = []
                 for (let c = 0; c < 5; c++) {
                     var r = await ServerRequest("get_chunk", {
                         chunk_id: i,
-                        secret_key: Data.device,
+                        token: token,
                         device_id: Data.device_id,
+                        msg_id:msg_id
                     })
                     console.log(r, r.success)
                     if (!r.success) {
                         if (c === 4)
                             get_errors.push(i)
                     } else {
-                        let db = await chunkdb.saveChunk(msg_id, i, r.chunk)
+                        let buffer = r.buffer
+                        const iv = new Uint8Array(buffer.slice(0, 12));
+                        const cipher = buffer.slice(12);
+                        const chunk = {
+                            iv,
+                            cipher
+                        };
+                        let db = await chunkdb.saveChunk(msg_id, i, chunk)
                         console.log(db)
                         break;
                     }
                 }
-                placeholder.progress = Math.min((i + 1) * chunkSize, placeholder.size);
-                graphic.update(msg_id, placeholder)
+                graphic.update(msg_id, {type:"media",progress:Math.min((i + 1) * chunkSize, size)})
             }
             console.log(get_errors)
             return get_errors;

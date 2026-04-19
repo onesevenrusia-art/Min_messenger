@@ -336,6 +336,7 @@ def fix(obj):
     if isinstance(obj, bytes):
         return base64.b64encode(obj).decode("ascii")
 
+tokens_load = {}
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket): 
@@ -735,11 +736,12 @@ async def websocket_endpoint(ws: WebSocket):
                 m=Database.get_message_by_id(msg["msg_id"])
                 print(m)
                 p=Database.get_ChatParticipants(m["chat_id"])
-                if int(this_user) in [int(p1["id"]) for p1 in p]:
+                if int(this_userid) in [int(p1["id"]) for p1 in p]:
                     token = secrets.token_urlsafe(32)
                     redisdb.put(f'{this_deviceid}+{msg["msg_id"]}',token,600)
                     await ws.send_json({"type":"answ_token",
-                                        "success":True,"token":token})
+                                        "success":True,"token":token,
+                                        "msg_id":msg["msg_id"],"interval":msg["interval"]})
                 else:
                     await ws.send_json({"type":"answ_token",
                                         "success":False})
@@ -1359,16 +1361,20 @@ async def get_meta(request: Request):
         return  {"success":True,"metadata":d,"fileKey":fix(d2)}
     else:
         return {"success":False}
-
+    
+from starlette.exceptions import HTTPException
 @app.post("/get_chunk")
 async def get_meta(request: Request):
     data = await request.json()
     if redisdb.get(f'{data["device_id"]}+{data["msg_id"]}')==data["token"]:
         with open(f'media/{data["msg_id"]}/{data["chunk_id"]}.bin', 'rb') as f:
             chunk = f.read()
-        return  {"success":True,"chunk":fix(chunk)}
+        return Response(
+            content=chunk,
+            media_type="application/octet-stream"
+        )
     else:
-        return {"success":False,"w":"auth"}
+        raise HTTPException(403)
 
 
 
