@@ -15,7 +15,7 @@ class ChunkStore {
 
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
-            
+
                 if (!db.objectStoreNames.contains("chunks")) {
                     const store = db.createObjectStore("chunks", {
                         keyPath: "id",
@@ -59,11 +59,11 @@ class ChunkStore {
 
         const store = await this._store("readonly");
         const index = store.index("msg_chunk");
-    
+
         return new Promise((resolve, reject) => {
-    
+
             const req = index.get([msg_id, chunk_id]);
-    
+
             req.onsuccess = () => resolve(req.result || null);
             req.onerror = () => reject(req.error);
         });

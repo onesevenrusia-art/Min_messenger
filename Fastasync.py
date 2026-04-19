@@ -20,6 +20,7 @@ import json
 import random
 import MessengerDataBase
 import FeedBacks
+import RedisDB
 import uvicorn
 import base64, uuid
 import os, shutil, sys, traceback
@@ -80,6 +81,7 @@ PRIVATE_KEY = KEYS["private"]
 app = FastAPI()
 Database = MessengerDataBase.DataBaseManager()
 feedbacksdb = FeedBacks.Feedback_Manager()
+redisdb = RedisDB.DataBase()
 templates = Jinja2Templates(directory="templates")
 os.makedirs("media", exist_ok=True)
 
@@ -729,6 +731,24 @@ async def websocket_endpoint(ws: WebSocket):
                                     "user_id":int(this_userid),
                                     "chat_id":int(msg["chatid"]),
                                     "upload_id":upload_id})
+            if msg["type"] == "get_token":
+                m=Database.get_message_by_id(msg["msg_id"])
+                print(m)
+                p=Database.get_ChatParticipants(m["chat_id"])
+                if int(this_user) in [int(p1["id"]) for p1 in p]:
+                    token = secrets.token_urlsafe(32)
+                    redisdb.put(f'{this_deviceid}+{msg["msg_id"]}',token,600)
+                    await ws.send_json({"type":"answ_token",
+                                        "success":True,"token":token})
+                else:
+                    await ws.send_json({"type":"answ_token",
+                                        "success":False})
+
+
+
+
+            
+
                 
          
 
@@ -1329,7 +1349,7 @@ async def get_meta(request: Request):
         device =Database.get_device_by_id(data["device_id"])
         print(data,device)
     except Exception as e:
-        print(e)
+        print("err",e)
         return {"success":False}
     if device["name"]==data["device"]:
         with open(f'media/{data["msg_id"]}/metadata.json', 'r', encoding='utf-8') as file:
@@ -1343,18 +1363,12 @@ async def get_meta(request: Request):
 @app.post("/get_chunk")
 async def get_meta(request: Request):
     data = await request.json()
-    try:
-        device =Database.get_device_by_id(data["device_id"])
-        print(data,device)
-    except Exception as e:
-        print(e)
-        return {"success":False}
-    if device["name"]==data["device"]:
+    if redisdb.get(f'{data["device_id"]}+{data["msg_id"]}')==data["token"]:
         with open(f'media/{data["msg_id"]}/{data["chunk_id"]}.bin', 'rb') as f:
             chunk = f.read()
         return  {"success":True,"chunk":fix(chunk)}
     else:
-        return {"success":False}
+        return {"success":False,"w":"auth"}
 
 
 

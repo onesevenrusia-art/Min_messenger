@@ -10,6 +10,7 @@ pip install sqlalchemy
 pip install cryptography
 pip install requests
 pip install pywebpush
+pip install redis
 
 echo ✅ Библиотеки установлены!
 pause

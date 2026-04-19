@@ -494,21 +494,25 @@
         }
         try {
             var UnloadChunks = JSON.parse(localStorage.getItem("UnloadChunks"))
-            if (UnloadChunks  === null) {
-                UnloadChunks  = {};
+            if (UnloadChunks === null) {
+                UnloadChunks = {};
             }
         } catch {
             localStorage.setItem("UnloadChunks", JSON.stringify({}));
-            var UnloadChunks  = {};
+            var UnloadChunks = {};
         }
         try {
             var not = JSON.parse(localStorage.getItem("notify"))
-            if (not  === null) {
-                not  = {ready:false};
+            if (not === null) {
+                not = {
+                    ready: false
+                };
                 localStorage.setItem("notify", JSON.stringify(not));
             }
         } catch {
-            localStorage.setItem("notify", JSON.stringify({ready:false}));
+            localStorage.setItem("notify", JSON.stringify({
+                ready: false
+            }));
         }
 
         console.log(lastreadchat)
@@ -574,7 +578,7 @@
         const mediabtn = document.getElementById("sendmedia");
         const messagedb = new MessageStore(dbName = Data.db_created);
         await messagedb.open();
-        const chunkdb = new ChunkStore(`chunks_v_${Data.db_created}`,1);
+        const chunkdb = new ChunkStore(`chunks_v_${Data.db_created}`, 1);
         await chunkdb.open();
         msg_menu.classList.remove("hidden_m")
         var activeMessageId = null;
@@ -710,7 +714,7 @@
         }
 
         async function UpdateGUI(msg, start = false) {
-            
+
             var th = ChatsData[CurrentChat].type !== "tehnic"
             var tag = false;
             if (true) {
@@ -770,45 +774,42 @@
             //l>>>
             var readingflag = Boolean(classn === "message-right" && lastreadchat[CurrentChat]["other"] >= msg.id)
 
-                if (msg.datatype === "txt") {
+            if (msg.datatype === "txt") {
+                if (th) {
+                    var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                } else {
+                    var content = msg.msg
+                }
+            } else {
+                try {
                     if (th) {
-                        var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                        // console.log(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                        // var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
+                        // msg.msg = content
+                        var media = await loadMedia(msg, ChatsData[parseInt(CurrentChat)].privatekeycrypt, name, tag, date)
+                        if (media === null) {
+
+                            return;
+                        }
+                        if (!media.success) {
+                            for (let f = 0; f < 5; f++) {
+                                console.log("start download")
+                                let re = await download_chunks(media.chunk_id, media.end, msg.id, media.place)
+                                if (re.length === 0) {
+                                    break
+                                }
+                            }
+                        }
+
                     } else {
                         var content = msg.msg
                     }
-                } else {
-                    try {
-                        if (th) {
-                           // console.log(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
-                           // var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
-                           // msg.msg = content
-                           console.log(msg)
-            
-                           console.log(ChatsData[parseInt(CurrentChat)])
-                            var media = await loadMedia(msg,ChatsData[parseInt(CurrentChat)].privatekeycrypt,name,tag,date)
-                            if (media===null){
-
-                                return;
-                            }
-                            if (!media.success){
-                                for (let f = 0; f<5; f++){
-                                    console.log("start download")
-                                    let re = await download_chunks(media.chunk_id,media.end,msg.id,media.place)
-                                    if (re.length === 0){
-                                        break
-                                    }
-                                }
-                            }
-                            
-                        } else {
-                            var content = msg.msg
-                        }
-                    } catch {
-                        return;
-                    }
+                } catch {
+                    return;
                 }
-  
-                //console.log(lastreadchat)
+            }
+
+            //console.log(lastreadchat)
             if (msg.datatype === "txt") {
                 //console.log(content)
                 if (!start) {
@@ -832,8 +833,7 @@
                 }
 
             }
-            if (msg.datatype === "media") {
-            }
+            if (msg.datatype === "media") {}
 
         }
 
@@ -876,7 +876,7 @@
             if (!("serviceWorker" in navigator) && n.ready === true) return
             navigator.serviceWorker.ready.then(r => console.log(r.scope))
             let reg = await navigator.serviceWorker.getRegistration()
-            if (!reg || n.ready===false) {
+            if (!reg || n.ready === false) {
                 reg = await navigator.serviceWorker.register("/sw.js")
                 console.log(reg)
             }
@@ -903,7 +903,9 @@
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(PUBLIC_KEY)
             })
-            localStorage.setItem("notify",JSON.stringify({ready:true}))
+            localStorage.setItem("notify", JSON.stringify({
+                ready: true
+            }))
             ws.send(JSON.stringify({
                 type: "subscription",
                 sub: sub
@@ -1003,7 +1005,7 @@
                 SavemyMsg(datae)
                 graphic.setNewID(old_id = `my${datae.uniknownid}`, new_id = datae.message_id)
                 var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
-                console.log(lsrd[Number(datae.chat_id)],lsrd,datae)
+                console.log(lsrd[Number(datae.chat_id)], lsrd, datae)
                 lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
                 localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
             } else if (datae.type === "addmsg") {
@@ -1030,13 +1032,13 @@
 
                 console.log(localChats[datae.chat_id], localChats)
                 if (datae.user_id !== Data.my_id) {
-                    try{
+                    try {
                         new Notification(title = localChats[datae.chat_id], options = {
                             body: `${UserNames[Number(datae.user_id)].name}: новое сообщение`,
                             icon: localChats[Number(datae.chat_id)].photo,
                             badge: localStorage.getItem("logo"),
                         })
-                    }catch{}
+                    } catch {}
                 }
                 if (Number(datae.chat_id) === Number(CurrentChat)) {
                     var msg = {
@@ -1062,7 +1064,7 @@
                         msg: datae.message,
                         datatype: datae.typemsg,
                         user_id: datae.user_id
-                    }, false) 
+                    }, false)
                 }
             } else if (datae.type === "newunread") {
                 for (let msg of datae.messages) {
@@ -2475,13 +2477,13 @@
             })
 
             localStream.getTracks().forEach(track => {
-                pc.addTrack(track, localStream)
-            })
-            //iceBuffer.forEach(c=>{
-            //    pc.addIceCandidate(c)
-            //})
-            //
-            //iceBuffer = []
+                    pc.addTrack(track, localStream)
+                })
+                //iceBuffer.forEach(c=>{
+                //    pc.addIceCandidate(c)
+                //})
+                //
+                //iceBuffer = []
         }
 
         async function createOffer() {
@@ -2531,7 +2533,7 @@
         }
 
         async function ServerRequest(req, data = null) {
-            try{
+            try {
                 var res = await fetch(req, {
                     method: 'POST',
                     headers: {
@@ -2541,8 +2543,10 @@
                 })
                 var result = await res.json()
                 return result;
-            }catch{
-                return {success:false};
+            } catch {
+                return {
+                    success: false
+                };
             }
         }
 
@@ -2650,7 +2654,10 @@
                 chat_id: parseInt(datae.chat_id),
                 user_id: parseInt(datae.user_id),
                 datatype: "media",
-                msg: {metadata: metadataEncrypted, fileKey: encryptedFileKey},
+                msg: {
+                    metadata: metadataEncrypted,
+                    fileKey: encryptedFileKey
+                },
                 created: datae.datatime
             })
             loader_flag = Number(datae.chat_id)
@@ -2660,7 +2667,7 @@
                 //start chunking
                 // -------- загрузка чанков --------
             let allChunks = [];
-            save_all_chunks(file,metadata , fileKey, datae.message_id)
+            save_all_chunks(file, metadata, fileKey, datae.message_id)
             for (let i = 0; i < metadata.chunk_count; i++) {
 
                 const start = i * chunkSize;
@@ -2680,8 +2687,12 @@
                     chunk: await bufToB64(encryptedChunk.cipher),
                     iv: await bufToB64(encryptedChunk.iv)
                 });
-                if (chres.success === false){
-                    errors.push({chunk_id:i,chunk:encryptedChunk, msg_id:datae.message_id})
+                if (chres.success === false) {
+                    errors.push({
+                        chunk_id: i,
+                        chunk: encryptedChunk,
+                        msg_id: datae.message_id
+                    })
                 }
 
                 allChunks.push(blobChunk);
@@ -2715,9 +2726,9 @@
                 await new Promise(r => setTimeout(r, 2000));
             }
             console.log("video uploaded");
-            if (errors.length!==0){
-                UnloadChunks[errors[0].msg_id]=errors.map(x => x.chunk_id)
-                localStorage.setItem("UnloadChunks",JSON.stringify(UnloadChunks))
+            if (errors.length !== 0) {
+                UnloadChunks[errors[0].msg_id] = errors.map(x => x.chunk_id)
+                localStorage.setItem("UnloadChunks", JSON.stringify(UnloadChunks))
             }
         }
 
@@ -2782,7 +2793,7 @@
             });
         }
         window.addEventListener("beforeunload", (e) => {
-            if (loader_flag !== null) {
+            if (loader_flag !== null && loader_flag !== false) {
                 e.preventDefault();
                 e.returnValue = "";
             }
@@ -2793,126 +2804,143 @@
             if (localStorage.getItem("closing_attempt") === "1") {
 
                 console.log("пользователь подтвердил закрытие")
-                if (errors.length !== 0){
-                    localStorage.setItem("UnloadChunks",JSON.stringify(UnloadChunks))
+                if (errors.length !== 0) {
+                    localStorage.setItem("UnloadChunks", JSON.stringify(UnloadChunks))
                 }
                 if (loader_flag !== null) {
-                    if (End_save == true){
-                        UnloadChunks[loader_flag]={id:loader_flag,status:"save"}
-                    }else{
-                        UnloadChunks[loader_flag]={id:loader_flag,status:"unsave"}
+                    if (End_save == true) {
+                        UnloadChunks[loader_flag] = {
+                            id: loader_flag,
+                            status: "save"
+                        }
+                    } else {
+                        UnloadChunks[loader_flag] = {
+                            id: loader_flag,
+                            status: "unsave"
+                        }
                     }
                 }
             }
         });
 
         async function loadMedia(msg, privatekey, name, tag, date) {
-            console.log(msg.msg,msg)
-            if (msg.msg === "None" || msg.msg===null || msg.msg === "none"|| msg.msg ===undefined ){
-                console.log("start req")
-                var meta = await ServerRequest("get_meta",{
-                    msg_id:msg.id,
-                    device_id:Data.device_id,
-                    device:Data.device,
+            if (msg.msg === "None" || msg.msg === null || msg.msg === "none" || msg.msg === undefined) {
+                var meta = await ServerRequest("get_meta", {
+                    msg_id: msg.id,
+                    device_id: Data.device_id,
+                    device: Data.device,
                 })
-                if (!meta.success){
+                if (!meta.success) {
                     return
                 }
                 console.log(meta)
-                await messagedb.updateById(msg.id,{
-                    msg:{metadata: meta.metadata, fileKey: meta.fileKey},
+                await messagedb.updateById(msg.id, {
+                    msg: {
+                        metadata: meta.metadata,
+                        fileKey: meta.fileKey
+                    },
                 })
-                msg.msg=meta;
+                msg.msg = meta;
             }
             const metadata_enc = msg.msg.metadata;
             const fileKey_enc = msg.msg.fileKey;
-            const fileKey = await decryptFileKey(fileKey_enc,privatekey);
-            const metadata = await decryptMetadata(fileKey,  metadata_enc.cipher,metadata_enc.iv);
+            const fileKey = await decryptFileKey(fileKey_enc, privatekey);
+            const metadata = await decryptMetadata(fileKey, metadata_enc.cipher, metadata_enc.iv);
             let media_type = "file";
             if (metadata.type.startsWith("image")) media_type = "image";
             else if (metadata.type.startsWith("video")) media_type = "video";
             else if (metadata.type.startsWith("audio")) media_type = "audio";
             var cln;
-            if (tag===true){
-                cln="message-right"
-            }else{
-                cln="message-left"
+            if (tag === true) {
+                cln = "message-right"
+            } else {
+                cln = "message-left"
             }
             const placeholder = {
-                            type: "media",
-                            media_type:media_type,
-                            id:msg.id,
-                            filename: metadata.name,
-                            size: metadata.size,
-                            namesender: name,
-                            classname: cln,
-                            time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
-                            progress: 0,
-                            content: null,
-                            poster: null
-                        };
+                type: "media",
+                media_type: media_type,
+                id: msg.id,
+                filename: metadata.name,
+                size: metadata.size,
+                namesender: name,
+                classname: cln,
+                time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+                progress: 0,
+                content: null,
+                poster: null
+            };
             graphic.add(placeholder);
             let chunks = [];
-            // 3. получить чанки
-            console.log(fileKey)
             for (let i = 0; i < metadata.chunk_count; i++) {
                 let chunk_enc = await chunkdb.getChunk(msg.id, i);
                 if (!chunk_enc) {
                     console.log("chunk missing", i);
                     //continue;
-                    return {success:false,chunk_id:i,end:metadata.chunk_count,place:placeholder};
+                    return {
+                        success: false,
+                        chunk_id: i,
+                        end: metadata.chunk_count,
+                        place: placeholder
+                    };
                 }
-                console.log(chunk_enc)
                 let buffer = await decryptChunk(
                     fileKey,
                     chunk_enc.chunk.cipher,
                     chunk_enc.chunk.iv
                 );
-                console.log(buffer)
                 chunks.push(new Uint8Array(buffer));
                 const start = i * chunkSize;
                 const end = start + chunkSize;
                 placeholder.progress = Math.min(end, metadata.size);
-                graphic.update(msg.id,placeholder)
+                graphic.update(msg.id, placeholder)
             }
             // 4. собрать файл
             const blob = new Blob(
-                chunks,
-                { type: metadata.type }
+                chunks, {
+                    type: metadata.type
+                }
             );
             placeholder.content = blob;
             graphic.update(msg.id, placeholder);
             return {
                 blob,
                 metadata,
-                success:true
+                success: true
             };
-           // } catch (e) {
-           //     console.log("loadMedia error", e);
-           //     return null;
-           // }
+            // } catch (e) {
+            //     console.log("loadMedia error", e);
+            //     return null;
+            // }
         }
-        async function download_chunks(last_chunk,end,msg_id,placeholder) {
+        async function download_chunks(last_chunk, end, msg_id, placeholder) {
+            ws.send(JSON.stringify({
+                type: "get_token",
+                msg_id: msg_id
+            }))
+            return
             let get_errors = []
-            console.log("chunk",last_chunk,end,msg_id,placeholder)
-            for (let i = last_chunk; i<=end; i++){
+            for (let i = last_chunk; i <= end; i++) {
                 get_errors = []
-                for (let c = 0; c<5; c++){
-                    var r = await ServerRequest("get_chunk",{
-                        chunk_id:i,
-                        secret_key:Data.device
+                for (let c = 0; c < 5; c++) {
+                    var r = await ServerRequest("get_chunk", {
+                        chunk_id: i,
+                        secret_key: Data.device,
+                        device_id: Data.device_id,
                     })
-                    if (!r.success){
-                        if (c===4)
+                    console.log(r, r.success)
+                    if (!r.success) {
+                        if (c === 4)
                             get_errors.push(i)
-                    }else{
-                        await chunkdb.saveChunk(msg_id,i,r.chunk)
+                    } else {
+                        let db = await chunkdb.saveChunk(msg_id, i, r.chunk)
+                        console.log(db)
                         break;
-                    } 
+                    }
                 }
-                placeholder.progress = Math.min((i+1)*chunkSize, placeholder.size);
-                graphic.update(msg_id,placeholder)
+                placeholder.progress = Math.min((i + 1) * chunkSize, placeholder.size);
+                graphic.update(msg_id, placeholder)
             }
+            console.log(get_errors)
             return get_errors;
         }
     });
