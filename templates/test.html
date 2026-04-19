@@ -9,38 +9,17 @@
 
 
 <body>
-    <script src="static\js\appCrypto.js"></script>
+    <script src="\static\js\appCrypto_4.js"></script>
     <script src="static\js\chunksDB.js"></script>
     <script >
         const DataUser = localStorage.getItem('Userdata');
         const Data = JSON.parse(DataUser);
         console.log(Data)
 
-        async function createTestChunk(fileKey) {
-
-            // 1. случайные данные (например 1–10 KB)
+        async function createTestChunk() {
             const size = 1024 + Math.floor(Math.random() * 9000);
-
             const data = crypto.getRandomValues(new Uint8Array(size));
-
-            // 2. IV строго 12 байт
-            const iv = crypto.getRandomValues(new Uint8Array(12));
-
-            // 3. encrypt AES-GCM
-            const cipher = await crypto.subtle.encrypt(
-                {
-                    name: "AES-GCM",
-                    iv: iv
-                },
-                fileKey,
-                data
-            );
-
-            return {
-                cipher,
-                iv,
-                original: data
-            };
+            return data
         }
 
         async function main() {
@@ -66,9 +45,10 @@
                     metadataEncrypted.iv
                 );
             console.log(metadatadecrypted)
-            const encryptedChunk = await encryptChunk(fileKey, new Uint8Array(12));
+            var test = await createTestChunk()
+            const encryptedChunk = await encryptChunk(fileKey, test);
             console.log(encryptedChunk)
-            const decryptedChunk = await decryptChunk(fileKey, encryptedChunk)
+            const decryptedChunk = await decryptChunk(fileKey, encryptedChunk.cipher, encryptedChunk.iv)
             console.log(decryptedChunk)
         }
         main()

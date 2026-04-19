@@ -515,33 +515,91 @@
             );
         }
 
-        async function decryptChunk(fileKey, cipherB64, ivB64) {
-
-            const cipher = b64ToBuf(cipherB64);
-            const iv = b64ToBuf(ivB64);
-        
-            const buffer = await crypto.subtle.decrypt(
-                {
-                    name: "AES-GCM",
-                    iv: iv
-                },
-                fileKey,
-                cipher
-            );
-        
-            return buffer;
+        async function sha256(buf) {
+            const hash = await crypto.subtle.digest("SHA-256", buf);
+            return [...new Uint8Array(hash)]
+                .map(b => b.toString(16).padStart(2, "0"))
+                .join("");
         }
-
-        function b64ToBuf(b64) {
-            const binary = atob(b64);
-            const len = binary.length;
-            const bytes = new Uint8Array(len);
         
-            for (let i = 0; i < len; i++) {
-                bytes[i] = binary.charCodeAt(i);
+        function normalizeToBuffer(data, name) {
+            if (!data) throw new Error(name + " is empty");
+        
+            // string → base64
+            if (typeof data === "string") {
+                console.log(name, "is base64 string");
+                return b64ToBuf(data);
             }
         
-            return bytes.buffer;
+            // Uint8Array → ArrayBuffer
+            if (data instanceof Uint8Array) {
+                return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+            }
+        
+            // ArrayBuffer
+            if (data instanceof ArrayBuffer) {
+                return data;
+            }
+        
+            throw new Error(name + " unknown type: " + typeof data);
+        }
+        
+        async function decryptChunk(fileKey, cipher, iv) {
+        
+            console.log("=== DECRYPT START ===");
+        
+            // нормализация типов
+            cipher = normalizeToBuffer(cipher, "cipher");
+            iv = normalizeToBuffer(iv, "iv");
+        
+            console.log("IV length:", iv.byteLength);
+            console.log("Cipher length:", cipher.byteLength);
+        
+            console.log("Key algo:", fileKey.algorithm);
+            console.log("Key type:", fileKey.type);
+        
+            if (iv.byteLength !== 12) {
+                throw new Error("IV must be 12 bytes!");
+            }
+        
+            // 🔥 ХЭШИ (самое важное)
+            const cipherHash = await sha256(cipher);
+            const ivHash = await sha256(iv);
+        
+            console.log("CIPHER HASH:", cipherHash);
+            console.log("IV HASH:", ivHash);
+        
+            try {
+                const buffer = await crypto.subtle.decrypt(
+                    {
+                        name: "AES-GCM",
+                        iv: new Uint8Array(iv)
+                    },
+                    fileKey,
+                    cipher
+                );
+        
+                console.log("DECRYPT OK");
+        
+                const plainHash = await sha256(buffer);
+                console.log("PLAIN HASH:", plainHash);
+        
+                return buffer;
+        
+            } catch (e) {
+                console.error("DECRYPT FAILED");
+        
+                console.log("IV len:", iv.byteLength);
+                console.log("Cipher len:", cipher.byteLength);
+        
+                throw e;
+            }
+        }
+        function b64ToBuf(b64) {
+            console.log("B64:", b64);
+            console.log("TYPE:", typeof b64);
+        
+            return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
         }
 
         window.generateEncryptionKeyPair = generateEncryptionKeyPair;

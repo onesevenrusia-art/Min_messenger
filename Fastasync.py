@@ -3,6 +3,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response
+from fastapi import BackgroundTasks
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives import serialization
@@ -21,7 +22,7 @@ import MessengerDataBase
 import FeedBacks
 import uvicorn
 import base64, uuid
-import os, sys, traceback
+import os, shutil, sys, traceback
 import ssl
 import secrets
 
@@ -167,7 +168,7 @@ def IsEmailCorrect(email):
     except EmailNotValidError:
         return False
 
-def SendCode(emailreciver,body=0,flag=True):
+def SendCode(emailreciver,body=0,flag=False):
     email_from = 'onesevenrusia@gmail.com' 
     password = passwordf 
     email_to = emailreciver
@@ -292,7 +293,7 @@ async def send_swjs():
 #""
 
 
-async def send_WS_msg(reciver, msg, wait=False, exception=[], need=[],notify=None):
+async def send_WS_msg(reciver, msg, wait=False, exception=[], need=[]):
     try:
         if reciver not in clients.keys():
             if wait:
@@ -329,7 +330,9 @@ async def send_WS_msg(reciver, msg, wait=False, exception=[], need=[],notify=Non
         print(242,e)
         return {"status": "error",
                     "success":False}
-
+def fix(obj):
+    if isinstance(obj, bytes):
+        return base64.b64encode(obj).decode("ascii")
 
 
 @app.websocket("/ws")
@@ -526,7 +529,8 @@ async def websocket_endpoint(ws: WebSocket):
                         answ["success"]=answ1["success"]
                         print(344, answ, answ1)
                 """
-
+                if msg["typemsg"]=="success_media":
+                    answ={"success":True}
                 ids = 0
                 if answ["success"]:
                     chat_ = Database.get_chat(int(msg["chatid"]))
@@ -550,7 +554,8 @@ async def websocket_endpoint(ws: WebSocket):
                                   "internal_id":answ["internal_id"],
                                   "typemsg":msg["typemsg"],
                                   "datatime": str(answ["time"]),
-                                  "success":True})
+                                  "success":True,
+                                  "chat_id":chat_["id"]})
 
                     for id in Database.get_ChatParticipants(chat_id=msg["chatid"]):
                         u = Database.get_user_by_id(id)
@@ -615,6 +620,11 @@ async def websocket_endpoint(ws: WebSocket):
                 await ws.send_json({"type":"new_msgs","msgs":msgs,"chat_id":msg["chat_id"]})
 
             if msg["type"] == "deletemsg":
+                m=Database.get_message_by_id(int(msg['id']))
+                if m["type"]=="media":
+                    try:
+                        shutil.rmtree(f"media/{msg['id']}")
+                    except:pass
                 Database.delete_message(int(msg["id"]))
                 Database.add_Event(msg["chat_id"],int(msg["id"]),"delete")
                 for p in Database.get_ChatParticipants(msg["chat_id"]):
@@ -685,9 +695,18 @@ async def websocket_endpoint(ws: WebSocket):
 
             if msg["type"] == "get_last":
                 print(msg)
-                msgs=Database.get_messages_more_less(chat_id=int(msg["chat_id"]),after_id=Database.get_min_msgid(int(msg["chat_id"])),limit=15,reverse=False)
-
-                msgs=Database.get_messages_more_less(int(msg["chat_id"]),Database.get_min_msgid(int(msg["chat_id"]))-1,15,False)
+                msgs=Database.get_last_messages(chat_id=int(msg["chat_id"]))
+                
+                for m in msgs:
+                    if m["datatype"] == "media":
+                        if m["content"] == None or m["content"] == "None":
+                            ind = msgs.index(m)
+                            with open(f'media/{m["id"]}/metadata.json', 'r', encoding='utf-8') as file:
+                                d = json.load(file)
+                            with open(f'media/{m["id"]}/filekey.bin', 'rb') as f:
+                                d2 = f.read()
+                            m["content"] = {"metadata":d,"fileKey":fix(d2)}
+                            msgs[ind]=m
                 await ws.send_json({"type":"new_msgs","msgs":msgs})
 
             if msg["type"] == "media_request":
@@ -959,7 +978,7 @@ async def podpis(request:Request):
     user =  Database.get_user_by_email(email)
     if data["device"] not in [item['name'] for item in user["devices"]]:
         print(f"Device not in db ")
-        return {"success":False}
+        return {"success":False,"what":"not_in"}
     public_key_pem = list(filter(lambda x: x["publickey"] is not None, user["devices"]))[0]
     public_key_pem=public_key_pem["publickey"]
 
@@ -1226,6 +1245,8 @@ async def set_metadata(request: Request):
                 }
                 with open(f"media/{data['id']}/metadata.json", "w") as f:
                     json.dump(metadata, f)
+                with open(f"media/{data['id']}/chunk_count.json", "w") as f:
+                    json.dump({"count":data["count"]}, f)
                 key_bytes = base64.b64decode(data["key"])
                 with open(f"media/{data['id']}/filekey.bin", "wb") as f:
                     f.write(key_bytes)
@@ -1235,8 +1256,52 @@ async def set_metadata(request: Request):
                 s=False
     return {"success": s}
 
+
+async def send_m(msg_id,device_id):
+    msg = Database.get_message_by_id(int(msg_id))
+    chat_ = Database.get_chat(int(msg["chat_id"]))
+    user = Database.get_user_by_id(msg["user_id"])
+    print(msg)
+    m=""
+    match (chat_["type"]):
+            case "p2p":
+                chat_["photo"]=user["photo"]
+                if chat_["photo"] == None:
+                    chat_["photo"] = "/static/images/Uniknown.png"
+                chat_["name"]=user["name"]
+                m=f"{chat_['name']} отправил ....."
+    notify={
+            "title":chat_["name"],
+            "body":m or "new message",
+            "avatar":chat_["photo"],
+            "chat_id":chat_["id"]
+                        }
+    with open(f'media/{msg_id}/metadata.json', 'r', encoding='utf-8') as file:
+        d = json.load(file)
+    with open(f'media/{msg_id}/filekey.bin', 'rb') as f:
+        d2 = f.read()
+    m = {"metadata":d,"fileKey":fix(d2)}
+    for id in Database.get_ChatParticipants(chat_id=msg["chat_id"]):
+        if id != user["id"]:
+            u = Database.get_user_by_id(id)
+            s=await send_WS_msg(u["email"],{"type":"addmsg",
+                        "message_id":msg["id"],
+                        "internal_id":msg["internal_id"],
+                        "chat_id": msg["chat_id"],
+                        "user_id": msg["user_id"],
+                        "typemsg": msg["datatype"],
+                        "message": m,
+                        "datatime": str(msg["created"])
+                        },False,[str(device_id)])
+            print(s)
+            if s["status"] == "offline":
+                if u["photo"] == None:
+                    u["photo"]="/"
+                w=SendWEBpush(notify=notify,user_id=int(u["id"]),device_id="all")
+
+
 @app.post("/set_chunk")
-async def set_chunk(request: Request):
+async def set_chunk(request: Request, background_tasks: BackgroundTasks):
     data = await request.json()
     s=False
     if uploading_files.get(int(data['user_id'])):
@@ -1247,8 +1312,52 @@ async def set_chunk(request: Request):
                     f.write(base64.b64decode(data["chunk"]))
                 s=True
             except Exception as e:
+                print(e)
                 s=False
+            with open(f"media/{data['id']}/chunk_count.json", 'r', encoding='utf-8') as f:
+                d = json.load(f)
+            print([f for f in os.listdir(f"media/{data['id']}") if os.path.isfile(os.path.join(f"media/{data['id']}", f))] , d["count"])
+            if len([f for f in os.listdir(f"media/{data['id']}") if os.path.isfile(os.path.join(f"media/{data['id']}", f))])-3 == d["count"]:
+                print("task_added")
+                background_tasks.add_task(send_m, data["id"], data["device_id"])
     return {"success": s}
+
+@app.post("/get_meta")
+async def get_meta(request: Request):
+    data = await request.json()
+    try:
+        device =Database.get_device_by_id(data["device_id"])
+        print(data,device)
+    except Exception as e:
+        print(e)
+        return {"success":False}
+    if device["name"]==data["device"]:
+        with open(f'media/{data["msg_id"]}/metadata.json', 'r', encoding='utf-8') as file:
+            d = json.load(file)
+        with open(f'media/{data["msg_id"]}/filekey.bin', 'rb') as f:
+            d2 = f.read()
+        return  {"success":True,"metadata":d,"fileKey":fix(d2)}
+    else:
+        return {"success":False}
+
+@app.post("/get_chunk")
+async def get_meta(request: Request):
+    data = await request.json()
+    try:
+        device =Database.get_device_by_id(data["device_id"])
+        print(data,device)
+    except Exception as e:
+        print(e)
+        return {"success":False}
+    if device["name"]==data["device"]:
+        with open(f'media/{data["msg_id"]}/{data["chunk_id"]}.bin', 'rb') as f:
+            chunk = f.read()
+        return  {"success":True,"chunk":fix(chunk)}
+    else:
+        return {"success":False}
+
+
+
 
 if __name__ == "__main__":    
     uvicorn.run(

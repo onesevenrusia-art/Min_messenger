@@ -209,7 +209,7 @@
 
     <audio style="display: none;" id="audio_stream" autoplay></audio>
 </body>
-<script src="/static/js/appCrypto.js"></script>
+<script src="/static/js/appCrypto_1.js"></script>
 <script src="static/js/MessagesDB_3.js"></script>
 <script src="static/js/chunksDB.js"></script>
 <script>
@@ -501,7 +501,15 @@
             localStorage.setItem("UnloadChunks", JSON.stringify({}));
             var UnloadChunks  = {};
         }
-
+        try {
+            var not = JSON.parse(localStorage.getItem("notify"))
+            if (not  === null) {
+                not  = {ready:false};
+                localStorage.setItem("notify", JSON.stringify(not));
+            }
+        } catch {
+            localStorage.setItem("notify", JSON.stringify({ready:false}));
+        }
 
         console.log(lastreadchat)
         console.log(localChats)
@@ -560,12 +568,13 @@
         var End_save = true;
         var errors = []
         const Data = JSON.parse(DataUser);
+        console.log(Data)
         const ChatBox = document.getElementById("chatbox");
         const msg_menu = document.getElementById("msgMenu");
         const mediabtn = document.getElementById("sendmedia");
         const messagedb = new MessageStore(dbName = Data.db_created);
         await messagedb.open();
-        const chunkdb = new ChunkStore("Data.db_created",1);
+        const chunkdb = new ChunkStore(`chunks_v_${Data.db_created}`,1);
         await chunkdb.open();
         msg_menu.classList.remove("hidden_m")
         var activeMessageId = null;
@@ -701,6 +710,7 @@
         }
 
         async function UpdateGUI(msg, start = false) {
+            
             var th = ChatsData[CurrentChat].type !== "tehnic"
             var tag = false;
             if (true) {
@@ -767,23 +777,37 @@
                         var content = msg.msg
                     }
                 } else {
-                    //try {
+                    try {
                         if (th) {
                            // console.log(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
                            // var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
                            // msg.msg = content
+                           console.log(msg)
+            
+                           console.log(ChatsData[parseInt(CurrentChat)])
                             var media = await loadMedia(msg,ChatsData[parseInt(CurrentChat)].privatekeycrypt,name,tag,date)
                             if (media===null){
+
                                 return;
                             }
+                            if (!media.success){
+                                for (let f = 0; f<5; f++){
+                                    console.log("start download")
+                                    let re = await download_chunks(media.chunk_id,media.end,msg.id,media.place)
+                                    if (re.length === 0){
+                                        break
+                                    }
+                                }
+                            }
+                            
                         } else {
                             var content = msg.msg
                         }
-                   // } catch {
-                   //     return;
-                   // }
+                    } catch {
+                        return;
+                    }
                 }
-
+  
                 //console.log(lastreadchat)
             if (msg.datatype === "txt") {
                 //console.log(content)
@@ -809,8 +833,6 @@
 
             }
             if (msg.datatype === "media") {
-                console.log(msg)
-
             }
 
         }
@@ -850,11 +872,11 @@
 
 
         async function initPush() {
-
-            if (!("serviceWorker" in navigator)) return
+            var n = JSON.parse(localStorage.getItem("notify"))
+            if (!("serviceWorker" in navigator) && n.ready === true) return
             navigator.serviceWorker.ready.then(r => console.log(r.scope))
             let reg = await navigator.serviceWorker.getRegistration()
-            if (!reg) {
+            if (!reg || n.ready===false) {
                 reg = await navigator.serviceWorker.register("/sw.js")
                 console.log(reg)
             }
@@ -881,6 +903,7 @@
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(PUBLIC_KEY)
             })
+            localStorage.setItem("notify",JSON.stringify({ready:true}))
             ws.send(JSON.stringify({
                 type: "subscription",
                 sub: sub
@@ -980,6 +1003,7 @@
                 SavemyMsg(datae)
                 graphic.setNewID(old_id = `my${datae.uniknownid}`, new_id = datae.message_id)
                 var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
+                console.log(lsrd[Number(datae.chat_id)],lsrd,datae)
                 lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
                 localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
             } else if (datae.type === "addmsg") {
@@ -992,7 +1016,7 @@
 
                 if (datae.user_id in UserNames) {
                     name = UserNames[datae.user_id]["name"]
-                    console.log(name)
+                    console.log(UserNames)
                 } else {
                     name = await GetName(id = datae.user_id)
                     name = name["name"]
@@ -1006,13 +1030,15 @@
 
                 console.log(localChats[datae.chat_id], localChats)
                 if (datae.user_id !== Data.my_id) {
-                    new Notification(title = localChats[datae.chat_id], options = {
-                        body: `${UserNames[datae.user_id].name}: новое сообщение`,
-                        icon: localChats[datae.chat_id].photo,
-                        badge: localStorage.getItem("logo"),
-                    })
+                    try{
+                        new Notification(title = localChats[datae.chat_id], options = {
+                            body: `${UserNames[Number(datae.user_id)].name}: новое сообщение`,
+                            icon: localChats[Number(datae.chat_id)].photo,
+                            badge: localStorage.getItem("logo"),
+                        })
+                    }catch{}
                 }
-                if (datae.chat_id === CurrentChat) {
+                if (Number(datae.chat_id) === Number(CurrentChat)) {
                     var msg = {
                         msg: datae.message,
                         user_id: datae.user_id,
@@ -1036,7 +1062,7 @@
                         msg: datae.message,
                         datatype: datae.typemsg,
                         user_id: datae.user_id
-                    }, false)
+                    }, false) 
                 }
             } else if (datae.type === "newunread") {
                 for (let msg of datae.messages) {
@@ -2055,7 +2081,7 @@
                     console.log('❌ Подтверждение не удалось:', verifyResult.error);
                     return {
                         result: false,
-                        what: "net"
+                        what: "auth"
                     };
                 }
 
@@ -2451,8 +2477,6 @@
             localStream.getTracks().forEach(track => {
                 pc.addTrack(track, localStream)
             })
-
-            // добавить ICE которые пришли раньше
             //iceBuffer.forEach(c=>{
             //    pc.addIceCandidate(c)
             //})
@@ -2494,21 +2518,15 @@
         }
 
         function urlBase64ToUint8Array(base64String) {
-
             const padding = '='.repeat((4 - base64String.length % 4) % 4)
-
             const base64 = (base64String + padding)
                 .replace(/-/g, '+')
                 .replace(/_/g, '/')
-
             const rawData = window.atob(base64)
-
             const outputArray = new Uint8Array(rawData.length)
-
             for (let i = 0; i < rawData.length; ++i) {
                 outputArray[i] = rawData.charCodeAt(i)
             }
-
             return outputArray
         }
 
@@ -2544,18 +2562,13 @@
         });
 
         function bufToB64(buffer) {
-
             return new Promise((resolve) => {
-
                 const blob = new Blob([buffer]);
-
                 const reader = new FileReader();
-
                 reader.onload = () => {
                     const base64 = reader.result.split(",")[1];
                     resolve(base64);
                 };
-
                 reader.readAsDataURL(blob);
             });
         }
@@ -2567,7 +2580,7 @@
                 },
                 true, ["encrypt", "decrypt"]
             );
-
+            console.log(fileKey)
             let media_type = "file";
 
             if (file.type.startsWith("image")) media_type = "image";
@@ -2583,7 +2596,6 @@
                 chunk_count: Math.ceil(file.size / chunkSize)
             };
 
-            // placeholder
             const placeholder = {
                 type: "media",
                 media_type,
@@ -2624,7 +2636,8 @@
                     cipher: await bufToB64(metadataEncrypted.cipher),
                     iv: await bufToB64(metadataEncrypted.iv)
                 },
-                key: await bufToB64(encryptedFileKey)
+                key: await bufToB64(encryptedFileKey),
+                count: metadata.chunk_count
             });
             if (!res.success) {
                 alert("Ошибка загрузки");
@@ -2661,6 +2674,7 @@
                 let chres = await ServerRequest("set_chunk", {
                     id,
                     user_id: Data.my_id,
+                    device_id: Data.device_id,
                     upload_id,
                     chunk_id: i,
                     chunk: await bufToB64(encryptedChunk.cipher),
@@ -2793,79 +2807,114 @@
         });
 
         async function loadMedia(msg, privatekey, name, tag, date) {
-
-            try {
-                const metadata_enc = msg.msg.metadata;
-                const fileKey_enc = msg.msg.fileKey;
-                // 1. расшифровать fileKey
-                console.log(fileKey_enc,privatekey)
-                const fileKey = await decryptFileKey(
-                    fileKey_enc,
-                    privatekey
-                );
-                // 2. расшифровать metadata
-                const metadata = await decryptMetadata(
-                    fileKey,  
-                    metadata_enc.cipher,
-                    metadata_enc.iv
-                );
-                let media_type = "file";
-                console.log(metadata)
-                if (metadata.type.startsWith("image")) media_type = "image";
-                else if (metadata.type.startsWith("video")) media_type = "video";
-                else if (metadata.type.startsWith("audio")) media_type = "audio";
-                const placeholder = {
-                                type: "media",
-                                media_type,
-                                id,
-                                filename: metadata.name,
-                                size: metadata.size,
-                                namesender: name,
-                                classname: tag,
-                                time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
-                                progress: 0,
-                                content: null,
-                                poster: null
-                            };
-
-                graphic.add(placeholder);
-                //var d = await chunkdb.getChunksByMsgId(msg.id)
-                //console.log(d)
-                let chunks = [];
-                // 3. получить чанки
-                for (let i = 0; i < metadata.chunk_count; i++) {
-                    let chunk_enc = await chunkdb.getChunk(msg.id, i);
-                    console.log(chunk_enc)
-                    if (!chunk_enc) {
-                        console.log("chunk missing", i);
-                        continue;
-                        //return null;
-                    }
-                    let buffer = await decryptChunk(
-                        fileKey,
-                        chunk_enc.cipher,
-                        chunk_enc.iv
-                    );
-                    chunks.push(new Uint8Array(buffer));
+            console.log(msg.msg,msg)
+            if (msg.msg === "None" || msg.msg===null || msg.msg === "none"|| msg.msg ===undefined ){
+                console.log("start req")
+                var meta = await ServerRequest("get_meta",{
+                    msg_id:msg.id,
+                    device_id:Data.device_id,
+                    device:Data.device,
+                })
+                if (!meta.success){
+                    return
                 }
-                // 4. собрать файл
-                const blob = new Blob(
-                    chunks,
-                    { type: metadata.type }
-                );
-                console.log(blob,msg)
-                placeholder.content = blob;
-                graphic.update(msg.id, placeholder);
-                return {
-                    blob,
-                    metadata
-                };
-            } catch (e) {
-                console.log("loadMedia error", e);
-                return null;
+                console.log(meta)
+                await messagedb.updateById(msg.id,{
+                    msg:{metadata: meta.metadata, fileKey: meta.fileKey},
+                })
+                msg.msg=meta;
             }
+            const metadata_enc = msg.msg.metadata;
+            const fileKey_enc = msg.msg.fileKey;
+            const fileKey = await decryptFileKey(fileKey_enc,privatekey);
+            const metadata = await decryptMetadata(fileKey,  metadata_enc.cipher,metadata_enc.iv);
+            let media_type = "file";
+            if (metadata.type.startsWith("image")) media_type = "image";
+            else if (metadata.type.startsWith("video")) media_type = "video";
+            else if (metadata.type.startsWith("audio")) media_type = "audio";
+            var cln;
+            if (tag===true){
+                cln="message-right"
+            }else{
+                cln="message-left"
+            }
+            const placeholder = {
+                            type: "media",
+                            media_type:media_type,
+                            id:msg.id,
+                            filename: metadata.name,
+                            size: metadata.size,
+                            namesender: name,
+                            classname: cln,
+                            time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+                            progress: 0,
+                            content: null,
+                            poster: null
+                        };
+            graphic.add(placeholder);
+            let chunks = [];
+            // 3. получить чанки
+            console.log(fileKey)
+            for (let i = 0; i < metadata.chunk_count; i++) {
+                let chunk_enc = await chunkdb.getChunk(msg.id, i);
+                if (!chunk_enc) {
+                    console.log("chunk missing", i);
+                    //continue;
+                    return {success:false,chunk_id:i,end:metadata.chunk_count,place:placeholder};
+                }
+                console.log(chunk_enc)
+                let buffer = await decryptChunk(
+                    fileKey,
+                    chunk_enc.chunk.cipher,
+                    chunk_enc.chunk.iv
+                );
+                console.log(buffer)
+                chunks.push(new Uint8Array(buffer));
+                const start = i * chunkSize;
+                const end = start + chunkSize;
+                placeholder.progress = Math.min(end, metadata.size);
+                graphic.update(msg.id,placeholder)
+            }
+            // 4. собрать файл
+            const blob = new Blob(
+                chunks,
+                { type: metadata.type }
+            );
+            placeholder.content = blob;
+            graphic.update(msg.id, placeholder);
+            return {
+                blob,
+                metadata,
+                success:true
+            };
+           // } catch (e) {
+           //     console.log("loadMedia error", e);
+           //     return null;
+           // }
         }
-
+        async function download_chunks(last_chunk,end,msg_id,placeholder) {
+            let get_errors = []
+            console.log("chunk",last_chunk,end,msg_id,placeholder)
+            for (let i = last_chunk; i<=end; i++){
+                get_errors = []
+                for (let c = 0; c<5; c++){
+                    var r = await ServerRequest("get_chunk",{
+                        chunk_id:i,
+                        secret_key:Data.device
+                    })
+                    if (!r.success){
+                        if (c===4)
+                            get_errors.push(i)
+                    }else{
+                        await chunkdb.saveChunk(msg_id,i,r.chunk)
+                        break;
+                    } 
+                }
+                placeholder.progress = Math.min((i+1)*chunkSize, placeholder.size);
+                graphic.update(msg_id,placeholder)
+            }
+            return get_errors;
+        }
     });
 </script>
 </body>

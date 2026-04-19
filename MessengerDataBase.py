@@ -786,6 +786,19 @@ class DataBaseManager:
             return [self._to_dict(msg)  for msg in messages]
         finally:
             session.close()
+    def get_last_messages(self,chat_id,lim=15):
+        session = self.Session()
+        try:
+            q = session.query(Message)\
+                .filter(Message.chat_id == chat_id)\
+                .order_by(Message.id.desc())\
+                .limit(lim)\
+                .all()
+
+            return [self._to_dict(msg)  for msg in q]
+        finally:
+            session.close()
+
 
     def get_max_lastread(self,chat_id,my_id):
         session = self.Session()
