@@ -372,7 +372,6 @@ async def websocket_endpoint(ws: WebSocket):
                 try:
                     wait_for[this_email][device_id].remove(message)
                 except:pass
-        #print(f'#{Database.get_user_Inventives(device_id.split("|")[0])}#')
         if this_deviceid != "newdevice":
             for inventive in Database.get_user_Inventives(this_email):
                 inventive["time"]=inventive["time"].isoformat()
@@ -517,21 +516,6 @@ async def websocket_endpoint(ws: WebSocket):
                                                 user_id=int(msg["userid"]),
                                                 datatype=msg["typemsg"],
                                                 content=json.dumps(msg["message"].replace("\'", "\"")))
-                """
-                else:
-                    msg["message"]=json.loads(msg["message"])
-                    answ = Database.add_message(chat_id=int(msg["chatid"]),
-                                                user_id=int(msg["userid"]),
-                                                datatype="media",
-                                                content="")
-                    if answ["success"]:
-                    
-                        save_encrypted_media(msg["message"],answ["message_id"])
-                        pathid=answ["message_id"]
-                        answ1=Database.update_message(int(msg["chatid"]),int(answ["message_id"]),str(pathid),msg["typemsg"])
-                        answ["success"]=answ1["success"]
-                        print(344, answ, answ1)
-                """
                 if msg["typemsg"]=="success_media":
                     answ={"success":True}
                 ids = 0
@@ -587,14 +571,12 @@ async def websocket_endpoint(ws: WebSocket):
                 print(msg)
                 if Database.get_user_by_id(msg["id"])["email"] == device_id.split("|id")[0] and device_id.split("|id")[1] != "newdevice":
                     MyLastIDs = msg["lastids"]
-                    print(MyLastIDs)
                     for key in MyLastIDs:
                         key=key
                         my = MyLastIDs[key]["my"]
                         other = MyLastIDs[key]["other"]
                         m1= Database.get_max_msgid(key)
                         o1=Database.get_max_lastread(key,msg["id"])
-                        print(o1)
                         if my < m1:
                             MyLastIDs[key]["my"]=m1
                         if other<=o1:
@@ -1343,7 +1325,8 @@ async def set_chunk(request: Request, background_tasks: BackgroundTasks):
                 print("task_added")
                 background_tasks.add_task(send_m, data["id"], data["device_id"])
     return {"success": s}
-
+#docker rm -f redis
+#docker run -d --name redis -p 6379:6379 --restart unless-stopped redis
 @app.post("/get_meta")
 async def get_meta(request: Request):
     data = await request.json()

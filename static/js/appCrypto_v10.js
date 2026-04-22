@@ -589,8 +589,8 @@
         }
 
         function b64ToBuf(b64) {
-            console.log("B64:", b64);
-            console.log("TYPE:", typeof b64);
+            //console.log("B64:", b64);
+            //console.log("TYPE:", typeof b64);
 
             return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
         }

@@ -280,10 +280,26 @@
                                         contentEl.poster = msg.poster;
                                     break;
                                 case "audio":
-                                    contentEl = document.createElement("audio");
-                                    contentEl.controls = true;
-                                    contentEl.style.maxWidth = "250px";
-                                    contentEl.style.maxHeight = "35px";
+                                    const wrapper = document.createElement("div");
+                                    wrapper.className = "audio-block";
+
+                                    // имя файла
+                                    if (msg.filename) {
+                                        const name = document.createElement("p");
+                                        name.className = "audio-name";
+                                        name.textContent = msg.filename;
+                                        wrapper.appendChild(name);
+                                    }
+
+                                    // сам плеер
+                                    const audio = document.createElement("audio");
+                                    audio.controls = true;
+                                    audio.style.maxWidth = "250px";
+                                    audio.style.maxHeight = "35px";
+
+                                    wrapper.appendChild(audio);
+
+                                    contentEl = wrapper;
                                     break;
                                 case "file":
                                     contentEl = document.createElement("div");
@@ -396,9 +412,17 @@
             }
 
             add(msg, read = false) {
-                const isAtBottom = this.chat.scrollTop + this.chat.clientHeight >= this.chat.scrollHeight - 20;
+                // 🔥 если уже есть — не добавляем
+                if (this.chat.querySelector(`[data-id="${msg.id}"]`)) {
+                    return;
+                }
+
+                const isAtBottom =
+                    this.chat.scrollTop + this.chat.clientHeight >= this.chat.scrollHeight - 20;
+
                 const el = this._createMessage(msg, read);
                 this.chat.appendChild(el);
+
                 if (isAtBottom) this.chat.scrollTop = this.chat.scrollHeight;
             }
 
@@ -849,7 +873,7 @@
                     user_id: parseInt(msgencrypt_g.userid),
                     datatype: datae.typemsg,
                     msg: msgencrypt_g.message,
-                    created: datae.datatime
+                    created: datae.datatime||6
                 })
                 delete UnCookMessages[datae["uniknownid"]];
             } else {
@@ -867,7 +891,7 @@
                 user_id: parseInt(datae.user_id),
                 datatype: datae.typemsg,
                 msg: datae.message,
-                created: datae.datatime
+                created: datae.datatime||5
             })
         }
 
@@ -879,10 +903,8 @@
             let reg = await navigator.serviceWorker.getRegistration()
             if (!reg || n.ready === false) {
                 reg = await navigator.serviceWorker.register("/sw.js")
-                console.log(reg)
             }
             let sub = await reg.pushManager.getSubscription()
-            console.log(reg, sub)
             if (sub) {
                 console.log("Already subscribed")
                 return
@@ -947,7 +969,7 @@
 
                 try {
                     GetIPInfo(datae.ip).then(dataip => {
-                        if (dataip === null) {
+                        if (dataip !== null) {
                             document.getElementById("moreinfo").innerText = `Информация об устройстве\n  ip: ${datae.ip}\n  Timezone: ${datae.device.timezone}\n  Координаты: ${0}\n  Язык: ${datae.device.language}\n  Тех: ${datae.device.userAgent.replace(" ","\n")}\n Экран: ${datae.device.screen.width}x${datae.device.screen.height}  `
 
                         }
@@ -1003,14 +1025,14 @@
             } else if (datae.type === "delete_chat") {
 
             } else if (datae.type === "addmymsg") {
-                SavemyMsg(datae)
+                await SavemyMsg(datae)
                 graphic.setNewID(old_id = `my${datae.uniknownid}`, new_id = datae.message_id)
                 var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
                 console.log(lsrd[Number(datae.chat_id)], lsrd, datae)
                 lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
                 localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
             } else if (datae.type === "addmsg") {
-                SaveMsg(datae)
+                await SaveMsg(datae)
                 var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
                 lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
                 localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
@@ -1070,14 +1092,14 @@
             } else if (datae.type === "newunread") {
                 for (let msg of datae.messages) {
                     console.log(msg)
-                    messagedb.save({
+                    await messagedb.save({
                         id: parseInt(msg.id),
                         internal_id: parseInt(msg.internal_id),
                         chat_id: parseInt(msg.chat_id),
                         user_id: parseInt(msg.user_id),
                         datatype: msg.datatype,
                         msg: msg.content,
-                        created: msg.created
+                        created: msg.created||4
                     })
 
                 }
@@ -1098,6 +1120,7 @@
 
                 console.log(lastreadchat)
             } else if (datae.type === "old_msgs") {
+                scrolling_flag = true;
                 for (var msg of datae.msgs) {
                     console.log(msg)
                     await messagedb.save({
@@ -1107,7 +1130,7 @@
                         user_id: parseInt(msg.user_id),
                         datatype: msg.datatype,
                         msg: msg.content,
-                        created: msg.datatime
+                        created: msg.datatime||3
                     })
                     if (CurrentChat === msg.chat_id) {
                         UpdateGUI({
@@ -1119,12 +1142,14 @@
                         }, true)
                     }
                 }
+                scrolling_flag = false;
             } else if (datae.type === "new_msgs") {
                 var i = 0;
                 var last = 0
                 if (datae.chat_id !== null) {
                     i = Number(datae.chat_id)
                 }
+                scrolling_flag = true;
                 for (var msg of datae.msgs) {
                     console.log(msg)
                     await messagedb.save({
@@ -1134,7 +1159,7 @@
                         user_id: parseInt(msg.user_id),
                         datatype: msg.datatype,
                         msg: msg.content,
-                        created: msg.datatime
+                        created: msg.created||2
                     })
                     last = parseInt(msg.id)
                     if (Number(CurrentChat) === Number(msg.chat_id)) {
@@ -1147,6 +1172,7 @@
                         }, false)
                     }
                 }
+                scrolling_flag = false;
                 //if (i>0){
                 //    var l = JSON.parse(localStorage.getItem("lastreadchat"))
                 //    if (l[i].last_load < last){
@@ -1160,6 +1186,7 @@
             } else if (datae.type === "post_msg_interval") {
                 let m = null
                 var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
+                scrolling_flag = true;
                 for (let m of datae.messages.reverse()) {
                     //console.log(m)
                     if (m.id > lsrd[Number(m.chat_id)].this_device) {
@@ -1173,7 +1200,7 @@
                         user_id: parseInt(m.user_id),
                         datatype: m.datatype,
                         msg: m.content,
-                        created: m.created
+                        created: m.created||1
                     })
                     if (datae.chat_id === CurrentChat) {
                         UpdateGUI({
@@ -1185,6 +1212,7 @@
                         }, false)
                     }
                 }
+                scrolling_flag = false;
                 localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
 
 
@@ -1400,14 +1428,16 @@
         });
         var scrolling_flag = false;
         GraphicChat.addEventListener("scroll", async function() {
+            setTimeout(()=>{},1)
             if (GraphicChat.scrollTop + chat.clientHeight >= chat.scrollHeight - 5 && scrolling_flag === false) {
                 console.log("Низ — можно подгружать новые сообщения", GraphicChat.lastElementChild.dataset.id);
                 if (parseInt(GraphicChat.lastElementChild.dataset.id) < Math.max(lastreadchat[Number(CurrentChat)].my, lastreadchat[Number(CurrentChat)].other)) {
                     if (parseInt(GraphicChat.lastElementChild.dataset.id) !== null && parseInt(CurrentChat) !== null) {
                         scrolling_flag = true;
-                        var newmsgs = await messagedb.loadNewerMessages(parseInt(CurrentChat), parseInt(GraphicChat.lastElementChild.dataset.id) + 1, 5)
-                        console.log(newmsgs, parseInt(CurrentChat), 5, parseInt(GraphicChat.lastElementChild.dataset.id))
+                        var newmsgs = await messagedb.loadNewerMessages(parseInt(CurrentChat), parseInt(GraphicChat.lastElementChild.dataset.id) + 0, 5)
+                        console.log(newmsgs,newmsgs.length, parseInt(CurrentChat), 5, parseInt(GraphicChat.lastElementChild.dataset.id))
                         if (newmsgs.length < 1) {
+                            console.log("se")
                             ws.send(JSON.stringify({
                                 "type": "load_some_msg_new",
                                 "chat_id": CurrentChat,
@@ -1415,8 +1445,9 @@
                                 "limit": 10
                             }))
                         }
+                       
                         for (let msg of newmsgs) {
-                            UpdateGUI(msg, false)
+                            await UpdateGUI(msg, false)
                         }
                         scrolling_flag = false;
                     }
@@ -1427,6 +1458,7 @@
             if (GraphicChat.scrollTop <= 5) {
                 console.log("Верх — можно подгружать старые сообщения");
                 if (parseInt(GraphicChat.firstElementChild.dataset.id) < lastIdload || lastIdload === -1) {
+                    scrolling_flag = true;
                     var newmsgs = await messagedb.getChatMessages(chatId = parseInt(CurrentChat), 5, parseInt(GraphicChat.firstElementChild.dataset.id))
                     console.log(newmsgs)
                     if (newmsgs.length < 1) {
@@ -1441,6 +1473,7 @@
                         UpdateGUI(msg, true)
                     }
                     lastIdload = parseInt(GraphicChat.firstElementChild.dataset.id)
+                    scrolling_flag = false;
                 }
             }
 
@@ -2261,7 +2294,13 @@
             console.log(pastedImageFile instanceof Blob);
             console.log(pastedImageFile)
                 //pastedImageFile = await blobToArrayBuffer(pastedImageFile, ChatsData[parseInt(CurrentChat)].publickeycrypt)
-            await Send_Message(pastedImageFile, "img")
+            file = pastedImageFile
+            if (CurrentChat !== null) {
+                ws.send(JSON.stringify({
+                    "type": "media_request",
+                    "chatid": CurrentChat
+                }))
+            }
             pastedImageFile = null;
             overlay.classList.add("hidden");
         });
@@ -2376,11 +2415,17 @@
                 modal.classList.add("hidden");
 
                 const blob = new Blob(chunks, {
-                    type: recorder.mimeType
+                    type: "audio/webm"
                 });
                 stream.getTracks().forEach(t => t.stop());
-
-                Send_Message(blob, "voice")
+                file = blob;
+                
+                if (CurrentChat !== null) {
+                    ws.send(JSON.stringify({
+                        "type": "media_request",
+                        "chatid": CurrentChat
+                    }))
+                }
             };
         }
         const chopt_el = document.getElementById("optchat")
@@ -2612,13 +2657,14 @@
                 },
                 true, ["encrypt", "decrypt"]
             );
-            console.log(fileKey)
             let media_type = "file";
 
             if (file.type.startsWith("image")) media_type = "image";
             else if (file.type.startsWith("video")) media_type = "video";
             else if (file.type.startsWith("audio")) media_type = "audio";
-
+            if (sys_type === "voice"){
+                media_type = "audio"
+            }
             const metadata = {
                 s_type: sys_type,
                 name: file.name,
@@ -2627,6 +2673,7 @@
                 chunk_size: chunkSize,
                 chunk_count: Math.ceil(file.size / chunkSize)
             };
+            console.log(metadata)
 
             const placeholder = {
                 type: "media",
@@ -2686,7 +2733,7 @@
                     metadata: metadataEncrypted,
                     fileKey: encryptedFileKey
                 },
-                created: datae.datatime
+                created: datae.datatime || 0
             })
             loader_flag = Number(datae.chat_id)
             var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
@@ -2869,6 +2916,7 @@
                 })
                 msg.msg = meta;
             }
+            console.log(msg)
             const metadata_enc = msg.msg.metadata;
             const fileKey_enc = msg.msg.fileKey;
             const fileKey = await decryptFileKey(fileKey_enc, privatekey);
@@ -2883,6 +2931,7 @@
             } else {
                 cln = "message-left"
             }
+            var date = new Date(msg.created)
             const placeholder = {
                 type: "media",
                 media_type: media_type,
@@ -2897,11 +2946,9 @@
                 poster: null
             };
             graphic.add(placeholder);
-            console.log(metadata)
             let chunks = [];
             for (let i = 0; i < metadata.chunk_count; i++) {
                 let chunk_enc = await chunkdb.getChunk(msg.id, i);
-                console.log(typeof chunk_enc,chunk_enc)
                 if (!chunk_enc) {
                     console.log("chunk missing", i);
                     //continue;
@@ -2924,7 +2971,6 @@
                 const start = i * chunkSize;
                 const end = start + chunkSize;
                 placeholder.progress = Math.min(end, metadata.size);
-                console.log("upd g")
                 graphic.update(msg.id, placeholder)
             }
             // 4. собрать файл
@@ -2934,7 +2980,6 @@
                 }
             );
             placeholder.content = blob;
-            console.log(placeholder)
             graphic.update(msg.id, placeholder);
             return {
                 blob,
@@ -2968,7 +3013,6 @@
                         device_id: Data.device_id,
                         msg_id:msg_id
                     })
-                    console.log(r, r.success)
                     if (!r.success) {
                         if (c === 4)
                             get_errors.push(i)
@@ -2981,7 +3025,6 @@
                             cipher
                         };
                         let db = await chunkdb.saveChunk(msg_id, i, chunk)
-                        console.log(db)
                         break;
                     }
                 }
