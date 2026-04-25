@@ -277,8 +277,8 @@ class DataBaseManager:
         finally:
             session.close()
 
-    def get_Events_before(self,user_id,my_last_seen):
-        session = self.Session() 
+    def get_Events_before(self, user_id, my_last_seen):
+        session = self.Session()
         try:
             chat_ids = self.get_user_chats(user_id)
             ids = [i["id"] for i in chat_ids]
@@ -291,7 +291,12 @@ class DataBaseManager:
                 .all()
             )
 
-            return [self._to_dict(e)  for e in events]
+            return [self._to_dict(e) for e in events]
+
+        except Exception as e:
+            print("ERROR:", e)
+            raise   # ← ВАЖНО: не гаси ошибку
+
         finally:
             session.close()
 
@@ -706,6 +711,20 @@ class DataBaseManager:
         session.commit()
 
         return result.rowcount
+    
+    def get_last_messages(self, chat_id, lim=15):
+        session = self.Session()
+        try:
+            q = session.query(Message)\
+                .filter(Message.chat_id == chat_id)\
+                .order_by(Message.id.desc())\
+                .limit(lim)\
+                .all()
+
+            # Исправленный генератор списка
+            return [self._to_dict(msg) for msg in q]
+        finally:
+            session.close()
 
     def get_max_lastread(self, chat_id: int):
         session = self.Session()

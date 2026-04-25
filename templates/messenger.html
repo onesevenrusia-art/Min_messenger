@@ -399,7 +399,7 @@
                     }
 
                     // обновление прогресса
-                    if (msg.progress !== undefined && msg.media_type !== "file") {
+                    if (msg.progress !== undefined ) {
                         let progEl = el.querySelector(".progress-text");
                         if (!progEl) {
                             progEl = document.createElement("p");
@@ -436,6 +436,7 @@
 
             is_id(id) {
                 const el = this.chat.querySelector(`[data-id="${id}"]`);
+                console.log(el)
                 if (!el) return false;
                 else return true;
             }
@@ -556,6 +557,8 @@
                         var cth = CurrentChat
                         readtimer = setTimeout(() => {
                             readtimer = null
+                            console.log("add -1")
+                            updateUnread(Number(cth),-1)
                             ws.send(JSON.stringify({
                                 type: "reading",
                                 last_read_id: currentlastread,
@@ -1005,6 +1008,7 @@
                 CreateChat(flag = true, user = datae.user)
             } else if (datae.type === "addchat") { // для инициатора и получателя  - успешный ответ пользователя = sava chat 
                 //console.log(datae.chat)
+                // создание чата
                 var jsonkey = deepJsonParse(datae.chat.privatekeycrypt.replace(/'/g, '"'))
                 datae.chat.privatekeycrypt = await hybridDecrypt(jsonkey, Data.privatekeycrypt)
                     //console.log(datae.chat)
@@ -1036,6 +1040,7 @@
                 var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
                 lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
                 localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
+                updateUnread(datae.chat_id,1)
 
 
 
@@ -1150,6 +1155,12 @@
                     i = Number(datae.chat_id)
                 }
                 scrolling_flag = true;
+                if (datae.msgs.length > 0){
+                    if (lastreadchat[datae.msgs[0].chat_id].my < datae.msgs[0].id){
+                        console.log(lastreadchat[datae.msgs[0].chat_id].my , datae.msgs[0].id)
+                        updateUnread(datae.msgs[0].chat_id,datae.msgs.length)
+                    }
+                }
                 for (var msg of datae.msgs) {
                     console.log(msg)
                     await messagedb.save({
@@ -1161,6 +1172,7 @@
                         msg: msg.content,
                         created: msg.created || 2
                     })
+
                     last = parseInt(msg.id)
                     if (Number(CurrentChat) === Number(msg.chat_id)) {
                         UpdateGUI({
@@ -1353,18 +1365,103 @@
 
         });
 
-        function UpdataChats() {
+        function getOrCreateUnread(chatId) {
+            let el = document.querySelector(`[data-unread-id="unread${chatId}"]`);
+
+            if (!el) {
+                const chat = document.querySelector(`[data-chat-id="chat${chatId}"]`);
+                if (!chat) return null; // чата вообще нет в DOM
+
+                el = document.createElement("div");
+                el.className = "chat-unread";
+                el.dataset.unreadId = `unread${chatId}`;
+
+                chat.appendChild(el); // вставляем в чат
+            }
+
+            return el;
+        }
+
+        function updateUnread(chatId, count) {
+            const chat = document.querySelector(`[data-chat-id="chat${chatId}"]`);
+            if (!chat) return;
+
+            let el = chat.querySelector(".chat-unread");
+
+            // если есть непрочитанные
+            console.log(count)
+            if (count > 0) {
+                if (!el) {
+                    el = document.createElement("div");
+                    el.className = "chat-unread";
+                    chat.appendChild(el);
+                }
+
+                el.textContent = count;
+                el.dataset.unreadCount = count;
+            } 
+            // если 0 — удаляем
+            else {
+                console.log("remov")
+                if (el) el.remove();
+            }
+        }
+
+        function addUnread(chatId, delta = 1) {
+            const chat = document.querySelector(`[data-chat-id="chat${chatId}"]`);
+            if (!chat) return;
+
+            let el = chat.querySelector(".chat-unread");
+
+            let current = 0;
+
+            if (el) {
+                current = parseInt(el.textContent) || 0;
+            }
+
+            const newCount = current + delta;
+
+            // если стало 0 или меньше — удаляем
+            if (newCount <= 0) {
+                if (el) el.remove();
+                return;
+            }
+
+            // если не было — создаём
+            if (!el) {
+                el = document.createElement("div");
+                el.className = "chat-unread";
+                chat.appendChild(el);
+            }
+
+            el.textContent = newCount;
+            el.dataset.unreadCount = newCount;
+        }
+
+        async function getUnread(chatId) {
+            const data = lastreadchat[chatId];
+            if (!data) return "";
+            const count = await messagedb.countMessages(chatId,data.my);
+            console.log(count)
+
+            if (count <= 0) return "";
+
+            return `<div data-unread-id="unread${chatId}" data-unread-count="${count}" class="chat-unread">${count}</div>`;
+        }
+
+        async function UpdataChats() {
             ChatBox.innerHTML = '';
             const chats = JSON.parse(localStorage.getItem("Chats"))
             for (var key of Object.keys(chats)) {
                 var chat = chats[parseInt(key)]
-                console.log(lastreadchat)
+                console.log(await getUnread(chat.id))
                     //if (lastreadchat[Number(chat.id)]["my"]-lastreadchat[Number(chat.id)]["other"]>0)
                 ChatBox.innerHTML += `
-                <div data-chat-id=${'chat'+chat.id} class=${'chatinfo'}>
-                    <img src="${chat.photo}" class=${'chat-avatar'} style='margin-left:12px;' alt="${0} ">
-                    <b class=${'chat-name'}>${chat.name}</b> 
-                </div>
+                    <div data-chat-id=${'chat'+chat.id} class=${'chatinfo'}>
+                        <img src="${chat.photo}" class=${'chat-avatar'} style='margin-left:12px;' alt="${0} ">
+                        <b class=${'chat-name'}>${chat.name}</b>
+                        ${await getUnread(chat.id)}
+                    </div>
                 `;
             };
         }
@@ -1442,6 +1539,12 @@
                                 "type": "load_some_msg_new",
                                 "chat_id": CurrentChat,
                                 "id": parseInt(GraphicChat.lastElementChild.dataset.id),
+                                "limit": 10
+                            }))
+                            ws.send(JSON.stringify({
+                                "type": "load_some_msg",
+                                "chat_id": CurrentChat,
+                                "id": parseInt(GraphicChat.firstElementChild.dataset.id),
                                 "limit": 10
                             }))
                         }
@@ -1598,6 +1701,16 @@
             showMenu_msg(e.pageX, e.pageY);
         });
 
+        function scrollToMessage(msgId) {
+            const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+            if (!el) return;
+
+            el.scrollIntoView({
+                block: "center",   // или "start"
+                behavior: "auto"   // или "smooth"
+            });
+        }
+
         document.addEventListener("click", async function(e) {
             if (e.target.className !== "zzz") {
                 document.querySelector("#SearchUser").style.display = "none";
@@ -1608,7 +1721,9 @@
                 document.getElementById("chatshape").style.display = "flex";
                 GraphicChat.innerHTML = "";
                 CurrentChat = e.target.closest(".chatinfo").dataset.chatId.substring(4);
-                const chatmsgs = await messagedb.getChatMessages(parseInt(CurrentChat), 20)
+                need_id = lastreadchat[CurrentChat].my
+                const chatmsgs = await messagedb.loadNewerMessages(parseInt(CurrentChat),need_id-10, 20)
+                scrollToMessage(need_id)
                     //console.log(chatmsgs)
                 document.getElementById("shapechatavatar").src = ChatsData[CurrentChat].photo;
                 document.getElementById("shapechatname").innerText = ChatsData[CurrentChat].name;
@@ -1620,11 +1735,21 @@
                     if (innerWidth > 480)
                         e.style.width = "67%"
                 })
+                
                 for (let msg of chatmsgs) {
                     //console.log(msg)
 
                     await UpdateGUI(msg)
 
+                }
+                if (GraphicChat.scrollHeight > GraphicChat.clientHeight && chatmsgs.length > 0){
+                    console.log("failed scroll")
+                    ws.send(JSON.stringify({
+                                "type": "load_some_msg_new",
+                                "chat_id": CurrentChat,
+                                "id": parseInt(GraphicChat.lastElementChild.dataset.id),
+                                "limit": 10
+                            }))
                 }
                 if (chatmsgs.length === 0) {
                     ws.send(JSON.stringify({
@@ -2688,6 +2813,7 @@
                 classname: "message-right",
                 time: new Date().toLocaleTimeString(),
                 progress: 0,
+                n_content: [],
                 content: null,
                 poster: null
             };
@@ -2706,7 +2832,7 @@
                 }
             }
 
-            // -------- шифрование --------
+            // -------- шифрование -------- создание чата
             const metadataEncrypted = await encryptMetadata(fileKey, metadata);
             const encryptedFileKey = await encryptFileKey(fileKey, publicKeyB64);
 
@@ -2945,6 +3071,7 @@
                 classname: cln,
                 time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
                 progress: 0,
+                n_content: [],
                 content: null,
                 poster: null
             };
@@ -3033,7 +3160,10 @@
                         break;
                     }
                 }
-                console.log(size)
+                console.log( {
+                    type: "media",
+                    progress: Math.min((i + 1) * chunkSize, size)
+                })
                 graphic.update(msg_id, {
                     type: "media",
                     progress: Math.min((i + 1) * chunkSize, size)

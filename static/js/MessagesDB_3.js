@@ -29,6 +29,7 @@ class MessageStore {
 
                     // можно добавить индекс по времени
                     store.createIndex("chat_time", ["chat_id", "created_at"], { unique: false });
+                    store.createIndex("chat_id_id", ["chat_id", "id"]);
                 }
             };
 
@@ -204,11 +205,18 @@ class MessageStore {
         });
     }
     
-    async countMessages(store, minId, maxId) {
+
+    async countMessages(chatId, lastReadId) {
+        const store = await this._store()
         return new Promise((resolve, reject) => {
     
-            const range = IDBKeyRange.bound(minId, maxId);
-            const req = store.count(range);
+            const range = IDBKeyRange.bound(
+                [chatId, lastReadId + 1],
+                [chatId, Number.MAX_SAFE_INTEGER]
+            );
+    
+            const index = store.index("chat_id_id");
+            const req = index.count(range);
     
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => reject(req.error);

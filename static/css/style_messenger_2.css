@@ -233,16 +233,32 @@ body {
 }
 
 .chatinfo {
-    display: block;
+    display: flex;              /* ВАЖНО */
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
     border: 1px solid black;
     background: ghostwhite;
-    gap: 2px;
     cursor: pointer;
     width: 100%;
+    box-sizing: border-box;     /* чтобы не вылезало */
 }
 
 .chatinfo:hover {
     background: #dfd9da;
+}
+
+.chat-text {
+    flex: 1;                    /* занимает всё доступное */
+    min-width: 0;               /* фикс для ellipsis */
+}
+
+.chat-name {
+    font-size: 18px;
+    color: #212121;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .chat-avatar {
@@ -253,14 +269,15 @@ body {
     flex-shrink: 0;
 }
 
-.chat-name {
-    font-weight: 500;
-    font-size: 20px;
-    color: #212121;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.chat-unread {
+    background: red;
+    color: white;
+    border-radius: 12px;
+    padding: 4px 8px;
+    font-size: 14px;
+    min-width: 24px;
+    text-align: center;
+    flex-shrink: 0;
 }
 /*chatbox*/
 /*chatbox*/

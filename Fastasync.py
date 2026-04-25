@@ -392,8 +392,9 @@ async def websocket_endpoint(ws: WebSocket):
                                     "publickeycrypt":needchat["publickeycrypt"],
                                     "privatekeycrypt":inventive["senderencryptedkey"]}})
                             Database.update_reciver_inventive(inventive["id"],this_email,int(this_deviceid))
-            print(this_deviceid,Database.get_device_by_id(int(this_deviceid)))
-            for event in Database.get_Events_before(this_userid,Database.get_device_by_id(this_deviceid)["last_seen"]):
+            print(this_userid, datetime.fromisoformat(Database.get_device_by_id(this_deviceid)["last_seen"]))
+            for event in Database.get_Events_before(this_userid, datetime.fromisoformat(Database.get_device_by_id(this_deviceid)["last_seen"])):
+                print(event)
                 await ws.send_json({
                     "type":"new_event",
                     "message": Database.get_message_by_id(event["msg_id"]),
@@ -402,7 +403,7 @@ async def websocket_endpoint(ws: WebSocket):
                 })
 
     except Exception as e:
-        print(291,e,traceback.format_exc())
+        print(406,e,traceback.format_exc())
     try:
         while True:
             msg = await ws.receive_json()
@@ -607,7 +608,7 @@ async def websocket_endpoint(ws: WebSocket):
 
             if msg["type"] == "deletemsg":
                 m=Database.get_message_by_id(int(msg['id']))
-                if m["type"]=="media":
+                if m["datatype"]=="media":
                     try:
                         shutil.rmtree(f"media/{msg['id']}")
                     except:pass
@@ -1161,6 +1162,7 @@ async def GetUserInfo(request:Request):
                     "photo":user["photo"],
                     "phone":user['phone'],
                     "publickeys":{"publickey":user["publickey"],"publickeycrypt":user["publickeycrypt"]}}
+    print(dt)
     if user["about"]!=None:
         for d in user["about"].split("\n"):
             if len(d.split(":")) == 2:
@@ -1219,9 +1221,11 @@ async def getus(request: Request):
     data = await request.json()
     try:
         us = Database.get_user_by_id(int(data["id"]))
+        print(us)
         if us==None:
             return {}
-    except:
+    except Exception as e:
+        print(e)
         return {}
     if data["photo"]:
         return {"name":us["name"],"photo":us["photo"]}
@@ -1229,7 +1233,7 @@ async def getus(request: Request):
         return {"name":us["name"]}    
 
 @app.post("/CancelAuthNewDevice")
-async def getus(request: Request):
+async def cancle(request: Request):
     data = await request.json()
 
 @app.get("/push_key")
