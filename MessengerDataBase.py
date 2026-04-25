@@ -786,7 +786,7 @@ class DataBaseManager:
             return [self._to_dict(msg)  for msg in messages]
         finally:
             session.close()
-    def get_last_messages(self,chat_id,lim=15):
+    def last_messages(self,chat_id,lim=15):
         session = self.Session()
         try:
             q = session.query(Message)\
@@ -808,7 +808,7 @@ class DataBaseManager:
         )
 
         result = session.execute(stmt)
-        return result.scalar() or 0
+        return result.scalar()
 
     def get_unread_messages(self, user_id, chat_id):
         session = self.Session()

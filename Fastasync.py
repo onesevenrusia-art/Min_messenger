@@ -577,6 +577,7 @@ async def websocket_endpoint(ws: WebSocket):
                         other = MyLastIDs[key]["other"]
                         m1= Database.get_max_msgid(key)
                         o1=Database.get_max_lastread(key,msg["id"])
+                        print(key, m1,o1)
                         if my < m1:
                             MyLastIDs[key]["my"]=m1
                         if other<=o1:
