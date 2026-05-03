@@ -10,7 +10,7 @@ templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
 def index(request: Request):
-    return templates.TemplateResponse("test.html", {"request": request})
+    return templates.TemplateResponse("testgr.html", {"request": request})
 
 @app.get('/static/{path:path}')
 def send_static(path: str):

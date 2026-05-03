@@ -30,6 +30,7 @@
                 <button id="optionsbtn">Настройки</button>
                 <div class="optionsmenu">
                     <a id="profil" href="#">Профиль</a>
+                    <a id="createchat_btn">Создать группу</a>
                     <a id="exit" href="#">Выйти</a>
                     <a id="deletemyacc" href="#" color="red">Удалить аккаунт</a>
                 </div>
@@ -207,7 +208,195 @@
         </div>
     </div>
 
+
+    <div class="modal" id="groupModal">
+        <div class="modal-content">
+            <span class="close" id="closeModal">&times;</span>
+            <h2>Новая группа</h2>
+    
+            <div class="avatar-upload">
+                <img src="" id="avatarPreview" class="avatar-preview" alt="+">
+                <input type="file" id="avatarInput" accept="image/*" hidden>
+            </div>
+    
+            <input type="text" id="groupName" placeholder="Название группы">
+    
+            <div class="search-container">
+                <input type="text" id="userSearch" placeholder="Поиск пользователя по ID">
+                <div class="suggestions" id="suggestions"></div>
+            </div>
+    
+            <div class="selected-users" id="selectedUsers"></div>
+    
+            <button id="createBtn">Создать</button>
+        </div>
+    </div>
+
     <audio style="display: none;" id="audio_stream" autoplay></audio>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+        }
+        
+        #createGroupBtn {
+            padding: 12px 20px;
+            cursor: pointer;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            width: 420px;
+            max-width: 95%;
+            border-radius: 14px;
+            padding: 20px;
+            position: relative;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+        
+        .close {
+            position: absolute;
+            right: 14px;
+            top: 10px;
+            cursor: pointer;
+            font-size: 24px;
+        }
+        
+        .avatar-upload {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        
+        .avatar-preview {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: #ddd;
+            object-fit: cover;
+            cursor: pointer;
+            border: 2px solid #ccc;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+        
+        .search-container {
+            position: relative;
+            margin-top: 15px;
+        }
+        
+        .suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-top: none;
+            max-height: 180px;
+            overflow-y: auto;
+            z-index: 2000;
+        }
+        
+        .suggestion-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .suggestion-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .selected-users {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .user-chip {
+            background: #e4e6eb;
+            padding: 6px 10px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .user-chip button {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        #createBtn {
+            margin-top: 20px;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            background: #1877f2;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    cursor: pointer;
+}
+
+.suggestion-item:hover {
+    background: #f2f2f2;
+}
+
+.suggestion-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.suggestion-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.suggestion-name {
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.suggestion-id {
+    font-size: 12px;
+    color: gray;
+}
+    </style>
 </body>
 <script src="/static/js/appCrypto_v10.js"></script>
 <script src="static/js/MessagesDB_3.js"></script>
@@ -386,12 +575,12 @@
 
                     if (mediaEl) {
                         if (msg.content instanceof Blob) {
-                            if (msg.media_type === "file") {
-                                mediaEl.href = URL.createObjectURL(msg.content);
-                                el.querySelector(".file-block p:last-child").textContent = formatSize(msg.progress || msg.size);
-                            } else {
-                                mediaEl.src = URL.createObjectURL(msg.content);
-                            }
+                                if (msg.media_type === "file") {
+                                    mediaEl.href = URL.createObjectURL(msg.content);
+                                    el.querySelector(".file-block p:last-child").textContent = formatSize(msg.progress || msg.size);
+                                } else {
+                                    mediaEl.src = URL.createObjectURL(msg.content);
+                                }
                         } else if (msg.content) {
                             if (msg.media_type === "file") mediaEl.href = msg.content;
                             else mediaEl.src = msg.content;
@@ -406,6 +595,7 @@
                             progEl.className = "progress-text";
                             el.appendChild(progEl);
                         }
+                        console.log(msg)
                         progEl.textContent = `${formatSize(msg.progress)}/${formatSize(msg.size)}`;
                     }
                 }
@@ -567,7 +757,7 @@
                             }));
 
                             localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
-                        }, 5000)
+                        }, 800)
                     }
 
                 }
@@ -604,6 +794,7 @@
         const msg_menu = document.getElementById("msgMenu");
         const mediabtn = document.getElementById("sendmedia");
         const messagedb = new MessageStore(dbName = Data.db_created);
+        var loadmedia_config = {};
         await messagedb.open();
         const chunkdb = new ChunkStore(`chunks_v_${Data.db_created}`, 1);
         await chunkdb.open();
@@ -820,10 +1011,12 @@
                         }
                         if (!media.success) {
                             console.log("start download")
+                            var random_k = crypto.randomUUID();
+                            loadmedia_config[random_k]=[msg, ChatsData[parseInt(CurrentChat)].privatekeycrypt, name, tag, date]
                             ws.send(JSON.stringify({
                                 type: "get_token",
                                 msg_id: msg.id,
-                                interval: [media.chunk_id, media.end, media.size]
+                                interval: [media.chunk_id, media.end, media.size,random_k]
                             }))
 
 
@@ -1271,7 +1464,8 @@
                 }
             } else if (datae.type === "answ_token") {
                 if (datae.success === true) {
-                    download_chunks(datae.interval[0], datae.interval[1], datae.msg_id, datae.token, datae.interval[2])
+                    var conf = loadmedia_config[datae.interval[3]]
+                    download_chunks(datae.interval[0], datae.interval[1], datae.msg_id, datae.token, datae.interval[2],conf)
                 }
 
             }
@@ -1738,8 +1932,8 @@
                 
                 for (let msg of chatmsgs) {
                     //console.log(msg)
-
-                    await UpdateGUI(msg)
+                    try{
+                    await UpdateGUI(msg)}catch{}
 
                 }
                 if (GraphicChat.scrollHeight > GraphicChat.clientHeight && chatmsgs.length > 0){
@@ -2307,7 +2501,7 @@
         });
 
         async function Send_Message(msg, msgtype = "txt") {
-            const randomNumber = Math.floor(1000 + Math.random() * 9000);
+            const randomNumber = crypto.randomUUID();
             if (msgtype === "txt") {
                 var msgencrypt = await hybridEncrypt(msg, ChatsData[parseInt(CurrentChat)].publickeycrypt)
             } else {
@@ -2378,16 +2572,12 @@
             }
         });
 
-        /* -------- SHOW PREVIEW -------- */
-
         function showImagePreview(file) {
             const reader = new FileReader();
-
             reader.onload = () => {
                 previewImg.src = reader.result;
                 overlay.classList.remove("hidden");
             };
-
             reader.readAsDataURL(file);
         }
 
@@ -2460,7 +2650,7 @@
             };
         }
 
-        async function GetName(id, photoflag = false) {
+        async function GetName(id, photoflag = false,keyflag=false) {
             var res = await fetch("/GetUs", {
                 method: 'POST',
                 headers: {
@@ -2468,7 +2658,8 @@
                 },
                 body: JSON.stringify({
                     "id": id,
-                    "photo": photoflag
+                    "photo": photoflag,
+                    "publickey": keyflag
                 }),
             })
             var result = await res.json()
@@ -3050,6 +3241,7 @@
             const fileKey_enc = msg.msg.fileKey;
             const fileKey = await decryptFileKey(fileKey_enc, privatekey);
             const metadata = await decryptMetadata(fileKey, metadata_enc.cipher, metadata_enc.iv);
+            console.log(metadata)
             let media_type = "file";
             if (metadata.type.startsWith("image")) media_type = "image";
             else if (metadata.type.startsWith("video")) media_type = "video";
@@ -3134,7 +3326,7 @@
 
             return bytes;
         }
-        async function download_chunks(last_chunk, end, msg_id, token, size) {
+        async function download_chunks(last_chunk, end, msg_id, token, size, config) {
             let get_errors = []
             for (let i = last_chunk; i < end; i++) {
                 get_errors = []
@@ -3166,13 +3358,148 @@
                 })
                 graphic.update(msg_id, {
                     type: "media",
-                    progress: Math.min((i + 1) * chunkSize, size)
+                    progress: Math.min((i + 1) * chunkSize, size),
+                    size:size
                 })
             }
             console.log(get_errors)
+            if (get_errors.length === 0){
+                if (config!==null){
+                    loadMedia(...config)
+                }
+            }
             return get_errors;
         }
+
+        const modal_g = document.getElementById("groupModal");
+        const openBtn = document.getElementById("createchat_btn");
+        const closeBtn = document.getElementById("closeModal");
+        const avatarPreview = document.getElementById("avatarPreview");
+        const avatarInput = document.getElementById("avatarInput");
+        const userSearch = document.getElementById("userSearch");
+        const suggestions = document.getElementById("suggestions");
+        const selectedUsers = document.getElementById("selectedUsers");
+
+        const selected = new Map();
+        let searchTimeout;
+        openBtn.onclick = () => modal_g.style.display = "flex";
+        closeBtn.onclick = () => modal_g.style.display = "none";
+        window.onclick = (e) => {
+            if (e.target === modal_g) modal_g.style.display = "none";
+        };
+
+        avatarPreview.onclick = () => avatarInput.click();
+
+        avatarInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                avatarPreview.src = URL.createObjectURL(file);
+            }
+        };
+
+        userSearch.addEventListener("input", () => {
+            clearTimeout(searchTimeout);
+
+            searchTimeout = setTimeout(() => {
+                search();
+            }, 800); // 400мс после остановки ввода
+        });
+
+        async function search() {
+            const query = userSearch.value.trim();
+            suggestions.innerHTML = "";
+
+            if (!query) return;
+
+            try {
+                // Замени на свой API:
+                // const res = await fetch(`/search_users?id=${encodeURIComponent(query)}`);
+                // const users = await res.json();
+
+                // Временная заглушка:
+                const user = await GetName(encodeURIComponent(query),true,true)
+                console.log(user)
+                if (user.name===undefined || user.length===0){
+                    return;
+                }
+                let users=[user]
+                users.forEach(user => {
+                    if (selected.has(user.id)) return;
+
+                    const div = document.createElement("div");
+                    div.className = "suggestion-item";
+
+                    div.innerHTML = `
+                        <img src="${user.photo || localStorage.getItem('avatar')}" class="suggestion-avatar" alt="">
+                        <div class="suggestion-info">
+                            <div class="suggestion-name">${user.name}</div>
+                            <div class="suggestion-id">ID: ${user.id}</div>
+                        </div>
+                    `;
+
+                    div.onclick = () => addUser(user);
+
+                    suggestions.appendChild(div);
+                });
+
+            } catch (err) {
+                console.error("Ошибка поиска:", err);
+            }
+        }
+
+        function addUser(user) {
+            selected.set(user.id, user);
+            renderSelectedUsers();
+            userSearch.value = "";
+            suggestions.innerHTML = "";
+        }
+
+        function removeUser(id) {
+            selected.delete(id);
+            renderSelectedUsers();
+        }
+
+        function renderSelectedUsers() {
+            selectedUsers.innerHTML = "";
+
+            selected.forEach(user => {
+                const chip = document.createElement("div");
+                chip.className = "user-chip";
+                chip.innerHTML = `
+                    <span>${user.name} (${user.id})</span>
+                    <button data-id="${user.id}">&times;</button>
+                `;
+
+                chip.querySelector("button").onclick = () => removeUser(user.id);
+                selectedUsers.appendChild(chip);
+            });
+        }
+
+        document.getElementById("createBtn").onclick = () => {
+            const groupName = document.getElementById("groupName").value.trim();
+
+            const payload = {
+                name: groupName,
+                users: [...selected.keys()],
+                avatar: avatarInput.files[0] || null
+            };
+
+            console.log("Группа к созданию:", payload);
+
+            // Тут отправка на сервер
+            // fetch('/create_group', { method: 'POST', body: ... })
+        };
+
+        async function prepare_inventives(payload) {
+            let inv = {}
+            for (let u of payload.users){
+                const keys = await generateEncryptionKeyPair()
+                const encryptedkey = await hybridEncrypt(keys.privateKey, u.publickeycrypt)
+                const myencryptedkey = await hybridEncrypt(keys.privateKey, Data.publickeycrypt)
+            }
+        }
     });
+
 </script>
 </body>
 

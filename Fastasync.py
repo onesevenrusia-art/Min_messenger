@@ -170,7 +170,7 @@ def IsEmailCorrect(email):
     except EmailNotValidError:
         return False
 
-def SendCode(emailreciver,body=0,flag=False):
+def SendCode(emailreciver,body=0,flag=True):
     email_from = 'onesevenrusia@gmail.com' 
     password = passwordf 
     email_to = emailreciver
@@ -1227,10 +1227,12 @@ async def getus(request: Request):
     except Exception as e:
         print(e)
         return {}
+    d={"name":us["name"],"id":us["id"]}
     if data["photo"]:
-        return {"name":us["name"],"photo":us["photo"]}
-    else:
-        return {"name":us["name"]}    
+        d["photo"]=us["photo"]
+    if data["publickey"]:
+        d["publickey"]=us["publickey"]
+    return d
 
 @app.post("/CancelAuthNewDevice")
 async def cancle(request: Request):
