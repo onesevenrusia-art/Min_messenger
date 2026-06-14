@@ -232,6 +232,39 @@
         </div>
     </div>
 
+    <dialog id="inviteModal">
+        <div class="invite-box">
+          
+          <!-- Комбо из двух аватарок внахлест -->
+          <div class="avatar-combo">
+            <img id="userAvatar" class="avatar avatar-user" src="https://placehold.co" alt="Аватар пользователя" title="Отправитель">
+            <img id="groupAvatar" class="avatar avatar-group" src="https://placehold.co" alt="Аватар группы" title="Группа">
+          </div>
+          
+          <!-- Текст приглашения -->
+          <div class="invite-text">
+            <h3>Новое приглашение!</h3>
+            <p>
+              <strong id="inviterName">Алексей</strong> 
+              приглашает вас в чат 
+              <strong id="chatRoomName">"Разработчики"</strong>
+            </p>
+            
+            <!-- Количество участников -->
+            <div class="members-count">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              <span id="chatMembers">0</span> участников
+            </div>
+          </div>
+          
+          <!-- Кнопки управления -->
+          <div class="invite-buttons">
+            <button id="acceptBtn" class="btn btn-accept">Принять</button>
+            <button id="rejectBtn" class="btn btn-reject">Отклонить</button>
+          </div>
+        </div>
+    </dialog>
+
     <audio style="display: none;" id="audio_stream" autoplay></audio>
     <style>
         body {
@@ -396,6 +429,134 @@
     font-size: 12px;
     color: gray;
 }
+
+#inviteModal {
+  border: none;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+  max-width: 340px;
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  text-align: center;
+}
+
+#inviteModal::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+}
+
+.invite-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Контейнер для двух аватарок */
+.avatar-combo {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  width: 120px; /* Ширина с учетом сдвига */
+  height: 75px;
+}
+
+/* Общие стили для аватарок */
+.avatar {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #fff; /* Белая рамка, чтобы аватарки разделялись */
+  position: absolute;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Аватар хозяина (слева и чуть сзади) */
+.avatar-user {
+  left: 10px;
+  z-index: 1;
+}
+
+/* Аватар группы (справа и спереди) */
+.avatar-group {
+  right: 10px;
+  z-index: 2;
+}
+
+.invite-text h3 {
+  margin: 0 0 8px 0;
+  color: #222;
+  font-size: 20px;
+}
+
+.invite-text p {
+  margin: 0;
+  color: #555;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* Блок с количеством участников */
+.members-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  background-color: #f1f3f5;
+  padding: 4px 12px;
+  border-radius: 20px;
+  color: #666;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.members-count svg {
+  color: #888;
+}
+
+/* Кнопки */
+.invite-buttons {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.2s;
+}
+
+.btn:active {
+  transform: scale(0.97); /* Эффект нажатия */
+}
+
+.btn-accept {
+  background-color: #007bff;
+  color: white;
+}
+
+.btn-accept:hover {
+  background-color: #0056b3;
+}
+
+.btn-reject {
+  background-color: #f8f9fa;
+  color: #dc3545;
+  border: 1px solid #dee2e6;
+}
+
+.btn-reject:hover {
+  background-color: #e2e6ea;
+}
+
     </style>
 </body>
 <script src="/static/js/appCrypto_v10.js"></script>
@@ -403,7 +564,42 @@
 <script src="static/js/chunksDB.js"></script>
 <script>
     //🔴🟠🟡🟢🔵🟣✅️⚠️❗❌⋮🔗📞
+    
     document.addEventListener('DOMContentLoaded', async function() {
+        const size = new Blob([JSON.stringify(localStorage)]).size;
+        console.log(size / 1024, "KB");
+
+        class DictStorage {
+            constructor(nullable = {}) {
+                this.nullable = nullable;
+            }
+
+            _create(key) {
+                if (localStorage.getItem(key) === null) {
+                    localStorage.setItem(key, JSON.stringify(this.nullable));
+                }
+            }
+
+            set(key, keydict, data) {
+                this._create(key);
+                const obj = this.get(key);
+                obj[keydict] = data;
+                localStorage.setItem(key, JSON.stringify(obj));
+            }
+
+            get(key, k2 = null) {
+                this._create(key);
+                const obj = JSON.parse(localStorage.getItem(key));
+                if (k2 === null) return obj;
+                return obj[k2];
+            }
+
+            delete(key, keydict) {
+                const obj = this.get(key);
+                delete obj[keydict];
+                localStorage.setItem(key, JSON.stringify(obj));
+            }
+        }
         class Graphic {
             constructor(chatElement, onReadCallback) {
                 this.chat = chatElement;
@@ -772,6 +968,74 @@
         const photoUpload = document.getElementById('photo_upload');
         const myPhoto = document.getElementById('my_photo');
         const DataUser = localStorage.getItem('Userdata');
+        const modal = document.getElementById('inviteModal');
+        const inviterNameEl = document.getElementById('inviterName');
+        const chatRoomNameEl = document.getElementById('chatRoomName');
+        const chatMembersEl = document.getElementById('chatMembers');
+        const userAvatarEl = document.getElementById('userAvatar');
+        const groupAvatarEl = document.getElementById('groupAvatar');
+
+        // Универсальная функция для открытия окна с любыми данными
+        function showInvite(id,fromUser, userImg, toChat, chatImg, membersCount) {
+            modal.dataset.chatid=id
+            inviterNameEl.textContent = fromUser;
+            userAvatarEl.src = userImg; // Меняем картинку пользователя
+            
+            chatRoomNameEl.textContent = `"${toChat}"`;
+            groupAvatarEl.src = chatImg; // Меняем картинку группы
+            
+            chatMembersEl.textContent = Number(membersCount).toLocaleString(); // Красиво форматируем число (например: 1 250)
+            
+            modal.showModal();
+        }
+
+        // Кнопки
+        document.getElementById('acceptBtn').onclick = () => {
+            console.log('Принято!');
+            answer_inv(modal.dataset.chatid,true)
+            modal.close();
+        };
+
+        document.getElementById('rejectBtn').onclick = () => {
+            console.log('Отклонено!');
+            answer_inv(modal.dataset.chatid,false)
+            modal.close();
+        };
+        async function answer_inv(id,flag) {
+            chat=currentinv[Number(id)]
+            if (flag){
+                console.log(chat)
+                minidb.set("Chats",chat.id,{
+                    id:chat.id,
+                    publickeycrypt:chat.publickey,
+                    privatekeycrypt:chat.privatekey,
+                    name:chat.name,
+                    photo:chat.photo,
+                    admin:chat.admin,
+                    type:"group",
+                    created: new Date()
+                })
+                if (lastreadchat.length === 0 || !(Number(chat.id) in lastreadchat)) {
+                    console.log("success add")
+                    lastreadchat=JSON.parse(localStorage.getItem("lastreadchat"))
+                    lastreadchat[Number(chat.id)] = {
+                        "my": 0,
+                        "other": 0,
+                        "this_device": 0,
+                        "max_load": 0
+                    }
+                    localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
+                    console.log(lastreadchat)
+                }
+                else{
+                    console.log("error add",lastreadchat)
+                }
+                LoadChats();
+                ws.send(JSON.stringfly(({state_add:true,chatid:chat.id})))
+            }else{
+                ws.send(JSON.stringfly(({state_add:false,chatid:chat.id})))
+            }
+        }
         var loader_flag = false;
         if (DataUser === null) {
             //const reg = await navigator.serviceWorker.ready
@@ -794,10 +1058,15 @@
         const msg_menu = document.getElementById("msgMenu");
         const mediabtn = document.getElementById("sendmedia");
         const messagedb = new MessageStore(dbName = Data.db_created);
+        var currentinv = {};
         var loadmedia_config = {};
         await messagedb.open();
         const chunkdb = new ChunkStore(`chunks_v_${Data.db_created}`, 1);
         await chunkdb.open();
+        const minidb = new DictStorage();
+        //for (let i of [8,9,10,11,12,13]){
+        //    minidb.delete("Chats",i)
+        //}
         msg_menu.classList.remove("hidden_m")
         var activeMessageId = null;
         var lastIdload = -1;
@@ -1134,12 +1403,17 @@
 
 
         const device_id = Data.email + "|id" + Data.device_id;
+        const ws = new WebSocket(
+                "wss://" + window.location.hostname + ":443/ws?device_id=" + device_id
+            );
         console.log(device_id)
         let pendingNotification = null;
-        const ws = new WebSocket(
-            "wss://" + window.location.hostname + ":443/ws?device_id=" + device_id
-        );
 
+        function OPENws(){
+            ws = new WebSocket(
+                "wss://" + window.location.hostname + ":443/ws?device_id=" + device_id
+            );
+        }
         ws.onopen = () => {
             console.log("WebSocket connected");
             ws.send(JSON.stringify({
@@ -1468,16 +1742,72 @@
                     download_chunks(datae.interval[0], datae.interval[1], datae.msg_id, datae.token, datae.interval[2],conf)
                 }
 
+            } else if (datae.type === "answ_group"){
+                if (datae.success===true){
+
+
+                    
+                // для инициатора и получателя  - успешный ответ пользователя = sava chat 
+                    
+                    // создание чата >><<
+
+                    var chat = minidb.get("add_group",datae.token)
+                    console.log(chat,datae)
+                    minidb.set("Chats",datae.id,{
+                        id:datae.id,
+                        publickeycrypt:chat.publickey,
+                        privatekeycrypt:chat.myencryptedkey,
+                        name:chat.name,
+                        photo:chat.avatar,
+                        type:"group",
+                        created: new Date()
+                    })
+                    if (lastreadchat.length === 0 || !(Number(datae.id) in lastreadchat)) {
+                        console.log("success add")
+                        lastreadchat=JSON.parse(localStorage.getItem("lastreadchat"))
+                        lastreadchat[Number(datae.id)] = {
+                            "my": 0,
+                            "other": 0,
+                            "this_device": 0,
+                            "max_load": 0
+                        }
+                        localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
+                        console.log(lastreadchat)
+                    }
+                    else{
+                        console.log("error add",lastreadchat,datae)
+                    }
+                    LoadChats();
+                }else{
+                    alert("error create group")
+                }
+            } else if (datae.type === "new_group"){
+                var user = await GetUserInfo({email:datae.user,keys:true})
+                var chat = await ServerRequest("chatinfo",{id:datae.message.chatid})
+                var id = Number(datae.message.chatid)
+                console.log(chat)
+                showInvite(fromUser=user.name,
+                    userImg=user.photo || localStorage.getItem("avatar"),
+                    toChat=chat.name,chatImg=chat.img || localStorage.getItem("UniknownChat2"),membersCount=chat.users
+                )
+                var jsonkey = deepJsonParse(datae.privatekey.replace(/'/g, '"'))
+                var private = await hybridDecrypt(jsonkey, Data.privatekeycrypt)
+                currentinv[id] = {id:id,public:datae.publickey,private:private,admin:user.name,name:chat.name,photo:chat.photo}
             }
+
+
+
+
             try {
 
             } catch (e) {
                 console.log(e)
             }
-        };
+        }
 
         ws.onclose = () => {
             console.log("WebSocket closed");
+            setTimeout(OPENws,2000)
         };
 
 
@@ -1830,7 +2160,12 @@
             activeMessageId = null;
         }
 
-        document.addEventListener("click", hideMenu_msg)
+        document.addEventListener("click", function(){
+            hideMenu_msg()
+            const el = document.getElementById("ChatOptions")
+            el.classList.remove("show_chm")
+            el.classList.add("hide_chm");
+        })
 
         document.getElementById("editMsg").addEventListener("click", function() {
 
@@ -2475,6 +2810,7 @@
         }
 
         async function GetUserInfo(jsonfetch) {
+            
             var res = await fetch("/GetUserInfo", {
                 method: 'POST',
                 headers: {
@@ -2678,7 +3014,7 @@
 
 
         const stopBtn = document.getElementById("stopRec");
-        const modal = document.getElementById("recordModal");
+        const modal_r = document.getElementById("recordModal");
         const timeEl = document.getElementById("recordTime");
 
         let recorder;
@@ -2703,7 +3039,7 @@
 
                 recorder.start();
 
-                modal.style.display = "flex";
+                modal_r.style.display = "flex";
                 seconds = 0;
                 timeEl.textContent = "00:00";
                 timer = setInterval(() => {
@@ -2721,14 +3057,14 @@
 
         function stopRecording() {
             console.log("stop")
-            modal.style.display = "none";
+            modal_r.style.display = "none";
             if (!recorder) return;
 
             recorder.stop();
 
             recorder.onstop = () => {
                 clearInterval(timer);
-                modal.classList.add("hidden");
+                modal_r.classList.add("hidden");
 
                 const blob = new Blob(chunks, {
                     type: "audio/webm"
@@ -2910,7 +3246,7 @@
                     body: data ? JSON.stringify(data) : null
                 });
 
-                if (!res.ok) {
+                if (!(res.ok || res.success)) {
                     return {
                         success: false,
                         status: res.status
@@ -3480,23 +3816,37 @@
 
             const payload = {
                 name: groupName,
-                users: [...selected.keys()],
+                users: [...selected],
                 avatar: avatarInput.files[0] || null
             };
 
             console.log("Группа к созданию:", payload);
-
+            prepare_inventives(payload)
             // Тут отправка на сервер
             // fetch('/create_group', { method: 'POST', body: ... })
         };
 
         async function prepare_inventives(payload) {
             let inv = {}
+            const keys = await generateEncryptionKeyPair()
+            const myencryptedkey = await hybridEncrypt(keys.privateKey, Data.publickeycrypt)
             for (let u of payload.users){
-                const keys = await generateEncryptionKeyPair()
-                const encryptedkey = await hybridEncrypt(keys.privateKey, u.publickeycrypt)
-                const myencryptedkey = await hybridEncrypt(keys.privateKey, Data.publickeycrypt)
+                console.log(u[1])
+                var encryptedkey = await hybridEncrypt(keys.privateKey, u[1].publickey)
+                inv[u[0]]=encryptedkey
             }
+            var t = crypto.randomUUID()
+            minidb.set("add_group",t,{name:payload.name,avatar:payload.avatar,publickey:keys.publickey,privatekey:myencryptedkey})
+            console.log("sending.....")
+            ws.send(JSON.stringify({    
+                type:"create_group",
+                inv:inv,
+                publickey:keys.publicKey,
+                myencrypted:myencryptedkey,
+                name:payload.name,
+                avatar:payload.avatar,
+                token:t
+            }));
         }
     });
 

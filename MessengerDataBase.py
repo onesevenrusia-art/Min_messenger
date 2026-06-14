@@ -303,6 +303,13 @@ class DataBaseManager:
 
 
     def add_chat(self, name, user_ids, type="tehnic", about=None, photo=None, publickeycrypt=None):
+        """
+            return {
+                "success": True,
+                "chat_id": chat.id,
+                "added_users": [u.id for u in users]
+            }
+        """
         session = self.Session()
         try:
             user_ids = set(user_ids)

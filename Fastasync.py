@@ -26,6 +26,10 @@ import base64, uuid
 import os, shutil, sys, traceback
 import ssl
 import secrets
+import tracemalloc
+
+tracemalloc.start()
+
 
 clients = {}
 calls = {0:[]}
@@ -375,8 +379,9 @@ async def websocket_endpoint(ws: WebSocket):
         if this_deviceid != "newdevice":
             for inventive in Database.get_user_Inventives(this_email):
                 inventive["time"]=inventive["time"].isoformat()
-                if inventive["typeinventive"]=="newchat" and inventive["emailsent"] != this_email and int(inventive["status"])==0:
-                    await ws.send_json({"type":"new_chat","user":inventive["emailsent"],"time":inventive["time"],"publickey":inventive["publickey"],"privatekey":inventive["reciverencryptedkey"]})
+                if inventive["emailsent"] != this_email and int(inventive["status"])==0:
+                    await ws.send_json({"type":inventive["typeinventive"],"user":inventive["emailsent"],"time":inventive["time"],"publickey":inventive["publickey"],"privatekey":inventive["reciverencryptedkey"],"message":{k: inventive["message"][k] for k in inventive["message"].keys() if k != "devices"}})
+                    Database.update_reciver_inventive(inventive["id"],this_email,int(this_deviceid))
                 if inventive["emailsent"] == this_email and this_deviceid != "newdevice" and int(inventive["status"])==1:
                     dvs=Database.get_user_devices(this_userid)
                     for dv in dvs:
@@ -437,16 +442,17 @@ async def websocket_endpoint(ws: WebSocket):
 
                     flag=True
                     for inv in Database.get_user_Inventives(msg["email"]):
-                        if inv["typeinventive"] == "newchat" and inv["emailsent"] == this_email:
+                        if inv["typeinventive"] == "newchat"  and inv["emailsent"] == this_email:
                             flag=False
                             break
+                     
                     if flag:
                         ms_data = {
                             "chatid":"x",
                             "devices": [i['id'] for i in Database.get_user_devices(this_userid)]+[i['id'] for i in Database.get_user_devices(msg["email"])]
                         }
                         r=Database.add_Inventive(emailrecive=msg["email"],
-                                            emailsent=device_id.split("|")[0],
+                                            emailsent=this_email,
                                             inventivetype="newchat",
                                             publickey=msg["publickey"],
                                             message=ms_data,
@@ -573,16 +579,18 @@ async def websocket_endpoint(ws: WebSocket):
                 if Database.get_user_by_id(msg["id"])["email"] == device_id.split("|id")[0] and device_id.split("|id")[1] != "newdevice":
                     MyLastIDs = msg["lastids"]
                     for key in MyLastIDs:
-                        key=key
-                        my = MyLastIDs[key]["my"]
-                        other = MyLastIDs[key]["other"]
-                        m1= Database.get_max_msgid(key)
-                        o1=Database.get_max_lastread(key,msg["id"])
-                        print(key, m1,o1)
-                        if my < m1:
-                            MyLastIDs[key]["my"]=m1
-                        if other<=o1:
-                            MyLastIDs[key]["other"]=o1
+                        try:
+                            key=key
+                            my = MyLastIDs[key]["my"]
+                            other = MyLastIDs[key]["other"]
+                            m1= Database.get_max_msgid(key)
+                            o1=Database.get_max_lastread(key,msg["id"])
+                            print(key, m1,o1)
+                            if my < m1:
+                                MyLastIDs[key]["my"]=m1
+                            if other<=o1:
+                                MyLastIDs[key]["other"]=o1
+                        except:pass
 
                     await ws.send_json({"type":"newlastdata",
                                         "lastdata":MyLastIDs})
@@ -729,14 +737,49 @@ async def websocket_endpoint(ws: WebSocket):
                 else:
                     await ws.send_json({"type":"answ_token",
                                         "success":False})
+                    
+            if msg["type"] == "create_group":
+                print("CREATING GROUP..........")
+                inventives=msg["inv"]
+                chat=Database.add_chat(name=msg["name"],
+                                  user_ids=[int(this_userid)],
+                                  type="group",
+                                  photo=msg["avatar"],
+                                  publickeycrypt=msg["publickey"])
+                await ws.send_json({"type":"answ_group","success":chat["success"],"id":chat["chat_id"],"token":msg["token"]})
+                if chat["success"]:
+                    for k,v in inventives.items():
+                        u=Database.get_user_by_id(int(k))
+                        ms_data = {# all devices sender+reciver
+                                "chatid":chat["chat_id"],
+                                "devices": [i['id'] for i in Database.get_user_devices(this_userid)]+[i['id'] for i in Database.get_user_devices(u["email"])]
+                            }
+                        r=Database.add_Inventive(emailrecive=u["email"],
+                                            emailsent=this_email,
+                                            inventivetype="new_group",
+                                            publickey=msg["publickey"],
+                                            senderencryptedkey=json.dumps(msg["myencrypted"]),
+                                            reciverencryptedkey=json.dumps(v),
+                                            message=ms_data)
+                        await send_WS_msg(u["email"],
+                                        {"type":"new_group",
+                                        "keys":{"public":msg["publickey"],"private":v},
+                                        "group":{"name":msg["name"],"avatar":msg["avatar"]},
+                                        "admin":this_email
+                                        },
+                                        False,)
+                        r=SendWEBpush(notify={
+                                            "title":"Новая группа",
+                                            "body":f'{u["name"]} приглашает вас в группу {msg["name"]}',
+                                            "icon":msg["avatar"]
+                                            },
+                                        device_id="all",
+                                        user_id=u["id"])
+                        print("end sending web push",r)
+                        
 
 
 
-
-            
-
-                
-         
 
                 
     except WebSocketDisconnect as wserror:
@@ -1155,13 +1198,14 @@ async def GetUserInfo(request:Request):
         user = Database.get_user_by_id(data["id"])
     else:
         user = Database.get_user_by_email(data["email"])
-    
+    pbk =data.get("keys") or True
     dt = {"userid":user['id'],
                     "email":user['email'],
                     "name":user['name'],
                     "photo":user["photo"],
                     "phone":user['phone'],
-                    "publickeys":{"publickey":user["publickey"],"publickeycrypt":user["publickeycrypt"]}}
+                    "publickeys":{None:{"publickey":user["publickey"],"publickeycrypt":user["publickeycrypt"]},True:{},False:{}}.get(pbk)
+                    }
     print(dt)
     if user["about"]!=None:
         for d in user["about"].split("\n"):
@@ -1366,6 +1410,11 @@ async def get_meta(request: Request):
     else:
         raise HTTPException(403)
 
+@app.post("/chatinfo")
+async def chatinfo(request: Request):
+    data = await request.json()
+    chat = Database.get_chat(data["id"])
+    return {"name":chat["name"],"photo":chat["photo"],"about":chat["about"],"created":chat["created"],"users":len(Database.get_ChatParticipants(data["id"]))}
 
 
 
