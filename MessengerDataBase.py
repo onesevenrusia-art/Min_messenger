@@ -456,8 +456,11 @@ class DataBaseManager:
         if not inv:
             return {"success":False,"error": "Сообщение не найдено"}
         d = json.loads(inv.message)
+        print("db",d,device_id)
         if device_id:
-            d["devices"].remove(device_id)
+            try:
+                d["devices"].remove(device_id)
+            except:pass
         if chat_id:
             d["chatid"]=chat_id
             inv.status=1

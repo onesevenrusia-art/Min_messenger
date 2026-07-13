@@ -245,7 +245,7 @@
           <div class="invite-text">
             <h3>Новое приглашение!</h3>
             <p>
-              <strong id="inviterName">Алексей</strong> 
+              <strong id="inviterName">uniknown</strong> 
               приглашает вас в чат 
               <strong id="chatRoomName">"Разработчики"</strong>
             </p>
@@ -563,11 +563,59 @@
 <script src="static/js/MessagesDB_3.js"></script>
 <script src="static/js/chunksDB.js"></script>
 <script>
+
+    //import * as ChatUI from "/static/js/ChatlistUI.js";
     //🔴🟠🟡🟢🔵🟣✅️⚠️❗❌⋮🔗📞
-    
     document.addEventListener('DOMContentLoaded', async function() {
+        
         const size = new Blob([JSON.stringify(localStorage)]).size;
         console.log(size / 1024, "KB");
+
+
+        function createChatElement(chat) {
+            console.log(chat.id)
+            const div = document.createElement("div");
+            div.dataset.chatId = chat.id;
+            div.className = "chatinfo";
+            const img = document.createElement("img");
+            img.className = "chat-avatar";
+            img.src = chat.photo;
+            img.alt = "";
+            img.style.marginLeft = "12px";
+            const name = document.createElement("b");
+            name.className = "chat-name";
+            name.textContent = chat.name;
+            //const unread = 0;
+            div.append(img);
+            div.append(name);
+            //if (unread instanceof HTMLElement)
+            //    div.append(unread);
+            //else
+            //    div.insertAdjacentHTML("beforeend", unread);
+            return div;
+        }
+
+        function Chat_add(chat){
+            const chatElement = createChatElement(chat);
+            ChatBox.append(chatElement);
+        }
+
+        function Chat_remove(id){
+            document.querySelector(`[data-chat-id="${id}"]`)?.remove();
+        }
+
+        function Chat_update(id, name=null, avatar=null, unread=false){
+            const chat = document.querySelector(`[data-chat-id="${id}"]`);
+            if (name !== null){
+                chat.querySelector(".chat-name").textContent = name;
+            }
+            if (avatar !== null){
+                chat.querySelector(".chat-avatar").src = avatar;
+            }
+            if (unread !== null){
+                
+            }
+        }
 
         class DictStorage {
             constructor(nullable = {}) {
@@ -583,6 +631,7 @@
             set(key, keydict, data) {
                 this._create(key);
                 const obj = this.get(key);
+                console.log(obj)
                 obj[keydict] = data;
                 localStorage.setItem(key, JSON.stringify(obj));
             }
@@ -869,9 +918,9 @@
         let pc = null
         let iceBuffer = []
         try {
-            var ChatsData = JSON.parse(localStorage.getItem("Chats"));
+            var ChatsData = JSON.parse(localStorage.getItem("Chats"));//!!!
         } catch {
-            localStorage.setItem("Chats", JSON.stringify({}));
+            localStorage.setItem("Chats", JSON.stringify({}));//!!!
             var ChatsData = {};
         }
         try {
@@ -895,12 +944,12 @@
         }
 
         try {
-            var localChats = JSON.parse(localStorage.getItem("Chats"))
+            var localChats = JSON.parse(localStorage.getItem("Chats"))//!!!
             if (localChats === null) {
                 localChats = {};
             }
         } catch {
-            localStorage.setItem("Chats", JSON.stringify({}));
+            localStorage.setItem("Chats", JSON.stringify({}));//!!!
             var localChats = {};
         }
         try {
@@ -980,12 +1029,9 @@
             modal.dataset.chatid=id
             inviterNameEl.textContent = fromUser;
             userAvatarEl.src = userImg; // Меняем картинку пользователя
-            
             chatRoomNameEl.textContent = `"${toChat}"`;
             groupAvatarEl.src = chatImg; // Меняем картинку группы
-            
             chatMembersEl.textContent = Number(membersCount).toLocaleString(); // Красиво форматируем число (например: 1 250)
-            
             modal.showModal();
         }
 
@@ -993,7 +1039,7 @@
         document.getElementById('acceptBtn').onclick = () => {
             console.log('Принято!');
             answer_inv(modal.dataset.chatid,true)
-            modal.close();
+            modal.close(); 
         };
 
         document.getElementById('rejectBtn').onclick = () => {
@@ -1004,17 +1050,21 @@
         async function answer_inv(id,flag) {
             chat=currentinv[Number(id)]
             if (flag){
-                console.log(chat)
+                if (chat.photo==="None"){
+                    chat.photo=null
+                }
+                console.log(chat,currentinv)
                 minidb.set("Chats",chat.id,{
                     id:chat.id,
                     publickeycrypt:chat.publickey,
                     privatekeycrypt:chat.privatekey,
                     name:chat.name,
                     photo:chat.photo,
-                    admin:chat.admin,
+                    admin:chat.user,
                     type:"group",
                     created: new Date()
                 })
+                console.log(JSON.parse(localStorage.getItem("Chats")))
                 if (lastreadchat.length === 0 || !(Number(chat.id) in lastreadchat)) {
                     console.log("success add")
                     lastreadchat=JSON.parse(localStorage.getItem("lastreadchat"))
@@ -1030,24 +1080,32 @@
                 else{
                     console.log("error add",lastreadchat)
                 }
-                LoadChats();
-                ws.send(JSON.stringfly(({state_add:true,chatid:chat.id})))
+                var p_id = chat.id
+                chat.id="chat"+String(chat.id);
+                if (chat.photo === null){
+                    chat.photo=localStorage.getItem("UniknownChat2")
+                }
+                Chat_add(chat)
+                ChatsData = minidb.get("Chats")
+                console.log(ChatsData)
+                chat.id = p_id
+                ws.send(JSON.stringify({type:"answ_2",state_add:true,chatid:chat.id,chattype:"group",inv_id:chat.inv_id}))
+                // adding group
             }else{
-                ws.send(JSON.stringfly(({state_add:false,chatid:chat.id})))
+                ws.send(JSON.stringify({type:"answ_2",state_add:false,chatid:chat.id,chattype:"group",inv_id:chat.inv_id}))
             }
         }
         var loader_flag = false;
         if (DataUser === null) {
-            //const reg = await navigator.serviceWorker.ready
-            //const sub = await reg.pushManager.getSubscription()
-            //console.log(reg,sub)
-            //if (sub) {
-            //    await sub.unsubscribe()
-            //}
-            //console.log(DataUser, window.location.origin)
+            const reg = await navigator.serviceWorker.ready
+            const sub = await reg.pushManager.getSubscription()
+            console.log(reg,sub)
+            if (sub) {
+                await sub.unsubscribe()
+            }
+            console.log(DataUser, window.location.origin)
             localStorage.clear()
-            window.location.href = window.location.origin; // https://basicmimimummessenger.duckdns.org
-
+            window.location.href = window.location.origin;
         }
         var file = null;
         var End_save = true;
@@ -1490,9 +1548,15 @@
                     localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
                 }
 
-                localStorage.setItem("Chats", JSON.stringify(ChatsData));
+                localStorage.setItem("Chats", JSON.stringify(ChatsData));//!!!
+                ws.send({
+                    type:"answ_2",
+                    state_add:true,
+                    chatid:datae.chat.id,
+                    chattype:"chat",
+                    inv_id:datae.inv_id
+                })
                 LoadChats();
-                //e.log(localStorage.getItem("Chats"))
             } else if (datae.type === "delete_chat") {
 
             } else if (datae.type === "addmymsg") {
@@ -1745,23 +1809,23 @@
             } else if (datae.type === "answ_group"){
                 if (datae.success===true){
 
-
-                    
                 // для инициатора и получателя  - успешный ответ пользователя = sava chat 
                     
                     // создание чата >><<
 
-                    var chat = minidb.get("add_group",datae.token)
+                    var chat_t = minidb.get("add_group",datae.token)
                     console.log(chat,datae)
-                    minidb.set("Chats",datae.id,{
+                    chat={
                         id:datae.id,
-                        publickeycrypt:chat.publickey,
-                        privatekeycrypt:chat.myencryptedkey,
-                        name:chat.name,
-                        photo:chat.avatar,
+                        publickeycrypt:chat_t.publickey,
+                        privatekeycrypt:chat_t.myencryptedkey,
+                        name:chat_t.name,
+                        photo:chat_t.avatar,
                         type:"group",
                         created: new Date()
-                    })
+                    }
+                    minidb.set("Chats",datae.id,chat)
+                    ChatsData = minidb.get("Chats")
                     if (lastreadchat.length === 0 || !(Number(datae.id) in lastreadchat)) {
                         console.log("success add")
                         lastreadchat=JSON.parse(localStorage.getItem("lastreadchat"))
@@ -1773,26 +1837,35 @@
                         }
                         localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
                         console.log(lastreadchat)
+                        var p_id = chat.id
+                        chat.id="chat"+String(chat.id);
+                        if (chat.photo === null){
+                            chat.photo=localStorage.getItem("UniknownChat2")
+                        }
+                        Chat_add(chat)
+                        chat.id = p_id
                     }
                     else{
                         console.log("error add",lastreadchat,datae)
                     }
-                    LoadChats();
                 }else{
                     alert("error create group")
                 }
             } else if (datae.type === "new_group"){
+                console.log({email:datae.user,keys:true})
                 var user = await GetUserInfo({email:datae.user,keys:true})
                 var chat = await ServerRequest("chatinfo",{id:datae.message.chatid})
                 var id = Number(datae.message.chatid)
-                console.log(chat)
-                showInvite(fromUser=user.name,
-                    userImg=user.photo || localStorage.getItem("avatar"),
+                console.log(chat,user)
+                showInvite(id=id,fromUser=user.name,
+                    userImg=user.photo ?? localStorage.getItem("avatar"),
                     toChat=chat.name,chatImg=chat.img || localStorage.getItem("UniknownChat2"),membersCount=chat.users
                 )
-                var jsonkey = deepJsonParse(datae.privatekey.replace(/'/g, '"'))
+                
+                var jsonkey = deepJsonParse(datae.privatekey)
                 var private = await hybridDecrypt(jsonkey, Data.privatekeycrypt)
-                currentinv[id] = {id:id,public:datae.publickey,private:private,admin:user.name,name:chat.name,photo:chat.photo}
+                currentinv[id] = {id:id,public:datae.publickey,private:private,admin:user.name,name:chat.name,photo:chat.photo,inv_id:datae.inv_id}
+                console.log(currentinv)
             }
 
 
@@ -1861,7 +1934,7 @@
                 const dts = JSON.stringify({
                     privatekey: user.privatekey,
                     privatekeycrypt: user.privatekeycrypt,
-                    Chats: JSON.parse(localStorage.getItem("Chats")),
+                    Chats: JSON.parse(localStorage.getItem("Chats")),//!!!
                     lastread: JSON.parse(localStorage.getItem("lastreadchat"))
                 })
                 let keys_shifr = await hybridEncrypt(dts, keysencrypt.publickey);
@@ -1978,8 +2051,7 @@
             const chats = JSON.parse(localStorage.getItem("Chats"))
             for (var key of Object.keys(chats)) {
                 var chat = chats[parseInt(key)]
-                console.log(await getUnread(chat.id))
-                    //if (lastreadchat[Number(chat.id)]["my"]-lastreadchat[Number(chat.id)]["other"]>0)
+                //if (lastreadchat[Number(chat.id)]["my"]-lastreadchat[Number(chat.id)]["other"]>0)
                 ChatBox.innerHTML += `
                     <div data-chat-id=${'chat'+chat.id} class=${'chatinfo'}>
                         <img src="${chat.photo}" class=${'chat-avatar'} style='margin-left:12px;' alt="${0} ">
@@ -1991,7 +2063,7 @@
         }
 
         async function LoadChats() {
-            var localChats = JSON.parse(localStorage.getItem("Chats"))
+            var localChats = JSON.parse(localStorage.getItem("Chats"));//!!!
 
             console.log(" loading chats...")
                 //console.log(localChats)
@@ -2026,7 +2098,7 @@
                         chat.name = user.name;
                         chat.photo = user.photo;
                     } else {
-                        chat.photo = localStorage.getItem("Uniknownchat2");
+                        chat.photo = localStorage.getItem("UniknownChat2");
                     }
                 } else {
                     chat.photo = await imageToBase64(chat.photo);
@@ -2037,7 +2109,7 @@
                 } catch {}
                 ChatsData[parseInt(chat.id)] = chat
             }
-            localStorage.setItem("Chats", JSON.stringify(ChatsData));
+            localStorage.setItem("Chats", JSON.stringify(ChatsData));//!!!
             UpdataChats();
         }
         //messagedb.deleteDB()
@@ -2241,6 +2313,7 @@
         }
 
         document.addEventListener("click", async function(e) {
+            //console.log(lastreadchat,CurrentChat)
             if (e.target.className !== "zzz") {
                 document.querySelector("#SearchUser").style.display = "none";
             }
@@ -2249,7 +2322,10 @@
                 lastDate = null;
                 document.getElementById("chatshape").style.display = "flex";
                 GraphicChat.innerHTML = "";
-                CurrentChat = e.target.closest(".chatinfo").dataset.chatId.substring(4);
+                //console.log(e.target.closest(".chatinfo").dataset.chatId)
+                CurrentChat = Number(e.target.closest(".chatinfo").dataset.chatId.substring(4));
+                //console.log(CurrentChat)
+                //console.log(ChatsData)
                 need_id = lastreadchat[CurrentChat].my
                 const chatmsgs = await messagedb.loadNewerMessages(parseInt(CurrentChat),need_id-10, 20)
                 scrollToMessage(need_id)
@@ -2338,7 +2414,6 @@
                                 </div>
                             `;
                         }
-
                     })
                     .catch(error => {
                         console.error("Ошибка сети:", error);
@@ -2359,7 +2434,7 @@
             }
         });
 
-        async function CreateChat(flag, use) {
+        async function CreateChat(flag, user) {
             console.log(flag)
             var string = "";
             if (flag) {
@@ -2399,6 +2474,7 @@
             document.getElementById("create_chatbtn").addEventListener("click", async function(id = result.userid, email = result.email, publickey = result.publickey, publickeycrypt = result.publickeycrypt, f = flag) {
                 if (!f) {
                     const keys = await generateEncryptionKeyPair()
+                    console.log(keys.privateKey, result)
                     const encryptedkey = await hybridEncrypt(keys.privateKey, result.publickeys.publickeycrypt)
                     const myencryptedkey = await hybridEncrypt(keys.privateKey, Data.publickeycrypt)
                         //localStorage.setItem(tempid,keys.privateKey)
@@ -3496,30 +3572,21 @@
         }
 
         async function getVideoThumbnail(file) {
-
             return new Promise((resolve, reject) => {
-
                 const video = document.createElement("video");
                 video.preload = "metadata";
                 video.muted = true;
                 video.src = URL.createObjectURL(file);
-
                 video.onloadeddata = () => {
-
                     const canvas = document.createElement("canvas");
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
-
                     const ctx = canvas.getContext("2d");
                     ctx.drawImage(video, 0, 0);
-
                     const dataURL = canvas.toDataURL("image/jpeg", 0.8);
-
                     URL.revokeObjectURL(video.src);
-
                     resolve(dataURL);
                 };
-
                 video.onerror = reject;
             });
         }
@@ -3824,6 +3891,7 @@
             prepare_inventives(payload)
             // Тут отправка на сервер
             // fetch('/create_group', { method: 'POST', body: ... })
+            modal_g.style.display = "none";
         };
 
         async function prepare_inventives(payload) {
@@ -3831,8 +3899,8 @@
             const keys = await generateEncryptionKeyPair()
             const myencryptedkey = await hybridEncrypt(keys.privateKey, Data.publickeycrypt)
             for (let u of payload.users){
-                console.log(u[1])
-                var encryptedkey = await hybridEncrypt(keys.privateKey, u[1].publickey)
+                console.log(u)
+                var encryptedkey = await hybridEncrypt(keys.privateKey, u[1].keys.publickeycrypt)
                 inv[u[0]]=encryptedkey
             }
             var t = crypto.randomUUID()
@@ -3847,6 +3915,8 @@
                 avatar:payload.avatar,
                 token:t
             }));
+
+
         }
     });
 
