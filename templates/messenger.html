@@ -567,7 +567,8 @@
     //import * as ChatUI from "/static/js/ChatlistUI.js";
     //🔴🟠🟡🟢🔵🟣✅️⚠️❗❌⋮🔗📞
     document.addEventListener('DOMContentLoaded', async function() {
-        
+        //localStorage.clear()
+        //window.location.href = window.location.origin;
         const size = new Blob([JSON.stringify(localStorage)]).size;
         console.log(size / 1024, "KB");
 
@@ -638,6 +639,7 @@
 
             get(key, k2 = null) {
                 this._create(key);
+                console.log(localStorage.getItem(key))
                 const obj = JSON.parse(localStorage.getItem(key));
                 if (k2 === null) return obj;
                 return obj[k2];
@@ -911,18 +913,14 @@
             }
         }
         //localStorage.clear();
-        var CurrentChat = null;
-        var UnCookMessages = {};
-        var lastDate = null;
-        var currentlastread = 0;
+        const minidb = new DictStorage();
+        let CurrentChat = null;
+        let UnCookMessages = {};
+        let lastDate = null;
+        let currentlastread = 0;
         let pc = null
         let iceBuffer = []
-        try {
-            var ChatsData = JSON.parse(localStorage.getItem("Chats"));//!!!
-        } catch {
-            localStorage.setItem("Chats", JSON.stringify({}));//!!!
-            var ChatsData = {};
-        }
+        let newmsgflag={}
         try {
             var UserNames = JSON.parse(localStorage.getItem("UserNames"));
             if (UserNames === null) {
@@ -942,16 +940,6 @@
             localStorage.setItem("lastreadchat", JSON.stringify({}));
             var lastreadchat = {};
         }
-
-        try {
-            var localChats = JSON.parse(localStorage.getItem("Chats"))//!!!
-            if (localChats === null) {
-                localChats = {};
-            }
-        } catch {
-            localStorage.setItem("Chats", JSON.stringify({}));//!!!
-            var localChats = {};
-        }
         try {
             var UnloadChunks = JSON.parse(localStorage.getItem("UnloadChunks"))
             if (UnloadChunks === null) {
@@ -961,6 +949,22 @@
             localStorage.setItem("UnloadChunks", JSON.stringify({}));
             var UnloadChunks = {};
         }
+        try {
+            var ChatsData = JSON.parse(localStorage.getItem("Chats"));//!!!
+            console.log(ChatsData)
+            if (ChatsData===null){
+                ChatsData={}
+                localStorage.setItem("Chats", JSON.stringify({}));//!!!
+            }
+        } catch {
+            localStorage.setItem("Chats", JSON.stringify({}));//!!!
+            let ChatsData = {};
+        }
+        //let ChatsData = minidb.get("Chats")
+        //let UserNames = minidb.get("UserNames")
+        //let lastreadchat = minidb.get("lastreadchat")
+        //let UnloadChunks = minidb.get("UnloadChunks")
+        
         try {
             var not = JSON.parse(localStorage.getItem("notify"))
             if (not === null) {
@@ -976,7 +980,7 @@
         }
 
         console.log(lastreadchat)
-        console.log(localChats)
+        console.log(ChatsData)
         var readtimer = null
         const GraphicChat = document.getElementById("chat");
         const fileInput = document.getElementById("fileInput");
@@ -1026,6 +1030,7 @@
 
         // Универсальная функция для открытия окна с любыми данными
         function showInvite(id,fromUser, userImg, toChat, chatImg, membersCount) {
+            console.log(chatImg)
             modal.dataset.chatid=id
             inviterNameEl.textContent = fromUser;
             userAvatarEl.src = userImg; // Меняем картинку пользователя
@@ -1049,6 +1054,7 @@
         };
         async function answer_inv(id,flag) {
             chat=currentinv[Number(id)]
+            
             if (flag){
                 if (chat.photo==="None"){
                     chat.photo=null
@@ -1056,8 +1062,8 @@
                 console.log(chat,currentinv)
                 minidb.set("Chats",chat.id,{
                     id:chat.id,
-                    publickeycrypt:chat.publickey,
-                    privatekeycrypt:chat.privatekey,
+                    publickeycrypt:chat.public,
+                    privatekeycrypt:chat.private,
                     name:chat.name,
                     photo:chat.photo,
                     admin:chat.user,
@@ -1121,7 +1127,7 @@
         await messagedb.open();
         const chunkdb = new ChunkStore(`chunks_v_${Data.db_created}`, 1);
         await chunkdb.open();
-        const minidb = new DictStorage();
+        //const minidb = new DictStorage();
         //for (let i of [8,9,10,11,12,13]){
         //    minidb.delete("Chats",i)
         //}
@@ -1295,11 +1301,14 @@
                     } else {
                         name = await GetName(id = msg.user_id)
                         name = name["name"]
-                        if (name !== null) {
+                        if (name !== null&& name !== undefined) {
                             UserNames[msg.user_id] = {
                                 "name": name
                             }
                             localStorage.setItem("UserNames", UserNames)
+                        }else{
+
+                            alert(`error get name ${msg.user_id}`)
                         }
                     }
 
@@ -1321,6 +1330,7 @@
 
             if (msg.datatype === "txt") {
                 if (th) {
+                    //console.log(ChatsData[parseInt(CurrentChat)])
                     var content = await hybridDecrypt(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
                 } else {
                     var content = msg.msg
@@ -1534,6 +1544,7 @@
             } else if (datae.type === "addchat") { // для инициатора и получателя  - успешный ответ пользователя = sava chat 
                 //console.log(datae.chat)
                 // создание чата
+                ChatsData = minidb.get("Chats");
                 var jsonkey = deepJsonParse(datae.chat.privatekeycrypt.replace(/'/g, '"'))
                 datae.chat.privatekeycrypt = await hybridDecrypt(jsonkey, Data.privatekeycrypt)
                     //console.log(datae.chat)
@@ -1556,9 +1567,11 @@
                     chattype:"chat",
                     inv_id:datae.inv_id
                 })
-                LoadChats();
+                //LoadChats();
+                Chat_add(datae.chat)
             } else if (datae.type === "delete_chat") {
-
+                minidb.delete("Chats",datae.chat_id)
+                Chat_remove(datae.chat_id)
             } else if (datae.type === "addmymsg") {
                 await SavemyMsg(datae)
                 graphic.setNewID(old_id = `my${datae.uniknownid}`, new_id = datae.message_id)
@@ -1567,6 +1580,7 @@
                 lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
                 localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
             } else if (datae.type === "addmsg") {
+                ChatsData = minidb.get("Chats")
                 await SaveMsg(datae)
                 var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
                 lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
@@ -1581,20 +1595,22 @@
                 } else {
                     name = await GetName(id = datae.user_id)
                     name = name["name"]
-                    if (name !== null) {
+                    if (name !== null && name !== undefined) {
                         UserNames[datae.user_id] = {
                             "name": name
                         }
                         localStorage.setItem("UserNames", UserNames)
+                    }else{
+                        alert("error get name")
                     }
                 }
 
-                console.log(localChats[datae.chat_id], localChats)
+                console.log(datae.chat_id, ChatsData)
                 if (datae.user_id !== Data.my_id) {
                     try {
-                        new Notification(title = localChats[datae.chat_id], options = {
+                        new Notification(title = ChatsData[datae.chat_id], options = {
                             body: `${UserNames[Number(datae.user_id)].name}: новое сообщение`,
-                            icon: localChats[Number(datae.chat_id)].photo,
+                            icon: ChatsData[Number(datae.chat_id)].photo,
                             badge: localStorage.getItem("logo"),
                         })
                     } catch {}
@@ -1607,14 +1623,19 @@
                         datatype: datae.typemsg
                     }
                     if (msg.user_id !== Data.my_id) {
-                        if (graphic.is_id("new_messages") === false) {
+                        console.log("is new: ",graphic.is_id("new_messages"))
+                        if (newmsgflag[Number(datae.chat_id)]===null || newmsgflag[Number(datae.chat_id)]===undefined ){
+                            newmsgflag[Number(datae.chat_id)]=false
+                        }
+                        if (newmsgflag[Number(datae.chat_id)] === false) {
                             graphic.remove("new_messages")
                             graphic.add({
                                 type: "tmc",
                                 content: `Новые сообщения`,
                                 classname: "message-center",
-                                id: "new_messages"
+                                id: -9999
                             })
+                            newmsgflag[Number(datae.chat_id)]=true
                         }
                     }
                     UpdateGUI({
@@ -1691,6 +1712,10 @@
                         console.log(lastreadchat[datae.msgs[0].chat_id].my , datae.msgs[0].id)
                         updateUnread(datae.msgs[0].chat_id,datae.msgs.length)
                     }
+                }else{
+                    newmsgflag[Number(CurrentChat)]=false
+                    graphic.remove(-9999)
+                    console.log("removing")
                 }
                 for (var msg of datae.msgs) {
                     console.log(msg)
@@ -1818,7 +1843,7 @@
                     chat={
                         id:datae.id,
                         publickeycrypt:chat_t.publickey,
-                        privatekeycrypt:chat_t.myencryptedkey,
+                        privatekeycrypt:chat_t.privatekey,
                         name:chat_t.name,
                         photo:chat_t.avatar,
                         type:"group",
@@ -1826,6 +1851,7 @@
                     }
                     minidb.set("Chats",datae.id,chat)
                     ChatsData = minidb.get("Chats")
+                    console.log(ChatsData)
                     if (lastreadchat.length === 0 || !(Number(datae.id) in lastreadchat)) {
                         console.log("success add")
                         lastreadchat=JSON.parse(localStorage.getItem("lastreadchat"))
@@ -1857,12 +1883,14 @@
                 var chat = await ServerRequest("chatinfo",{id:datae.message.chatid})
                 var id = Number(datae.message.chatid)
                 console.log(chat,user)
+                
                 showInvite(id=id,fromUser=user.name,
                     userImg=user.photo ?? localStorage.getItem("avatar"),
-                    toChat=chat.name,chatImg=chat.img || localStorage.getItem("UniknownChat2"),membersCount=chat.users
+                    toChat=chat.name,chatImg=chat.photo || localStorage.getItem("UniknownChat2"),membersCount=chat.users
                 )
                 
                 var jsonkey = deepJsonParse(datae.privatekey)
+                console.log(datae)
                 var private = await hybridDecrypt(jsonkey, Data.privatekeycrypt)
                 currentinv[id] = {id:id,public:datae.publickey,private:private,admin:user.name,name:chat.name,photo:chat.photo,inv_id:datae.inv_id}
                 console.log(currentinv)
@@ -2062,12 +2090,14 @@
             };
         }
 
-        async function LoadChats() {
-            var localChats = JSON.parse(localStorage.getItem("Chats"));//!!!
+        async function UpdateChatlist() {
+            ChatsData= minidb.get("Chats")
+        }
 
-            console.log(" loading chats...")
-                //console.log(localChats)
-            ChatsData = {}
+        async function LoadChats() {
+            var ChatsData= JSON.parse(localStorage.getItem("Chats"));//!!!
+
+            console.log(" loading chats...", ChatsData)
             const response = await fetch("/userchatlist", {
                 method: 'POST',
                 headers: {
@@ -2104,8 +2134,7 @@
                     chat.photo = await imageToBase64(chat.photo);
                 }
                 try {
-                    //console.log(localChats, localChats[parseInt(chat.id)])
-                    chat.privatekeycrypt = localChats[parseInt(chat.id)].privatekeycrypt
+                    chat.privatekeycrypt = ChatsData[parseInt(chat.id)].privatekeycrypt
                 } catch {}
                 ChatsData[parseInt(chat.id)] = chat
             }
@@ -2330,7 +2359,15 @@
                 const chatmsgs = await messagedb.loadNewerMessages(parseInt(CurrentChat),need_id-10, 20)
                 scrollToMessage(need_id)
                     //console.log(chatmsgs)
-                document.getElementById("shapechatavatar").src = ChatsData[CurrentChat].photo;
+                var photochat = ChatsData[CurrentChat].photo
+                if (ChatsData[CurrentChat].photo === null || ChatsData[CurrentChat].photo === "None"){
+                    if (ChatsData[CurrentChat].type==="group"){
+                        photochat = localStorage.getItem("UniknownChat2")
+                    }else{
+                        photochat = localStorage.getItem("avatar")
+                    }
+                }
+                document.getElementById("shapechatavatar").src = photochat;
                 document.getElementById("shapechatname").innerText = ChatsData[CurrentChat].name;
                 //console.log(ChatsData[CurrentChat].type)
                 if (!(innerWidth > 480))
@@ -2914,6 +2951,7 @@
 
         async function Send_Message(msg, msgtype = "txt") {
             const randomNumber = crypto.randomUUID();
+            console.log(ChatsData[parseInt(CurrentChat)])
             if (msgtype === "txt") {
                 var msgencrypt = await hybridEncrypt(msg, ChatsData[parseInt(CurrentChat)].publickeycrypt)
             } else {
@@ -3069,7 +3107,7 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    "id": id,
+                    "id": Number(id),
                     "photo": photoflag,
                     "publickey": keyflag
                 }),
@@ -3828,7 +3866,11 @@
                 let users=[user]
                 users.forEach(user => {
                     if (selected.has(user.id)) return;
-
+                    if (user.id === Data.my_id){
+                        alert("Вы не можете выбрать себя")
+                        userSearch.value = ""
+                        return
+                    }
                     const div = document.createElement("div");
                     div.className = "suggestion-item";
 
@@ -3889,13 +3931,12 @@
 
             console.log("Группа к созданию:", payload);
             prepare_inventives(payload)
-            // Тут отправка на сервер
-            // fetch('/create_group', { method: 'POST', body: ... })
             modal_g.style.display = "none";
         };
 
         async function prepare_inventives(payload) {
             let inv = {}
+            //"data:image/png;base64,"
             const keys = await generateEncryptionKeyPair()
             const myencryptedkey = await hybridEncrypt(keys.privateKey, Data.publickeycrypt)
             for (let u of payload.users){
@@ -3904,7 +3945,12 @@
                 inv[u[0]]=encryptedkey
             }
             var t = crypto.randomUUID()
-            minidb.set("add_group",t,{name:payload.name,avatar:payload.avatar,publickey:keys.publickey,privatekey:myencryptedkey})
+            const file = payload.avatar
+            var photodata = null
+            if (file) {
+                photodata = arrayBufferToBase64(await file.arrayBuffer());
+            }
+            minidb.set("add_group",t,{name:payload.name,avatar:payload.avatar,publickey:keys.publicKey,privatekey:keys.privateKey})
             console.log("sending.....")
             ws.send(JSON.stringify({    
                 type:"create_group",
@@ -3912,11 +3958,9 @@
                 publickey:keys.publicKey,
                 myencrypted:myencryptedkey,
                 name:payload.name,
-                avatar:payload.avatar,
+                avatar:photodata,
                 token:t
             }));
-
-
         }
     });
 

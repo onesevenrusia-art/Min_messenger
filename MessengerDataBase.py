@@ -280,12 +280,11 @@ class DataBaseManager:
     def get_Events_before(self, user_id, my_last_seen):
         session = self.Session()
         try:
-            chat_ids = self.get_user_chats(user_id)
-            ids = [i["id"] for i in chat_ids]
+            chat_ids = self.get_user_chat_ids(user_id)
 
             events = (
                 session.query(Events)
-                .filter(Events.chat_id.in_(ids))
+                .filter(Events.chat_id.in_(chat_ids))
                 .filter(Events.datatime > my_last_seen)
                 .order_by(Events.id)
                 .all()
@@ -338,6 +337,44 @@ class DataBaseManager:
             session.rollback()
             return {"success":False,
                     "error": str(e)}
+        finally:
+            session.close()
+
+    def add_user_to_chat(self, chat_id, user_id):
+        session = self.Session()
+        try:
+            chat = session.get(Chat, chat_id)
+            if not chat:
+                return {"success": False, "error": "Чат не найден"}
+            user = session.get(User, user_id)
+            if not user:
+                return {"success": False, "error": "Пользователь не найден"}
+            if user in chat.users:
+                return {"success": False, "error": "Пользователь уже состоит в чате"}
+            chat.users.append(user)
+            session.commit()
+            return {"success": True}
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+
+    def remove_user_from_chat(self, chat_id, user_id):
+        session = self.Session()
+        try:
+            chat = session.get(Chat, chat_id)
+            user = session.get(User, user_id)
+
+            if not chat or not user:
+                return {"success": False}
+
+            if user in chat.users:
+                chat.users.remove(user)
+
+            session.commit()
+            return {"success": True}
+
         finally:
             session.close()
 
@@ -471,13 +508,30 @@ class DataBaseManager:
             "success": True,
         }
 
+    def get_user_chat_ids(self, user_id):
+        session = self.Session()
+        try:
+            stmt = (
+                select(chat_participants.c.chat_id)
+                .where(chat_participants.c.user_id == user_id)
+            )
+
+            return session.execute(stmt).scalars().all()
+
+        finally:
+            session.close()
+
     def get_user_chats(self, user_id):
         session = self.Session()
         try:
-            user = session.get(User, user_id)
-            if not user:
-                return []
-            return [self._to_dict(chat) for chat in user.chats]
+            chats = (
+                session.query(Chat)
+                .join(chat_participants)
+                .filter(chat_participants.c.user_id == user_id)
+                .order_by(Chat.id)
+                .all()
+            )
+            return [self._to_dict(chat) for chat in chats]
         finally:
             session.close()
 

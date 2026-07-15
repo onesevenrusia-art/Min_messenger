@@ -315,6 +315,7 @@ async def send_WS_msg(reciver, msg, wait=False, exception=[], need=[]):
             sent_count = 0
             ids=[]
             if len(need)==0:
+                print(clients,reciver)
                 for devi in clients.get(reciver):
                     if devi["id"] not in list(map(str,exception)) and devi["id"] != "newdevice":
                         await devi["ws"].send_json(msg)
@@ -352,6 +353,7 @@ async def websocket_endpoint(ws: WebSocket):
     this_deviceid =device_id.split("|id")[1]
     this_email = device_id.split("|")[0]
     this_userid =int(Database.get_user_by_email(this_email)["id"])
+    this_user = Database.get_user_by_id(this_userid)
     CurrentCallID = -1
     if "newdevice" in device_id:
         print(clients.get(this_email))
@@ -555,6 +557,7 @@ async def websocket_endpoint(ws: WebSocket):
                                   "chat_id":chat_["id"]})
 
                     for id in Database.get_ChatParticipants(chat_id=msg["chatid"]):
+                        print(f'id: {id}')
                         u = Database.get_user_by_id(id)
                         s=await send_WS_msg(u["email"],{"type":"addmsg",
                                     "message_id":answ["message_id"],
@@ -565,7 +568,7 @@ async def websocket_endpoint(ws: WebSocket):
                                     "message": msg["message"],
                                     "datatime": str(answ["time"])
                                     },False,[str(this_deviceid)])
-                        print(s)
+                        print("[group ws]",s)
                         if s["status"] == "offline":
                             if u["photo"] == None:
                                 u["photo"]="/"
@@ -600,10 +603,10 @@ async def websocket_endpoint(ws: WebSocket):
 
             if msg["type"] == "reading":
                 print(msg)
-                fm=Database.get_max_lastread(msg["chat_id"],msg["user_id"])
+                fm=Database.get_max_lastread(msg["chat_id"],msg["user_id"]) or 0
                 last_read_id = int(msg["last_read_id"])
                 Database.update_lastread_participant(chat_id=int(msg["chat_id"]),participant_id=int(msg["user_id"]),lastread_id=last_read_id)
-                sm=Database.get_max_lastread(msg["chat_id"],msg["user_id"])
+                sm=Database.get_max_lastread(msg["chat_id"],msg["user_id"]) or 0
                 if sm>=fm:
                     for p in Database.get_ChatParticipants(msg["chat_id"]):
                         eml = Database.get_user_by_id(p["id"])["email"]
@@ -624,7 +627,7 @@ async def websocket_endpoint(ws: WebSocket):
                         shutil.rmtree(f"media/{msg['id']}")
                     except:pass
                 Database.delete_message(int(msg["id"]))
-                Database.add_Event(msg["chat_id"],int(msg["id"]),"delete")
+                Database.add_Event(msg["chat_id"],int(msg["id"]),"delete_msg")
                 for p in Database.get_ChatParticipants(msg["chat_id"]):
                     eml = Database.get_user_by_id(p["id"])["email"]
                     await send_WS_msg(eml,{"type":"delete_msg","id":int(msg["id"])},False,str([this_deviceid]))
@@ -747,10 +750,16 @@ async def websocket_endpoint(ws: WebSocket):
                 chat=Database.add_chat(name=msg["name"],
                                   user_ids=[int(this_userid)],
                                   type="group",
-                                  photo=msg["avatar"],
-                                  publickeycrypt=msg["publickey"])
-                await ws.send_json({"type":"answ_group","success":chat["success"],"id":chat["chat_id"],"token":msg["token"]})
+                                  photo=None,
+                                  publickeycrypt=str(msg["publickey"]))
+                print(chat)
+                await ws.send_json({"type":"answ_group","success":chat["success"],"id":chat.get("chat_id"),"token":msg["token"]})
                 if chat["success"]:
+                    path = None
+                    if msg["avatar"]:
+                        path = f"ChatPhotos/{chat['chat_id']}"
+                        path=save_photo_to_folder(chat["chat_id"],msg["avatar"])
+                        Database.update_chat(chat["chat_id"],photo=path)
                     for k,v in inventives.items():
                         u=Database.get_user_by_id(int(k))
                         ms_data = {# all devices sender+reciver
@@ -768,7 +777,7 @@ async def websocket_endpoint(ws: WebSocket):
                                         {"type":"new_group","inv_id":r["inventive_id"],
                                         "publickey":msg["publickey"],
                                         "privatekey":v,
-                                        "group":{"name":msg["name"],"avatar":msg["avatar"]},
+                                        "group":{"name":msg["name"],"avatar":path},
                                         "user":this_email,
                                         "message":{"chatid":ms_data["chatid"]}
                                         },
@@ -787,10 +796,27 @@ async def websocket_endpoint(ws: WebSocket):
                     print(787,msg)
                     Database.update_reciver_inventive(int(msg["inv_id"]),int(this_deviceid),int(msg["chatid"]))
                     if msg["chattype"]=="group":
-                        pass
+                        Database.add_user_to_chat(int(msg["chatid"]),int(this_userid))
+                        #Database.add_message(int(msg["chatid"]),-1,"tehnic",f"new_user<{int(this_userid)}>")
+                        chat=Database.get_chat(int(msg["chatid"]))
+                        Database.add_Event(chat["id"],-1,"new_participant")
+                        for i in Database.get_ChatParticipants(int(chat["id"])):
+                            u=Database.get_user_by_id(i["id"])
+                            #print(f"end sending web push to user {i}")
+                            s=await send_WS_msg(u["email"],{"type":"new_participant","chat_id":this_userid,"name":this_user["name"],"photo":this_user["photo"]})
+                            if s["status"] == "offline":
+                                if u["photo"] == None:
+                                    u["photo"]="/"
+                                r=SendWEBpush(notify={
+                                                    "title":f"{chat['name']}",
+                                                    "body":f'{this_user["name"]} теперь в группе',
+                                                    "icon":this_user["photo"]
+                                                    },
+                                                device_id="all",
+                                                user_id=u["id"])
                 else:pass
 
-
+ 
     except WebSocketDisconnect as wserror:
         try:
             print(f"[WS] Disconnected: {device_id}, {wserror.code}")
@@ -1181,6 +1207,7 @@ async def returnUserChatList(request:Request):
         return []
     id = data["id"]
     chats = Database.get_user_chats(id)
+    print("[Chats] ",chats)
     if chats is not None:
         return chats
     return []
@@ -1274,7 +1301,7 @@ async def getus(request: Request):
     data = await request.json()
     try:
         us = Database.get_user_by_id(int(data["id"]))
-        print(us)
+        print("/GetUs",us,data)
         if us==None:
             return {}
     except Exception as e:
