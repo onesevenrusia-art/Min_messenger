@@ -228,7 +228,7 @@
     
             <div class="selected-users" id="selectedUsers"></div>
     
-            <button id="createBtn">Создать</button>
+            <button class="createBtn1" id="createBtn">Создать</button>
         </div>
     </div>
 
@@ -265,6 +265,8 @@
         </div>
     </dialog>
 
+
+
     <audio style="display: none;" id="audio_stream" autoplay></audio>
 
     <div id="groupInfoOverlay" class="group-info-overlay">
@@ -289,6 +291,24 @@
     
         </div>
     </div>
+
+
+    <div class="modal" id="addUserModal">
+        <div class="modal-content">
+            <span class="close" id="closeModal2">&times;</span>
+            <h2>Добавление участников</h2>
+
+            <div class="search-container">
+                <input type="text" id="userSearch2" placeholder="Поиск пользователя по ID">
+                <div class="suggestions" id="suggestions2"></div>
+            </div>
+    
+            <div class="selected-users" id="selectedUsers2"></div>
+    
+            <button class="createBtn1" id="send_inv_to">Пригласить</button>
+        </div>
+    </div>
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -404,7 +424,7 @@
             font-size: 14px;
         }
         
-        #createBtn {
+        .createBtn1 {
             margin-top: 20px;
             width: 100%;
             padding: 12px;
@@ -3904,6 +3924,7 @@
         };
 
         userSearch.addEventListener("input", () => {
+            console.log("ok search")
             clearTimeout(searchTimeout);
 
             searchTimeout = setTimeout(() => {
@@ -3911,14 +3932,18 @@
             }, 800); // 400мс после остановки ввода
         });
 
-        async function search() {
-            const query = userSearch.value.trim();
+        async function search(p=false) {
+            var query = userSearch.value.trim();
+            if (p){
+                query = userSearch2.value.trim();
+            }
             suggestions.innerHTML = "";
-
+            if (p){
+                suggestions2.innerHTML = ""
+            }
             if (!query) return;
 
             try {
-                // Замени на свой API:
                 // const res = await fetch(`/search_users?id=${encodeURIComponent(query)}`);
                 // const users = await res.json();
 
@@ -3933,6 +3958,9 @@
                     if (selected.has(user.id)) return;
                     if (user.id === Data.my_id){
                         alert("Вы не можете выбрать себя")
+                        if (p){
+                            userSearch2.value = ""
+                        }
                         userSearch.value = ""
                         return
                     }
@@ -3947,9 +3975,12 @@
                         </div>
                     `;
 
-                    div.onclick = () => addUser(user);
+                    div.onclick = () => addUser(user,p);
 
                     suggestions.appendChild(div);
+                    if (p){
+                        suggestions2.appendChild(div);
+                    }
                 });
 
             } catch (err) {
@@ -3957,21 +3988,26 @@
             }
         }
 
-        function addUser(user) {
+        function addUser(user,p=false) {
             selected.set(user.id, user);
-            renderSelectedUsers();
+            renderSelectedUsers(p);
             userSearch.value = "";
             suggestions.innerHTML = "";
+            if (p){
+                userSearch2.value = "";
+                suggestions2.innerHTML = "";
+            }
         }
 
-        function removeUser(id) {
-            selected.delete(id);
-            renderSelectedUsers();
+        function removeUser(id,p) {
+            renderSelectedUsers(p);
         }
 
-        function renderSelectedUsers() {
+        function renderSelectedUsers(p=false) {
             selectedUsers.innerHTML = "";
-
+            if(p){
+                selectedUsers2.innerHTML = "";
+            }
             selected.forEach(user => {
                 const chip = document.createElement("div");
                 chip.className = "user-chip";
@@ -3980,8 +4016,11 @@
                     <button data-id="${user.id}">&times;</button>
                 `;
 
-                chip.querySelector("button").onclick = () => removeUser(user.id);
+                chip.querySelector("button").onclick = () => removeUser(user.id,p);
                 selectedUsers.appendChild(chip);
+                if(p){
+                    selectedUsers2.appendChild(chip);
+                }
             });
         }
 
@@ -4038,7 +4077,7 @@
             }));
         }
 
-        function openGroupInfo(photo,name, ) {
+        function openGroupInfo(chat) {
             document.getElementById("groupInfoAvatar").src =
                 chat.photo || "/static/images/UniknownChat.jpg";
 
@@ -4053,6 +4092,54 @@
 
             document.getElementById("groupInfoOverlay").style.display = "flex";
         }
+
+        const add_parctipiant_modal = document.getElementById("addUserModal")
+        document.getElementById("addGroupMember").addEventListener("click",async function () {
+            document.getElementById("groupInfoOverlay").style.display = "none";
+            add_parctipiant_modal.style.display = "flex"
+            const userSearch2 = document.getElementById("userSearch2");
+            const suggestions2 = document.getElementById("suggestions2");
+            const selectedUsers2 = document.getElementById("selectedUsers2");
+            const closeBtn2 = document.getElementById("closeModal2");
+            closeBtn2.onclick = () => add_parctipiant_modal.style.display = "none";
+            userSearch2.addEventListener("input", () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    search(true);
+                }, 800);
+            });
+
+        })
+
+        document.getElementById("send_inv_to").addEventListener("click",async function(){
+            add_parctipiant_modal.style.display = "none";
+            const users = [...selected]
+            let inv = {}
+            var chat = minidb.get("Chats",Number(CurrentChat))
+            for (let u of users){
+                var encryptedkey = await hybridEncrypt(chat.privateKey, u[1].keys.publickeycrypt)
+                inv[u[0]]=encryptedkey
+            }
+            console.log("sending////",users)
+
+            ws.send(JSON.stringify({
+                type:"add_new_users",
+                users:inv,
+                chat_id:Number(CurrentChat)
+            }))
+        })
+        document.getElementById("leaveGroup").addEventListener("click",async function () {
+            add_parctipiant_modal.style.display = "none";
+            var res = confirm("Вы уверены что хотите покинуть группу")
+            if (res){
+                minidb.delete("Chats",Number(CurrentChat))
+                Chat_remove(Number(CurrentChat))
+                ws.send({
+                    type:"leaveGroup",
+                    chat_id:Number(CurrentChat)
+                })
+            }
+        })
     });
 
 </script>

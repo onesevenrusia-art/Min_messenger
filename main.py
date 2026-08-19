@@ -344,7 +344,7 @@ def fix(obj):
 tokens_load = {}
 
 @app.websocket("/ws")
-async def websocket_endpoint(ws: WebSocket): 
+async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks): 
     await ws.accept()
     device_id = ws.query_params.get("device_id")
     if not device_id:
@@ -354,6 +354,7 @@ async def websocket_endpoint(ws: WebSocket):
     this_email = device_id.split("|")[0]
     this_userid =int(Database.get_user_by_email(this_email)["id"])
     this_user = Database.get_user_by_id(this_userid)
+    
     CurrentCallID = -1
     if "newdevice" in device_id:
         print(clients.get(this_email))
@@ -815,6 +816,41 @@ async def websocket_endpoint(ws: WebSocket):
                                                 device_id="all",
                                                 user_id=u["id"])
                 else:pass
+
+            if msg["type"] == "add_new_users":
+                print(820,msg)
+                chat = Database.get_chat(int(msg["chat_id"]))
+                participiants = [int(i["id"]) for i in Database.get_ChatParticipants(chat["id"])]
+                for uid,k in msg["users"].items():
+                    if uid in participiants:
+                        continue
+                    us=Database.get_user_by_id(int(uid))
+                    ms_data = {# all devices sender+reciver
+                                "chatid":msg["chat_id"],
+                                "devices": [i['id'] for i in Database.get_user_devices(us["email"])],
+                                "who_add":this_email
+                            }
+                    r=Database.add_Inventive(us["email"],this_email,"new_group",chat["publickeycrypt"],'',json.dumps(k),ms_data)
+                    await send_WS_msg(us["email"],
+                                    {"type":"new_group","inv_id":r["inventive_id"],
+                                    "publickey":chat["publickeycrypt"],
+                                    "privatekey":k,
+                                    "group":{"name":chat["name"],"avatar":chat["photo"]},
+                                    "user":this_email,
+                                    "message":{"chatid":chat["id"]}
+                                    },
+                                    False,)
+                    r=SendWEBpush(notify={
+                                        "title":"Новая группа",
+                                        "body":f'{this_user["name"]} приглашает вас в группу {msg["name"]}',
+                                        "icon":msg["avatar"]
+                                        },
+                                    device_id="all",
+                                    user_id=u["id"])
+                Database.add_message(chat["id"],-1,"txt",f"{this_userid} leavegroup")
+            if msg["type"]=="leaveGroup":
+                #Database.delete_p!!!!
+                background_tasks.add_task()
 
  
     except WebSocketDisconnect as wserror:
