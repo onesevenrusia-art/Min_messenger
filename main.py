@@ -1299,6 +1299,7 @@ async def cancel(request: Request):
 @app.post("/GetUs")
 async def getus(request: Request):
     data = await request.json()
+    print("getus",data)
     try:
         us = Database.get_user_by_id(int(data["id"]))
         print("/GetUs",us,data)

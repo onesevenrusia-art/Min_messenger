@@ -266,6 +266,29 @@
     </dialog>
 
     <audio style="display: none;" id="audio_stream" autoplay></audio>
+
+    <div id="groupInfoOverlay" class="group-info-overlay">
+        <div class="group-info-window">
+            <div class="group-info-header">
+                <button id="closeGroupInfo">✕</button>
+            </div>
+            <img id="groupInfoAvatar" class="group-info-avatar">
+            <div id="groupInfoName" class="group-info-name">
+                Название группы
+            </div>
+            <div id="groupInfoCount" class="group-info-count">
+                0 участников
+            </div>
+            <div id="groupInfoCreator" class="group-info-creator">
+                Создатель: ...
+            </div>
+            <div class="group-info-buttons">
+                <button id="addGroupMember">Добавить участника</button>
+                <button id="leaveGroup">Покинуть группу</button>
+            </div>
+    
+        </div>
+    </div>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -651,11 +674,32 @@
                 localStorage.setItem(key, JSON.stringify(obj));
             }
         }
+
+        function openImage(img) {
+            const overlay = document.createElement("div");
+            overlay.className = "image-fullscreen";
+
+            const bigImg = document.createElement("img");
+            bigImg.src = img.src;
+
+            overlay.appendChild(bigImg);
+            document.body.appendChild(overlay);
+
+            overlay.onclick = () => {
+                overlay.remove();
+            };
+        }
+
         class Graphic {
             constructor(chatElement, onReadCallback) {
                 this.chat = chatElement;
                 this.loading = false;
+                this.chat.addEventListener("click", (e) => {
+                    const img = e.target.closest(".ImageInChat");
+                    if (!img) return;
 
+                    openImage(img);
+                });
                 this.maxReadId = 0;
                 this.onRead = onReadCallback;
 
@@ -704,6 +748,7 @@
                             switch (msg.media_type) {
                                 case "image":
                                     contentEl = document.createElement("img");
+                                    contentEl.className = "ImageInChat"
                                     contentEl.style.maxWidth = "300px";
                                     contentEl.style.maxHeight = "200px";
                                     break;
@@ -997,7 +1042,7 @@
                         readtimer = setTimeout(() => {
                             readtimer = null
                             console.log("add -1")
-                            updateUnread(Number(cth),-1)
+                            updateUnread(Number(cth),1,false,true)
                             ws.send(JSON.stringify({
                                 type: "reading",
                                 last_read_id: currentlastread,
@@ -1585,7 +1630,7 @@
                 var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
                 lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
                 localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
-                updateUnread(datae.chat_id,1)
+                updateUnread(Number(datae.chat_id),1,true,false)
 
 
 
@@ -1710,7 +1755,7 @@
                 if (datae.msgs.length > 0){
                     if (lastreadchat[datae.msgs[0].chat_id].my < datae.msgs[0].id){
                         console.log(lastreadchat[datae.msgs[0].chat_id].my , datae.msgs[0].id)
-                        updateUnread(datae.msgs[0].chat_id,datae.msgs.length)
+                        updateUnread(datae.msgs[0].chat_id,datae.msgs.length,true,false)
                     }
                 }else{
                     newmsgflag[Number(CurrentChat)]=false
@@ -2007,23 +2052,32 @@
             return el;
         }
 
-        function updateUnread(chatId, count) {
+        function updateUnread(chatId, count,plus=false,minus=false) {
             const chat = document.querySelector(`[data-chat-id="chat${chatId}"]`);
             if (!chat) return;
 
             let el = chat.querySelector(".chat-unread");
 
             // если есть непрочитанные
-            console.log(count)
+            console.log("updateunread",count)
             if (count > 0) {
                 if (!el) {
                     el = document.createElement("div");
                     el.className = "chat-unread";
                     chat.appendChild(el);
                 }
-
-                el.textContent = count;
-                el.dataset.unreadCount = count;
+                var curr_unread = Number(el.textContent)
+                if (plus){
+                    el.textContent=curr_unread+count
+                }
+                if(minus){
+                    el.textContent=curr_unread-count
+                }
+                
+                if (!plus && !minus){
+                    el.textContent = count;
+                    el.dataset.unreadCount = count;
+                }
             } 
             // если 0 — удаляем
             else {
@@ -3196,31 +3250,42 @@
         }
         const chopt_el = document.getElementById("optchat")
         chopt_el.addEventListener("click", async function(e) {
-            const el = document.getElementById("ChatOptions")
-            el.classList.remove("hide_chm")
-            el.classList.add("show_chm");
-            el.style.marginLeft = "8px"
-            const Rect = el.getBoundingClientRect();
-            const padding = 8;
-            var x = e.pageX
-            var y = e.pageY
-            let posX = x;
-            let posY = y;
-            // 👉 не вылезать вправо
-            if (x + Rect.width > window.innerWidth) {
-                posX = window.innerWidth - Rect.width - padding;
+            if (ChatsData[CurrentChat].type === "p2p"){
+                const el = document.getElementById("ChatOptions")
+                el.classList.remove("hide_chm")
+                el.classList.add("show_chm");
+                el.style.marginLeft = "8px"
+                const Rect = el.getBoundingClientRect();
+                const padding = 8;
+                var x = e.pageX
+                var y = e.pageY
+                let posX = x;
+                let posY = y;
+                // 👉 не вылезать вправо
+                if (x + Rect.width > window.innerWidth) {
+                    posX = window.innerWidth - Rect.width - padding;
+                }
+                // 👉 не вылезать вниз
+                if (y + Rect.height > window.innerHeight) {
+                    posY = window.innerHeight - Rect.height - padding;
+                }
+                // 👉 не вылезать влево / вверх
+                posX = Math.max(padding, posX);
+                posY = Math.max(padding, posY);
+                el.style.left = posX + "px";
+                el.style.top = posY + "px";
+                el.classList.remove("hide_chm")
+                el.classList.add("show_chm");
             }
-            // 👉 не вылезать вниз
-            if (y + Rect.height > window.innerHeight) {
-                posY = window.innerHeight - Rect.height - padding;
+            if (ChatsData[CurrentChat].type === "group"){
+                const chat = await ServerRequest("/chatinfo",{id:Number(CurrentChat)})
+                openGroupInfo({
+                    creator:chat.users,
+                    members:chat.users,
+                    name:chat.name,
+                    photo:chat.photo
+                })
             }
-            // 👉 не вылезать влево / вверх
-            posX = Math.max(padding, posX);
-            posY = Math.max(padding, posY);
-            el.style.left = posX + "px";
-            el.style.top = posY + "px";
-            el.classList.remove("hide_chm")
-            el.classList.add("show_chm");
 
         });
 
@@ -3934,6 +3999,16 @@
             modal_g.style.display = "none";
         };
 
+        document.getElementById("groupInfoOverlay").onclick = (e) => {
+            if (e.target === e.currentTarget) {
+                e.currentTarget.style.display = "none";
+            }
+        };
+
+        document.getElementById("closeGroupInfo").onclick = () => {
+            document.getElementById("groupInfoOverlay").style.display = "none";
+        };
+
         async function prepare_inventives(payload) {
             let inv = {}
             //"data:image/png;base64,"
@@ -3961,6 +4036,22 @@
                 avatar:photodata,
                 token:t
             }));
+        }
+
+        function openGroupInfo(photo,name, ) {
+            document.getElementById("groupInfoAvatar").src =
+                chat.photo || "/static/images/UniknownChat.jpg";
+
+            document.getElementById("groupInfoName").textContent =
+                chat.name;
+
+            document.getElementById("groupInfoCount").textContent =
+                `${chat.members} участников`;
+
+            document.getElementById("groupInfoCreator").textContent =
+                `Создатель: ${chat.creator}`;
+
+            document.getElementById("groupInfoOverlay").style.display = "flex";
         }
     });
 
