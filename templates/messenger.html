@@ -1956,9 +1956,18 @@
                 
                 var jsonkey = deepJsonParse(datae.privatekey)
                 console.log(datae)
-                var private = await hybridDecrypt(jsonkey, Data.privatekeycrypt)
+                var private = await hybridDecrypt(jsonkey, Data.privatekeycrypt || Data.privatekey)
                 currentinv[id] = {id:id,public:datae.publickey,private:private,admin:user.name,name:chat.name,photo:chat.photo,inv_id:datae.inv_id}
                 console.log(currentinv)
+
+            } else if (datae.type === "new_event"){
+                const event = datae.event
+                if (event.type === "delete_msg"){
+                    
+                }
+                if (event.type === "new_participant"){
+                    
+                }
             }
 
 
@@ -4133,6 +4142,7 @@
             var res = confirm("Вы уверены что хотите покинуть группу")
             if (res){
                 minidb.delete("Chats",Number(CurrentChat))
+                minidb.delete("lastreadchat",Number(CurrentChat))
                 Chat_remove(Number(CurrentChat))
                 ws.send({
                     type:"leaveGroup",

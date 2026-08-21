@@ -20,7 +20,7 @@ import json
 import random
 import MessengerDataBase
 import FeedBacks
-import RedisDB
+import RedisDB # способна работать без redis
 import uvicorn
 import base64, uuid
 import os, shutil, sys, traceback
@@ -28,8 +28,14 @@ import ssl
 import secrets
 import tracemalloc
 
-tracemalloc.start()
+if len(sys.argv) > 1 and sys.argv[1] == "remove_db":
+    # здесь твой код удаления БД
+    print("Удаление базы данных...")
+    # например:
+    os.remove("Databases\Main.db")
+    sys.exit(0)
 
+tracemalloc.start()
 
 clients = {}
 calls = {0:[]}
@@ -48,6 +54,15 @@ try:
 except:
     passwordf = "1234"
 
+
+if not os.path.exists("Databases\Main.db"):
+    for folder in ["UsersPhotos","media"]:
+        for name in os.listdir(folder):
+            path = os.path.join(folder, name)
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
 
 KEY_FILE = "vapid.json"
 templates = Jinja2Templates(directory="templates")
@@ -405,12 +420,9 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                             #<>Database.update_reciver_inventive(inventive["id"],int(this_deviceid),int(needchat["id"]))
             print(this_userid, datetime.fromisoformat(Database.get_device_by_id(this_deviceid)["last_seen"]))
             for event in Database.get_Events_before(this_userid, datetime.fromisoformat(Database.get_device_by_id(this_deviceid)["last_seen"])):
-                print(event)
                 await ws.send_json({
                     "type":"new_event",
-                    "message": Database.get_message_by_id(event["msg_id"]),
-                    "chat_id":event["chat_id"],
-                    "datatime":event["datatime"]
+                    "event": event
                 })
 
     except Exception as e:
@@ -535,8 +547,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                 if answ["success"]:
                     chat_ = Database.get_chat(int(msg["chatid"]))
                     m=""
-                    match (chat_["type"]):
-                            case "p2p":
+                    if chat_["type"] == "p2p":
                                 chat_["photo"]=this_user["photo"]
                                 if chat_["photo"] == None:
                                     chat_["photo"] = "/static/images/Uniknown.png"
@@ -800,7 +811,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                         Database.add_user_to_chat(int(msg["chatid"]),int(this_userid))
                         #Database.add_message(int(msg["chatid"]),-1,"tehnic",f"new_user<{int(this_userid)}>")
                         chat=Database.get_chat(int(msg["chatid"]))
-                        Database.add_Event(chat["id"],-1,"new_participant")
+                        Database.add_Event(chat["id"],this_userid,"new_participant")
                         for i in Database.get_ChatParticipants(int(chat["id"])):
                             u=Database.get_user_by_id(i["id"])
                             #print(f"end sending web push to user {i}")
@@ -830,7 +841,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                                 "devices": [i['id'] for i in Database.get_user_devices(us["email"])],
                                 "who_add":this_email
                             }
-                    r=Database.add_Inventive(us["email"],this_email,"new_group",chat["publickeycrypt"],'',json.dumps(k),ms_data)
+                    r=Database.add_Inventive(us["email"],this_email,"new_group",chat["publickeycrypt"],json.dumps(k),json.dumps(k),ms_data)
                     await send_WS_msg(us["email"],
                                     {"type":"new_group","inv_id":r["inventive_id"],
                                     "publickey":chat["publickeycrypt"],
@@ -840,18 +851,22 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                                     "message":{"chatid":chat["id"]}
                                     },
                                     False,)
+                    print([843],this_user)
                     r=SendWEBpush(notify={
                                         "title":"Новая группа",
-                                        "body":f'{this_user["name"]} приглашает вас в группу {msg["name"]}',
+                                        "body":f'{this_user.get("name")} приглашает вас в группу {msg["name"]}',
                                         "icon":msg["avatar"]
                                         },
                                     device_id="all",
                                     user_id=u["id"])
                 Database.add_message(chat["id"],-1,"txt",f"{this_userid} leavegroup")
             if msg["type"]=="leaveGroup":
-                #Database.delete_p!!!!
-                background_tasks.add_task()
+                Database.delete_Participant(this_userid,msg["chat_id"])
+                Database.add_Event(msg["chat_id"],this_userid,"leavechat")
+                ev=background_tasks.add_task(send_msg_toAllInChat,msg["chat_id"],{
 
+                },
+                )
  
     except WebSocketDisconnect as wserror:
         try:
@@ -1067,34 +1082,34 @@ async def podpis(request:Request):
             del store[email_2]
     print("verify")
     try:
-        match data["what"]["x"]:
-            case "auth":
+
+        if data["what"]['x'] == "auth":
                 if challenge!=challenges_auth[email]["challenge"]:
                     return {"success":False}
-            case "del":
+        if data["what"]['x'] == "del":
                 if challenge!=challenges_del[email]["challenge"]:
                     return {"success":False}   
-            case "prof":
+        if data["what"]['x'] =="prof":
                 if challenge!=challenges_prof[email]["challenge"]:
                     return {"success":False}
-            case "no_i_not":
+        if data["what"]['x'] == "no_i_not":
                 if challenge!=challenges_conn_device[email]["challenge"]:
                     return {"success":False}  
-            case "yes_i_my":
+        if data["what"]['x'] =="yes_i_my":
                 if challenge!=challenges_conn_device[email]["challenge"]:
                     return {"success":False} 
-            case "removedevice":
+        if data["what"]['x'] =="removedevice":
                 if challenge!=removedevicekeys[email]["challenge"]:
                     return {"success":False}            
     except:
         return {"success":False}
-    match data["what"]['x']:
-        case "auth": del challenges_auth[email]
-        case "del": del challenges_del[email]
-        case "prof": del challenges_prof[email]
-        case "no_i_not": del challenges_conn_device[email]
-        case "yes_i_my": del challenges_conn_device[email]
-        case "removedevice": del removedevicekeys[email]
+    
+    if data["what"]['x'] == "auth": del challenges_auth[email]
+    if data["what"]['x'] == "del": del challenges_del[email]
+    if data["what"]['x'] == "prof": del challenges_prof[email]
+    if data["what"]['x'] == "no_i_not": del challenges_conn_device[email]
+    if data["what"]['x'] == "yes_i_my": del challenges_conn_device[email]
+    if data["what"]['x'] == "removedevice": del removedevicekeys[email]
     user =  Database.get_user_by_email(email)
     if data["device"] not in [item['name'] for item in user["devices"]]:
         print(f"Device not in db ")
@@ -1212,20 +1227,20 @@ async def podpis(request:Request):
         print("false podpis")
         message=0
         tm=0
-        match data["what"]["x"]:
-            case "auth":
+        
+        if data["what"]["x"] =="auth":
                 tm=6
                 message="""
 Кто-то пытается войти в ваш аккаунт,
                   попытка входа в аккаунт или его удаление будут заблокированы на 6 часов!
 """
-            case "del":
+        if data["what"]["x"] =="del":
                 tm=3
                 message="""
 Кто-то пытается удалить ваш аккаунт,
                   попытка входа в аккаунт или его удаление будут заблокированы на 3 часа!
 """
-            case "prof":
+        if data["what"]["x"] =="prof":
                 tm=2
                 message="""
 Кто-то пытается изменить ваш профиль,
@@ -1384,6 +1399,17 @@ async def set_metadata(request: Request):
                 s=False
     return {"success": s}
 
+async def send_msg_toAllInChat(chat_id,msg,exception_userid=None,webpush_msg=None):
+    for id in Database.get_ChatParticipants(chat_id=chat_id):
+        if id != exception_userid:
+            u=Database.get_user_by_id(id)
+            s=await send_WS_msg(u["email"],msg,False)
+            if webpush_msg != None:
+                if s["status"] == "offline":
+                    if u["photo"] == None:
+                        u["photo"]="/"
+                    w=SendWEBpush(notify=webpush_msg,user_id=int(u["id"]),device_id="all")
+
 
 async def send_m(msg_id,device_id):
     msg = Database.get_message_by_id(int(msg_id))
@@ -1391,8 +1417,7 @@ async def send_m(msg_id,device_id):
     user = Database.get_user_by_id(msg["user_id"])
     print(msg)
     m=""
-    match (chat_["type"]):
-            case "p2p":
+    if chat_["type"] == "p2p":
                 chat_["photo"]=user["photo"]
                 if chat_["photo"] == None:
                     chat_["photo"] = "/static/images/Uniknown.png"

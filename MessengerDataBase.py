@@ -113,7 +113,7 @@ class Events(Base):
     __tablename__ = "events"
     id = Column(Integer, primary_key=True)
     chat_id = Column(Integer, nullable=False)
-    msg_id = Column(Integer, nullable=False)
+    msg_id = Column(Integer, nullable=True)
     type = Column(String)
     datatime = Column(DateTime, default=datetime.now())
 
@@ -623,17 +623,17 @@ class DataBaseManager:
         """Поиск пользователей по имени, возвращает list of dict"""
         session = self.Session()
         try:
-            match by:
-                case "name":users = session.query(User).filter(
+             
+            if by == "name":users = session.query(User).filter(
                 User.name.ilike(f'%{name_pattern}%')
             ).all()
-                case "email":users = session.query(User).filter(
+            if by == "email":users = session.query(User).filter(
                 User.email.ilike(f'%{name_pattern}%')
             ).all()
-                case "phone":users = session.query(User).filter(
+            if by == "phone":users = session.query(User).filter(
                 User.phone.ilike(f'%{name_pattern}%')
             ).all()
-                case "id": users = session.query(User).filter(
+            if by == "id": users = session.query(User).filter(
                 User.id.ilike(f'%{name_pattern}%')
             ).all()
             if users is None:return []
@@ -667,7 +667,23 @@ class DataBaseManager:
     
     def delete_Inventive(self, Inventive_id):
         return self._delete_obj(Inventives, Inventive_id)
-    
+   
+    def delete_Participant(self, user_id, chat_id):
+        session = self.Session()
+        try:
+            result = session.query(chat_participants).filter(
+                chat_participants.c.user_id == user_id,
+                chat_participants.c.chat_id == chat_id
+            ).delete()
+
+            session.commit()
+            return {"success": result > 0}
+        except Exception as e:
+            session.rollback()
+            return {"success": False, "error": str(e)}
+        finally:
+            session.close()
+        
     def update_user(self, email, **kwargs):
         """['name', 'phone', 'about', 'photo', 'blocked']"""
         session = self.Session()
