@@ -11,7 +11,7 @@
 
 <body>
     <div class="background-container">
-        <img id="fon" src="" alt="Фон">
+        <div class="background-container" id="fon"></div>
     </div>
 
     <div class="shapes">
@@ -31,6 +31,7 @@
                 <div class="optionsmenu">
                     <a id="profil" href="#">Профиль</a>
                     <a id="createchat_btn">Создать группу</a>
+                    <a id="createfon_btn">Изменить фон</a>
                     <a id="exit" href="#">Выйти</a>
                     <a id="deletemyacc" href="#" color="red">Удалить аккаунт</a>
                 </div>
@@ -237,8 +238,8 @@
           
           <!-- Комбо из двух аватарок внахлест -->
           <div class="avatar-combo">
-            <img id="userAvatar" class="avatar avatar-user" src="https://placehold.co" alt="Аватар пользователя" title="Отправитель">
-            <img id="groupAvatar" class="avatar avatar-group" src="https://placehold.co" alt="Аватар группы" title="Группа">
+            <img id="userAvatar" class="avatar avatar-user" src="static\images\Uniknown.png" alt="Аватар пользователя" title="Отправитель">
+            <img id="groupAvatar" class="avatar avatar-group" src="static\images\UniknownChat.jpg" alt="Аватар группы" title="Группа">
           </div>
           
           <!-- Текст приглашения -->
@@ -286,7 +287,7 @@
             </div>
             <div class="group-info-buttons">
                 <button id="addGroupMember">Добавить участника</button>
-                <button id="leaveGroup">Покинуть группу</button>
+                <button style="color: red;" id="leaveGroup">Покинуть группу</button>
             </div>
     
         </div>
@@ -306,6 +307,23 @@
             <div class="selected-users" id="selectedUsers2"></div>
     
             <button class="createBtn1" id="send_inv_to">Пригласить</button>
+        </div>
+    </div>
+
+    <div class="modal" id="fonModal">
+        <div class="modal-content fon-window">
+            <span class="close" id="closeFonModal">&times;</span>
+            <h2>Фон чата</h2>
+            <div class="fon-preview" id="fonPreview"></div>
+            <label>
+                Цвет:
+                <input type="color" id="fonColor" value="#ffffff">
+            </label>
+            <label class="fon-file">
+                Выбрать картинку
+                <input type="file" id="fonFile" accept="image/*" hidden>
+            </label>
+            <button id="removeFon">Убрать фон</button>
         </div>
     </div>
 
@@ -605,6 +623,7 @@
 <script src="/static/js/appCrypto_v10.js"></script>
 <script src="static/js/MessagesDB_3.js"></script>
 <script src="static/js/chunksDB.js"></script>
+<script src="static/js/KEY_ValueDB.js"></script>
 <script>
 
     //import * as ChatUI from "/static/js/ChatlistUI.js";
@@ -613,6 +632,7 @@
         //localStorage.clear()
         //window.location.href = window.location.origin;
         const size = new Blob([JSON.stringify(localStorage)]).size;
+        const fon = document.getElementById("fon")
         console.log(size / 1024, "KB");
 
 
@@ -979,6 +999,9 @@
         }
         //localStorage.clear();
         const minidb = new DictStorage();
+        const KV_db = new SettingsDB();
+
+
         let CurrentChat = null;
         let UnCookMessages = {};
         let lastDate = null;
@@ -1312,10 +1335,23 @@
             return true;
         }
 
-        loadAllImages().then(res => {
-            document.getElementById("fon").src = localStorage.getItem("fone") || "static/images/bgmes.jpg";
+        loadAllImages().then(async res => {
+            var img = await KV_db.get("double_fon")
+            console.log(img)
+            if (img){
+                if (img.type === "color"){
+                fon.style.backgroundImage = "none";
+                fon.style.backgroundColor = img.value;}
+                else{
+                    
+                    fon.style.backgroundColor = "transparent";
+                    fon.style.backgroundImage = `url("${img.value}")`;
+                }
+            }else {
+                document.getElementById("fon").src = localStorage.getItem("fone") || "static/images/bgmes.jpg";}
         });
         LoadChats()
+        console.log("loadchats started....>")
 
         async function DownloadingMSGs(chat_id, current_lastid, maxid) {
             if (current_lastid < maxid) {
@@ -1735,9 +1771,14 @@
                 localStorage.setItem("lastreadchat", JSON.stringify(datae.lastdata))
                 lastreadchat = datae.lastdata
                 console.log(lastreadchat[CurrentChat])
+                var kc = false
                 for (const [k, v] of Object.entries(lastreadchat)) {
                     DownloadingMSGs(Number(k), v.this_device, v.other)
-
+                    kc = true
+                }
+                if (kc){
+                    kc=false
+                    UpdataChats()
                 }
 
                 console.log(lastreadchat)
@@ -2149,29 +2190,73 @@
         async function getUnread(chatId) {
             const data = lastreadchat[chatId];
             if (!data) return "";
+
             const count = await messagedb.countMessages(chatId,data.my);
-            console.log(count)
+            console.log(count,data,await messagedb. getLastMessage(chatId))
 
             if (count <= 0) return "";
 
             return `<div data-unread-id="unread${chatId}" data-unread-count="${count}" class="chat-unread">${count}</div>`;
         }
 
+        //async function UpdataChats() {
+        //    ChatBox.innerHTML = '';
+        //    getLastMessage - нужно использовать по времени последнего сообщения
+        //    const chats = JSON.parse(localStorage.getItem("Chats"))
+        //    for (var key of Object.keys(chats)) {
+        //        var chat = chats[parseInt(key)]
+        //        //if (lastreadchat[Number(chat.id)]["my"]-lastreadchat[Number(chat.id)]["other"]>0)
+        //        ChatBox.innerHTML += `
+        //            <div data-chat-id=${'chat'+chat.id} class=${'chatinfo'}>
+        //                <img src="${chat.photo}" class=${'chat-avatar'} style='margin-left:12px;' alt="${0} ">
+        //                <b class=${'chat-name'}>${chat.name}</b>
+        //                ${await getUnread(chat.id)}
+        //            </div>
+        //        `;
+        //    };
+        //}
+
         async function UpdataChats() {
-            ChatBox.innerHTML = '';
-            const chats = JSON.parse(localStorage.getItem("Chats"))
-            for (var key of Object.keys(chats)) {
-                var chat = chats[parseInt(key)]
-                //if (lastreadchat[Number(chat.id)]["my"]-lastreadchat[Number(chat.id)]["other"]>0)
-                ChatBox.innerHTML += `
-                    <div data-chat-id=${'chat'+chat.id} class=${'chatinfo'}>
-                        <img src="${chat.photo}" class=${'chat-avatar'} style='margin-left:12px;' alt="${0} ">
-                        <b class=${'chat-name'}>${chat.name}</b>
-                        ${await getUnread(chat.id)}
+            const chats = JSON.parse(localStorage.getItem("Chats")) || {};
+
+            const data = await Promise.all(
+                Object.values(chats).map(async chat => {
+                    const lastMessage = await messagedb.getLastMessage(chat.id);
+                    const unread = await getUnread(chat.id);
+
+                    return {
+                        chat,
+                        lastMessage,
+                        unread
+                    };
+                })
+            );
+
+            data.sort((a, b) => {
+                const ta = a.lastMessage?.created || a.lastMessage?.datatime || 0;
+                const tb = b.lastMessage?.created || b.lastMessage?.datatime || 0;
+
+                return new Date(tb) - new Date(ta);
+            });
+
+            ChatBox.innerHTML = "";
+
+            for (const item of data) {
+                const { chat, unread } = item;
+
+                ChatBox.insertAdjacentHTML("beforeend", `
+                    <div data-chat-id="chat${chat.id}" class="chatinfo">
+                        <img src="${chat.photo || ""}"
+                            class="chat-avatar"
+                            style="margin-left:12px;"
+                            alt="">
+                        <b class="chat-name">${chat.name}</b>
+                        ${unread}
                     </div>
-                `;
-            };
+                `);
+            }
         }
+
 
         async function UpdateChatlist() {
             ChatsData= minidb.get("Chats")
@@ -2197,6 +2282,14 @@
             //console.log(chats)
             for (const chat of chats) {
                 if (!chat.photo || chat.photo === "None") {
+                    if (chat.type==="tehnic"){
+                        lastreadchat[Number(chat.id)] = {
+                            "my": 0,
+                            "other": 0,
+                            "this_device": 0,
+                            "max_load": 0
+                        }
+                    }
                     if (chat.type === "p2p") {
                         var id = chat.name.split("/")
                             //console.log(chat)
@@ -2222,6 +2315,7 @@
                 ChatsData[parseInt(chat.id)] = chat
             }
             localStorage.setItem("Chats", JSON.stringify(ChatsData));//!!!
+            console.log("update chat UI")
             UpdataChats();
         }
         //messagedb.deleteDB()
@@ -2289,7 +2383,7 @@
             }
 
         });
-
+        const fonPreview = document.getElementById("fonPreview");
         const button = document.getElementById('buttonsearch');
         const menu = document.querySelector('.by');
         const InputSearch = document.getElementById("inputsearchuser");
@@ -4150,6 +4244,59 @@
                 })
             }
         })
+
+        document.getElementById("createfon_btn").onclick = () => {
+            document.getElementById("fonModal").style.display = "flex"
+        }
+        
+        document.getElementById("closeFonModal").onclick = () => {
+            document.getElementById("fonModal").style.display = "none"
+        }
+        
+
+        document.getElementById("fonColor").oninput = function () {
+            const color = this.value;
+            fonPreview.style.backgroundImage = "none";
+            fonPreview.style.backgroundColor = color;
+
+            fon.style.backgroundImage = "none";
+            fon.style.backgroundColor = color;
+            KV_db.set("double_fon",{
+                type:"color",
+                value:color
+            })
+            document.getElementById("fon").src = color
+            //document.getElementById("fonModal").style.display = "none"
+        };
+
+        document.getElementById("fonFile").onchange = function () {
+            const file = this.files[0];
+
+            if (!file) return;
+
+            const url = URL.createObjectURL(file);
+
+            fonPreview.style.backgroundImage = `url("${url}")`;
+            fon.style.backgroundColor = "transparent";
+            fon.style.backgroundImage = `url("${url}")`;
+            KV_db.set("double_fon", {
+                type: "image",
+                value: file
+            });
+            document.getElementById("fonModal").style.display = "none"
+        };
+
+        document.getElementById("removeFon").onclick = () => {
+            
+            
+            fon.style.backgroundColor = "transparent";
+            fon.style.backgroundImage = localStorage.getItem("fone") || "static/images/bgmes.jpg";
+            KV_db.set("double_fon", {
+                type: "image",
+                value: "static/images/bgmes.jpg"
+            });
+            document.getElementById("fonModal").style.display = "none"
+        }
     });
 
 </script>

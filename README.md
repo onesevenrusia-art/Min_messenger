@@ -9,3 +9,7 @@ adb shell "su -c '/data/local/linux/bin/bisbox choroot /data/локальный/
 /data/local/linux/bin/busybox chroot /data/local/linux/mnt/testimg /bin/bash - запуск linux 
 adb push X:\ALEX\Python\messenger\main.py /storage/sdcard1/messenger/ main.py
 подопечный компакт-диск /мnt/sdcard1/messenger
+
+клонировать проет на телефон /data/local/linux/bin/busybox chroot /data/local/linux/mnt/testimg /usr/bin/git clone https://github.com/onesevenrusia-art/Min_messenger.git /root/Min_messenger
+
+запуск  cd /data/local/linux/mnt/testimg/root/Min_messenger

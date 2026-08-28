@@ -54,7 +54,7 @@ try:
 except:
     passwordf = "1234"
 
-
+"""
 if not os.path.exists("Databases\Main.db"):
     for folder in ["UsersPhotos","media"]:
         for name in os.listdir(folder):
@@ -63,7 +63,21 @@ if not os.path.exists("Databases\Main.db"):
                 shutil.rmtree(path)
             else:
                 os.remove(path)
+"""
 
+if not os.path.exists("Databases/Main.db"):
+
+    for folder in ["UsersPhotos", "media"]:
+        os.makedirs(folder, exist_ok=True)
+
+        for name in os.listdir(folder):
+            path = os.path.join(folder, name)
+
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
+                
 KEY_FILE = "vapid.json"
 templates = Jinja2Templates(directory="templates")
 
@@ -601,7 +615,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                             key=key
                             my = MyLastIDs[key]["my"]
                             other = MyLastIDs[key]["other"]
-                            m1= Database.get_max_msgid(key)
+                            m1= Database.get_max_msgid(key,int(this_userid))
                             o1=Database.get_max_lastread(key,msg["id"])
                             print(key, m1,o1)
                             if my < m1:

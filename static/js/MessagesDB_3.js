@@ -223,4 +223,33 @@ class MessageStore {
     
         });
     }
+
+    async getLastMessage(chatId) {
+        const db = await this.open();
+    
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction("messages", "readonly");
+            const store = tx.objectStore("messages");
+            const index = store.index("chat_id_id");
+    
+            const range = IDBKeyRange.bound(
+                [chatId, 0],
+                [chatId, Number.MAX_SAFE_INTEGER]
+            );
+    
+            const request = index.openCursor(range, "prev");
+    
+            request.onsuccess = () => {
+                const cursor = request.result;
+    
+                if (cursor) {
+                    resolve(cursor.value);
+                } else {
+                    resolve(null);
+                }
+            };
+    
+            request.onerror = () => reject(request.error);
+        });
+    }
 }

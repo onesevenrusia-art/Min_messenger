@@ -1,4 +1,6 @@
-import redis
+try:
+    import redis
+except:pass
 import json
 
 class DataBase:

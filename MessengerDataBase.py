@@ -403,13 +403,21 @@ class DataBaseManager:
             return {"success": False, "message_id": -1, "internal_id": -1, "time": -1}
         finally:
             session.close()
-
-    def get_max_msgid(self, chat_id):
+            
+    def get_max_msgid(self, chat_id, my_id=None):
         session = self.Session()
-        last_id = session.query(
-                func.max(Message.id)
-            ).filter_by(chat_id=chat_id).scalar() or 0
-        return last_id
+        try:
+            query = session.query(func.max(Message.id)).filter(
+                Message.chat_id == chat_id
+            )
+
+            if my_id is not None:
+                query = query.filter(Message.user_id == my_id)
+
+            return query.scalar() or 0
+
+        finally:
+            session.close()
     
     def get_min_msgid(self, chat_id):
         session = self.Session()
