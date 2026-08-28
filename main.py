@@ -28,6 +28,33 @@ import ssl
 import secrets
 import tracemalloc
 
+import socket
+import urllib.request
+
+
+def show_ips():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        local_ip = "не удалось определить"
+
+    try:
+        global_ip = urllib.request.urlopen(
+            "https://api.ipify.org",
+            timeout=5
+        ).read().decode().strip()
+    except Exception as e:
+        global_ip = f"не удалось определить: {e}"
+
+    print(f"Локальный IP:  {local_ip}")
+    print(f"Глобальный IP: {global_ip}")
+
+
+show_ips()
+
 if len(sys.argv) > 1 and sys.argv[1] == "remove_db":
     # здесь твой код удаления БД
     print("Удаление базы данных...")
