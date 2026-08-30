@@ -948,7 +948,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                         #Database.add_message(int(msg["chatid"]),-1,"tehnic",f"new_user<{int(this_userid)}>")
                         chat=Database.get_chat(int(msg["chatid"]))
                         m2=Database.add_message(int(msg["chatid"]),this_userid,"tehnic","")
-                        r=Database.add_Event(chat["id"],m2["id"],"new_participant")
+                        r=Database.add_Event(chat["id"],m2["message_id"],"new_participant")
                         for i in Database.get_ChatParticipants(int(chat["id"])):
                             u=Database.get_user_by_id(i["id"])
                             #print(f"end sending web push to user {i}")
@@ -1655,7 +1655,7 @@ async def chatinfo(request: Request):
     chat = Database.get_chat(data["id"])
     return {"name":chat["name"],"photo":chat["photo"],"about":chat["about"],"created":chat["created"],"users":len(Database.get_ChatParticipants(data["id"]))}
 
-@app.post("/TEST")
+@app.get("/TEST")
 async def TEST(request: Request):
     return {"success":True}
 

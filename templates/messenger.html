@@ -1113,6 +1113,7 @@
                             readtimer = null
                             console.log("add -1")
                             messagedb.countMessages(CurrentChat, Number(currentlastread)).then(res => {
+                                console.log("🟠")
                                 updateUnread(Number(cth), res, false, true)
                             });
 
@@ -1473,7 +1474,7 @@
             //l>>>
             var readingflag = Boolean(classn === "message-right" && lastreadchat[CurrentChat]["other"] >= msg.id)
                 //console.log(lastreadchat)
-            if (Number(msg.id) > lastreadchat[CurrentChat]["my"]) {
+            if (Number(msg.id) > lastreadchat[CurrentChat]["my"] && msg.user_id !== Data.my_id) {
                 if (newmsgflag[CurrentChat] === null || newmsgflag[CurrentChat] === undefined) {
                     newmsgflag[CurrentChat] = false
                 }
@@ -1629,7 +1630,7 @@
 
 
         const device_id = Data.email + "|id" + Data.device_id;
-        const ws = new WebSocket(
+        let ws = new WebSocket(
             "wss://" + window.location.hostname + ":443/ws?device_id=" + device_id
         );
         console.log(device_id)
@@ -1756,6 +1757,9 @@
                 var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
                 console.log(lsrd[Number(datae.chat_id)], lsrd, datae)
                 lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
+                if (lsrd["my"] < datae.message_id) {
+                    lsrd["my"] = datae.message_id
+                }
                 localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
             } else if (datae.type === "addmsg") {
                 ChatsData = minidb.get("Chats")
@@ -1891,16 +1895,7 @@
                     i = Number(datae.chat_id)
                 }
                 scrolling_flag = true;
-                if (datae.msgs.length > 0) {
-                    if (lastreadchat[datae.msgs[0].chat_id].my < datae.msgs[0].id) {
-                        console.log(lastreadchat[datae.msgs[0].chat_id].my, datae.msgs[0].id)
-                        updateUnread(datae.msgs[0].chat_id, datae.msgs.length, true, false)
-                    }
-                } else {
-                    newmsgflag[Number(CurrentChat)] = false
-                    graphic.remove(-9999)
-                    console.log("removing")
-                }
+
                 for (var msg of datae.msgs) {
                     console.log(msg)
                     await messagedb.save({
@@ -1925,6 +1920,16 @@
                     }
                 }
                 scrolling_flag = false;
+                if (datae.msgs.length > 0) {
+                    if (lastreadchat[datae.msgs[0].chat_id].my < datae.msgs[0].id) {
+                        console.log(lastreadchat[datae.msgs[0].chat_id].my, datae.msgs[0].id)
+                        updateUnread(datae.msgs[0].chat_id, datae.msgs.length, true, false)
+                    }
+                } else {
+                    newmsgflag[Number(CurrentChat)] = false
+                    graphic.remove(-9999)
+                    console.log("removing")
+                }
                 //if (i>0){
                 //    var l = JSON.parse(localStorage.getItem("lastreadchat"))
                 //    if (l[i].last_load < last){
@@ -2146,6 +2151,7 @@
         }
 
         ws.onclose = () => {
+            alert(("WebSocket closed"))
             console.log("WebSocket closed");
             setTimeout(OPENws, reconnectingDelay)
         };
@@ -2357,8 +2363,12 @@
             );
 
             data.sort((a, b) => {
-                const ta = a.lastMessage.created || a.lastMessage.datatime || 0;
-                const tb = b.lastMessage.created || b.lastMessage.datatime || 0;
+                try {
+                    const ta = a.lastMessage.created || a.lastMessage.datatime || 0;
+                    const tb = b.lastMessage.created || b.lastMessage.datatime || 0;
+                } catch {
+                    return new Date(minidb.get("Chats", "created"))
+                }
 
                 return new Date(tb) - new Date(ta);
             });
@@ -2652,6 +2662,9 @@
                 document.querySelector("#SearchUser").style.display = "none";
             }
             if (e.target.closest(".chatinfo")) {
+                if (CurrentChat === Number(e.target.closest(".chatinfo").dataset.chatId.substring(4))) {
+                    return
+                }
                 readtimer = null
                 lastDate = null;
                 document.getElementById("chatshape").style.display = "flex";
@@ -2711,6 +2724,7 @@
             //}
         })
         document.getElementById("shapebackbtn").addEventListener("click", function() {
+            CurrentChat = null
             document.querySelectorAll(".wind").forEach(e => {
                 e.style.display = "none"
             })
@@ -3256,6 +3270,10 @@
         });
 
         async function Send_Message(msg, msgtype = "txt") {
+            if (ws.readyState !== ws.OPEN) {
+                alert("websocket разорван невозможно отправить сообщенгие")
+                return
+            }
             const randomNumber = crypto.randomUUID();
             console.log(ChatsData[parseInt(CurrentChat)])
             if (msgtype === "txt") {
@@ -3292,14 +3310,14 @@
             if (ws.readyState === ws.OPEN) {
                 ws.send(JSON.stringify(msgs))
             } else {
-
+                console.log("error send")
             }
 
         }
 
         document.getElementById("send").addEventListener("click", async function() {
             const msg = document.getElementById("input_message").value
-            if (msg !== "") {
+            if (msg !== "" || msg !== "\n") {
                 Send_Message(msg, "txt")
             }
         })
