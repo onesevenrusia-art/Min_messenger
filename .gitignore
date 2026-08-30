@@ -1,0 +1,16 @@
+privkey.pem
+key.pem
+
+# Секреты
+*.key
+*.pem
+Sertificats/vapid.json
+email_config.json
+# База данных
+Databases/*.db
+UserPhotos/
+media/
+ChatPhotos/
+__pycache__/
+# Логи
+*.log

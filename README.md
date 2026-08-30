@@ -21,11 +21,13 @@ adb push X:\ALEX\Python\messenger\main.py /storage/sdcard1/messenger/ main.py
 adb shell
 su
 /data/local/linux/bin/busybox chroot /data/local/linux/mnt/testimg /bin/bash -c 'cd /root/Min_messenger && /root/venv/bin/python main.py'
+ИЛИ
+/data/local/linux/bin/busybox chroot /data/local/linux/mnt/testimg /bin/bash -c 'cd /root/Min_messenger && /root/venv/bin/python main.py'
 
 Найти ID процесса
 ps | grep python
 kill номер процесса для остановки
-
+______________
 баги с wifi
 1|root@android:/ # settings get global wifi_sleep_policy
 3
@@ -33,15 +35,16 @@ root@android:/ # settings put global wifi_sleep_policy 2
 root@android:/ # settings get global wifi_sleep_policy
 2
 тест с windows    Test-NetConnection 192.168.1.33 -Port 443
+______________
 
 запуск намертво с поддержкой отключения adb
-cd /data/local/linux/mnt/testimg/root/Min_messenger
-nohup /root/venv/bin/python main.py > server.log 2>&1 &
-проверка ps | grep '[p]ython'
-посмотреть логи
-cd /data/local/linux/mnt/testimg/root/Min_messenger
-tail -f server.log
-ps | grep '[p]ython'
+/data/local/linux/bin/busybox chroot /data/local/linux/mnt/testimg /bin/bash -c 'cd /root/Min_messenger && /root/venv/bin/python main.py >server.log 2>&1 &'
+проверка
+/data/local/linux/bin/busybox chroot /data/local/linux/mnt/testimg /bin/ps
+/data/local/linux/bin/busybox netstat -lnpt | grep :443
+Логи
+/data/local/linux/bin/busybox chroot /data/local/linux/mnt/testimg /bin/cat /root/Min_messenger/server.log
+
 
 Для состояния Wi-Fi на Android лучше всего:
     /data/local/linux/bin/busybox ip addr show wlan0

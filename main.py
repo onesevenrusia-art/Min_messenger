@@ -82,7 +82,6 @@ if args.config:
                 "key": "xxxx xxxx xxxx xxxx"
             }, f, ensure_ascii=False, indent=4)
 
-    sys.exit(0)
 
 
 tracemalloc.start()
@@ -142,7 +141,6 @@ def get_available_ram():
 
         except (FileNotFoundError, ValueError, PermissionError):
             return 0
-
         return 0
 
 print(f"Доступно RAM: {get_available_ram() / 1024 / 1024:.0f} MB")
@@ -194,7 +192,7 @@ if not os.path.exists("Databases/Main.db"):
             else:
                 os.remove(path)
                 
-KEY_FILE = "vapid.json"
+KEY_FILE = "Sertificats/vapid.json"
 templates = Jinja2Templates(directory="templates")
 
 if not os.path.exists(KEY_FILE):
