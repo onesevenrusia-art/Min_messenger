@@ -35,33 +35,53 @@ parser = argparse.ArgumentParser(description="Main server")
 
 parser.add_argument(
     "config",
-    nargs="?",
-    help="""изменить JSON с настройками email
-            write_emailjson '{flag:?,key:?}'
-            удалить бд 
-            remove_db"""
+    nargs="*",
+    help="""Команды:
+    python main.py write_emailjson flag=false key=2
+                   clear_emailjson
+                   remove_db
+    """
 )
 
 args = parser.parse_args()
 
-print(args.config)
+if args.config:
+    command = args.config[0]
 
-
-if len(sys.argv) > 1:
-    if sys.argv[1] == "remove_db":
+    if command == "remove_db":
         print("Удаление базы данных...")
-        os.remove("Databases\Main.db")
-    if sys.argv[1] == "write_emailjson":
+        os.remove(r"Databases\Main.db")
+
+    elif command == "write_emailjson":
+        if len(args.config) < 2:
+            print("Не указан JSON")
+            sys.exit(1)
+        #print(args.config)
+        data = {}
+
+        for item in args.config[1:]:
+            key, value = item.split("=", 1)
+            key, value = item.split("=", 1)
+
+            if value.lower() == "false":
+                value = False
+            elif value.lower() == "true":
+                value = True
+            elif value.isdigit():
+                value = int(value)
+
+            data[key] = value
         with open("email_config.json", "w", encoding="utf-8") as f:
-            json.dump(sys.argv[2], f, ensure_ascii=False, indent=4)
-    if sys.argv[1] == "clear_emailjson":
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
+    elif command == "clear_emailjson":
         with open("email_config.json", "w", encoding="utf-8") as f:
             json.dump({
-                "flag":False,
-                "key":"xxxx xxxx xxxx xxxx"
+                "flag": False,
+                "key": "xxxx xxxx xxxx xxxx"
             }, f, ensure_ascii=False, indent=4)
-    sys.exit(0)
 
+    sys.exit(0)
 
 
 tracemalloc.start()
@@ -85,6 +105,40 @@ def show_ips():
     print(f"Глобальный IP: {global_ip}")
 
 show_ips()
+
+import os
+import sys
+
+def get_available_ram():
+    if sys.platform == "win32":
+        import ctypes
+
+        class MEMORYSTATUSEX(ctypes.Structure):
+            _fields_ = [
+                ("dwLength", ctypes.c_ulong),
+                ("dwMemoryLoad", ctypes.c_ulong),
+                ("ullTotalPhys", ctypes.c_ulonglong),
+                ("ullAvailPhys", ctypes.c_ulonglong),
+                ("ullTotalPageFile", ctypes.c_ulonglong),
+                ("ullAvailPageFile", ctypes.c_ulonglong),
+                ("ullTotalVirtual", ctypes.c_ulonglong),
+                ("ullAvailVirtual", ctypes.c_ulonglong),
+                ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+            ]
+
+        mem = MEMORYSTATUSEX()
+        mem.dwLength = ctypes.sizeof(mem)
+        ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(mem))
+
+        return mem.ullAvailPhys
+
+    else:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1]) * 1024
+
+print(f"Доступно RAM: {get_available_ram() / 1024 / 1024:.0f} MB")
 
 clients = {}
 calls = {0:[]}
@@ -490,10 +544,22 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                             #<>Database.update_reciver_inventive(inventive["id"],int(this_deviceid),int(needchat["id"]))
             #print(this_userid, datetime.fromisoformat(Database.get_device_by_id(this_deviceid)["last_seen"]))
             for event in Database.get_Events_before(this_userid, datetime.fromisoformat(Database.get_device_by_id(this_deviceid)["last_seen"])):
-                await ws.send_json({
-                    "type":"new_event",
-                    "event": event
-                })
+                if event["type"] != "tehnic":
+                    await ws.send_json({
+                        "type":"new_event",
+                        "event": event
+                    })
+                else:
+                    msg = Database.get_message_by_id(event["msg_id"])
+                    user = Database.get_user_by_id(msg["user_id"])
+                    await ws.send_json({"type":"new_event",
+                                              "event":
+                                              {"id":event["id"],"msg_id":msg["message_id"],"internal_id":msg["internal_id"],"type":event["type"],
+                                               "chat_id":msg["chat_id"],"name":user["name"],"photo":user["photo"],"datatime":event["datatime"]}},
+                                        )
+             
+                
+
 
     except Exception as e:
         print(406,e,traceback.format_exc())
@@ -820,7 +886,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                     token = secrets.token_urlsafe(32)
                     redisdb.put(f'{this_deviceid}+{msg["msg_id"]}',token,600)
                     await ws.send_json({"type":"answ_token",
-                                        "success":True,"token":token,
+                                        "success":True,"token":token,"chat_id":msg["chat_id"],
                                         "msg_id":msg["msg_id"],"interval":msg["interval"]})
                 else:
                     await ws.send_json({"type":"answ_token",
@@ -881,11 +947,12 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                         Database.add_user_to_chat(int(msg["chatid"]),int(this_userid))
                         #Database.add_message(int(msg["chatid"]),-1,"tehnic",f"new_user<{int(this_userid)}>")
                         chat=Database.get_chat(int(msg["chatid"]))
-                        Database.add_Event(chat["id"],this_userid,"new_participant")
+                        m2=Database.add_message(int(msg["chatid"]),this_userid,"tehnic","")
+                        r=Database.add_Event(chat["id"],m2["id"],"new_participant")
                         for i in Database.get_ChatParticipants(int(chat["id"])):
                             u=Database.get_user_by_id(i["id"])
                             #print(f"end sending web push to user {i}")
-                            s=await send_WS_msg(u["email"],{"type":"new_participant","chat_id":this_userid,"name":this_user["name"],"photo":this_user["photo"]})
+                            s=await send_WS_msg(u["email"],{"type":"new_event","event":{"id":r["id"],"msg_id":m2["message_id"],"internal_id":m2["internal_id"],"type":"new_participant","chat_id":this_userid,"name":this_user["name"],"photo":this_user["photo"],"datatime":str(datetime.now())}})
                             if s["status"] == "offline":
                                 if u["photo"] == None:
                                     u["photo"]="/"
@@ -929,13 +996,16 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                                         },
                                     device_id="all",
                                     user_id=u["id"])
-                Database.add_message(chat["id"],-1,"txt",f"{this_userid} leavegroup")
+                Database.add_message(chat["id"],this_userid,"tehnic",f"{this_userid} leavegroup")
             if msg["type"]=="leaveGroup":
                 Database.delete_Participant(this_userid,msg["chat_id"])
-                Database.add_Event(msg["chat_id"],this_userid,"leavechat")
-                ev=background_tasks.add_task(send_msg_toAllInChat,msg["chat_id"],{
-
-                },
+                m=Database.add_message(msg["chat_id"],this_userid,"tehnic",f"")
+                ev=Database.add_Event(msg["chat_id"],m["id"],"leavechat")
+                background_tasks.add_task(send_msg_toAllInChat,msg["chat_id"],
+                                             {"type":"new_event",
+                                              "event":
+                                              {"id":ev["id"],"msg_id":m["message_id"],"internal_id":m["internal_id"],"type":"leavechat",
+                                               "chat_id":msg["chat_id"],"name":this_user["name"],"photo":this_user["photo"],"datatime":str(datetime.now())}},
                 )
  
     except WebSocketDisconnect as wserror:
@@ -1585,7 +1655,9 @@ async def chatinfo(request: Request):
     chat = Database.get_chat(data["id"])
     return {"name":chat["name"],"photo":chat["photo"],"about":chat["about"],"created":chat["created"],"users":len(Database.get_ChatParticipants(data["id"]))}
 
-
+@app.post("/TEST")
+async def TEST(request: Request):
+    return {"success":True}
 
 if __name__ == "__main__":    
     uvicorn.run(

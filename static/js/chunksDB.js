@@ -23,6 +23,7 @@ class ChunkStore {
                     });
                     store.createIndex("msg_id", "msg_id", { unique: false });
                     store.createIndex("msg_chunk", ["msg_id", "chunk_id"], { unique: false });
+                    store.createIndex("chat_id", "chat_id", { unique: false });
                 }
             };
 
@@ -41,13 +42,14 @@ class ChunkStore {
     }
 
     // ---------- SAVE CHUNK ----------
-    async saveChunk(msg_id, chunk_id, chunk) {
+    async saveChunk(msg_id, chunk_id, chunk, chat_id) {
         const store = await this._store("readwrite");
         return new Promise((resolve, reject) => {
             const req = store.put({
                 msg_id,
                 chunk_id,
-                chunk
+                chunk,
+                chat_id: chat_id
             });
             req.onsuccess = () => resolve(true);
             req.onerror = () => reject(req.error);
@@ -146,6 +148,33 @@ class ChunkStore {
             req.onsuccess = () => resolve(true);
             req.onerror = () => reject(req.error);
 
+        });
+    }
+
+    async deleteChatChunks(chatId) {
+        const db = await this.open();
+
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction("chunks", "readwrite");
+            const store = tx.objectStore("chunks");
+            const index = store.index("chat_id");
+
+            const req = index.openCursor(
+                IDBKeyRange.only(chatId)
+            );
+
+            req.onsuccess = e => {
+                const cursor = e.target.result;
+
+                if (cursor) {
+                    cursor.delete();
+                    cursor.continue();
+                } else {
+                    resolve();
+                }
+            };
+
+            req.onerror = () => reject(req.error);
         });
     }
 }
