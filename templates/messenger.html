@@ -1076,8 +1076,9 @@
         console.log(fileInput)
         const graphic = new Graphic(document.getElementById("chat"), (lastReadId) => {
             try {
+                console.log(lastreadchat[CurrentChat]["my"] , lastReadId)
                 if (lastreadchat[CurrentChat]["my"] < lastReadId) {
-                    lastreadchat[CurrentChat]["my"] = currentlastread;
+                    //lastreadchat[CurrentChat]["my"] = currentlastread;
                     currentlastread = lastReadId
 
                     if (readtimer === null) {
@@ -1085,7 +1086,10 @@
                         readtimer = setTimeout(() => {
                             readtimer = null
                             console.log("add -1")
-                            updateUnread(Number(cth),1,false,true)
+                            messagedb.countMessages(CurrentChat,Number(currentlastread)).then(res =>{
+                                updateUnread(Number(cth),res,false,true)
+                            });
+
                             ws.send(JSON.stringify({
                                 type: "reading",
                                 last_read_id: currentlastread,
@@ -1095,6 +1099,7 @@
 
                             localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
                         }, 800)
+                            console.log(lastreadchat[CurrentChat])
                     }
 
                 }
@@ -1323,6 +1328,7 @@
                             const reader = new FileReader();
                             reader.onload = function() {
                                 localStorage.setItem(image.name, this.result);
+                                KV_db.set(image.name, this.result)
                                 console.log(`✅ ${image.name} - сохранено`);
                             };
                             reader.readAsDataURL(blob);
@@ -1428,7 +1434,22 @@
             }
             //l>>>
             var readingflag = Boolean(classn === "message-right" && lastreadchat[CurrentChat]["other"] >= msg.id)
-
+            //console.log(lastreadchat)
+            if (Number(msg.id)>lastreadchat[CurrentChat]["my"]){
+                if (newmsgflag[CurrentChat]===null || newmsgflag[CurrentChat]===undefined ){
+                            newmsgflag[CurrentChat]=false
+                        }
+                if (newmsgflag[CurrentChat] === false) {
+                    graphic.remove(-9999)
+                    graphic.add({
+                        type: "tmc",
+                        content: `Новые сообщения`,
+                        classname: "message-center",
+                        id: -9999
+                    })
+                    newmsgflag[CurrentChat]=true
+                }
+            }
             if (msg.datatype === "txt") {
                 if (th) {
                     //console.log(ChatsData[parseInt(CurrentChat)])
@@ -1468,7 +1489,6 @@
                 }
             }
 
-            //console.log(lastreadchat)
             if (msg.datatype === "txt") {
                 //console.log(content)
                 if (!start) {
@@ -1724,12 +1744,12 @@
                         datatype: datae.typemsg
                     }
                     if (msg.user_id !== Data.my_id) {
-                        console.log("is new: ",graphic.is_id("new_messages"))
+                        console.log("is new: ",graphic.is_id(-9999))
                         if (newmsgflag[Number(datae.chat_id)]===null || newmsgflag[Number(datae.chat_id)]===undefined ){
                             newmsgflag[Number(datae.chat_id)]=false
                         }
                         if (newmsgflag[Number(datae.chat_id)] === false) {
-                            graphic.remove("new_messages")
+                            graphic.remove(-9999)
                             graphic.add({
                                 type: "tmc",
                                 content: `Новые сообщения`,
@@ -1768,6 +1788,7 @@
                     graphic.markRead(datae.last_read_id)
                 }
             } else if (datae.type === "newlastdata") {
+                console.log(localStorage.getItem("lastreadchat"),datae.lastdata)
                 localStorage.setItem("lastreadchat", JSON.stringify(datae.lastdata))
                 lastreadchat = datae.lastdata
                 console.log(lastreadchat[CurrentChat])
@@ -2357,6 +2378,7 @@
                         scrolling_flag = false;
                     }
                 }
+
             }
 
             // ВВЕРХ
@@ -4290,7 +4312,7 @@
             
             
             fon.style.backgroundColor = "transparent";
-            fon.style.backgroundImage = localStorage.getItem("fone") || "static/images/bgmes.jpg";
+            fon.style.backgroundImage = "static/images/bgmes.jpg";
             KV_db.set("double_fon", {
                 type: "image",
                 value: "static/images/bgmes.jpg"

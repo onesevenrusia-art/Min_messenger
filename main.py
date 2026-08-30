@@ -27,10 +27,44 @@ import os, shutil, sys, traceback
 import ssl
 import secrets
 import tracemalloc
-
 import socket
 import urllib.request
+import argparse
 
+parser = argparse.ArgumentParser(description="Main server")
+
+parser.add_argument(
+    "config",
+    nargs="?",
+    help="""изменить JSON с настройками email
+            write_emailjson '{flag:?,key:?}'
+            удалить бд 
+            remove_db"""
+)
+
+args = parser.parse_args()
+
+print(args.config)
+
+
+if len(sys.argv) > 1:
+    if sys.argv[1] == "remove_db":
+        print("Удаление базы данных...")
+        os.remove("Databases\Main.db")
+    if sys.argv[1] == "write_emailjson":
+        with open("email_config.json", "w", encoding="utf-8") as f:
+            json.dump(sys.argv[2], f, ensure_ascii=False, indent=4)
+    if sys.argv[1] == "clear_emailjson":
+        with open("email_config.json", "w", encoding="utf-8") as f:
+            json.dump({
+                "flag":False,
+                "key":"xxxx xxxx xxxx xxxx"
+            }, f, ensure_ascii=False, indent=4)
+    sys.exit(0)
+
+
+
+tracemalloc.start()
 
 def show_ips():
     try:
@@ -40,7 +74,6 @@ def show_ips():
         s.close()
     except Exception:
         local_ip = "не удалось определить"
-
     try:
         global_ip = urllib.request.urlopen(
             "https://api.ipify.org",
@@ -48,21 +81,10 @@ def show_ips():
         ).read().decode().strip()
     except Exception as e:
         global_ip = f"не удалось определить: {e}"
-
     print(f"Локальный IP:  {local_ip}")
     print(f"Глобальный IP: {global_ip}")
 
-
 show_ips()
-
-if len(sys.argv) > 1 and sys.argv[1] == "remove_db":
-    # здесь твой код удаления БД
-    print("Удаление базы данных...")
-    # например:
-    os.remove("Databases\Main.db")
-    sys.exit(0)
-
-tracemalloc.start()
 
 clients = {}
 calls = {0:[]}
@@ -77,9 +99,15 @@ challenges_prof={}
 challenges_conn_device={}
 uploading_files = {}
 try:
-    passwordf = open("C:/Users/SB/Desktop/gmailpassword.txt").read()
+    with open('email_config.json', 'r', encoding='utf-8') as file:
+        passwordf = json.load(file)  # Теперь данные — это Python-объект
 except:
-    passwordf = "1234"
+    passwordf={
+        "flag":False,
+        "key":"xxxx xxxx xxxx xxxx"
+    }
+    with open("email_config.json", "w", encoding="utf-8") as f:
+        json.dump(passwordf, f, ensure_ascii=False, indent=2)
 
 """
 if not os.path.exists("Databases\Main.db"):
@@ -230,9 +258,9 @@ def IsEmailCorrect(email):
     except EmailNotValidError:
         return False
 
-def SendCode(emailreciver,body=0,flag=False):
+def SendCode(emailreciver,body=0):
     email_from = 'onesevenrusia@gmail.com' 
-    password = passwordf 
+    password = passwordf.get("key") 
     email_to = emailreciver
     code=str(random.randint(100000, 999999))
     print(code)
@@ -255,7 +283,8 @@ def SendCode(emailreciver,body=0,flag=False):
         server.starttls()  # Шифруем соединение
         server.login(email_from, password)  # Логинимся на сервер
         text = msg.as_string()  # Преобразуем сообщение в строку
-        if flag:
+
+        if passwordf.get("flag") :
             server.sendmail(email_from, email_to, text)  # Отправляем письмо
     except Exception as e:
         print(e)
@@ -280,14 +309,14 @@ def SendWEBpush(notify, device_id=None,user_id=None,subscription_data = None):
                     "sub": "mailto:test@test.com"
                 }
             )
-            print(r)
+            #print(r)
             return r
     if device_id == "all":
         r=0
         for d in Database.get_user_devices(int(user_id)):
             if not d["subscription_data"] or d["subscription_data"] == {}:
                 continue
-            print(d)
+            #print(d)
             r = webpush(
                 subscription_info=d["subscription_data"],
                 data=json.dumps(notify),
@@ -296,7 +325,7 @@ def SendWEBpush(notify, device_id=None,user_id=None,subscription_data = None):
                     "sub": "mailto:test@test.com"
                 }
             )
-            print(r)
+            #print(r)
         return r
     else:
         d = Database.get_device_by_id(int(device_id))
@@ -310,7 +339,7 @@ def SendWEBpush(notify, device_id=None,user_id=None,subscription_data = None):
                     "sub": "mailto:test@test.com"
                 }
             )
-        print(r)
+        #print(r)
         return r
 
 
@@ -371,7 +400,7 @@ async def send_WS_msg(reciver, msg, wait=False, exception=[], need=[]):
             sent_count = 0
             ids=[]
             if len(need)==0:
-                print(clients,reciver)
+                #print(clients,reciver)
                 for devi in clients.get(reciver):
                     if devi["id"] not in list(map(str,exception)) and devi["id"] != "newdevice":
                         await devi["ws"].send_json(msg)
@@ -413,7 +442,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
     
     CurrentCallID = -1
     if "newdevice" in device_id:
-        print(clients.get(this_email))
+        #print(clients.get(this_email))
         if clients.get(this_email) is not None and this_deviceid in clients.get(this_email):
             await ws.close()
             return     
@@ -439,7 +468,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
             for inventive in Database.get_user_Inventives(this_email):
                 inventive["time"]=inventive["time"].isoformat()
                 if inventive["emailsent"] != this_email and int(inventive["status"])==0:
-                    print(inventive["message"])
+                    #print(inventive["message"])
                     await ws.send_json({"type":inventive["typeinventive"],"user":inventive["emailsent"],"time":inventive["time"],"publickey":inventive["publickey"],"privatekey":inventive["reciverencryptedkey"],"message":{k: inventive["message"][k] for k in inventive["message"].keys() if k != "devices"},"inv_id":inventive["id"]})
                     #<>Database.update_reciver_inventive(inventive["id"],int(this_deviceid),inventive["message"]["chatid"])
                 if inventive["emailsent"] == this_email and this_deviceid != "newdevice" and int(inventive["status"])==1:
@@ -459,7 +488,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                                     "privatekeycrypt":inventive["senderencryptedkey"]}})
                             
                             #<>Database.update_reciver_inventive(inventive["id"],int(this_deviceid),int(needchat["id"]))
-            print(this_userid, datetime.fromisoformat(Database.get_device_by_id(this_deviceid)["last_seen"]))
+            #print(this_userid, datetime.fromisoformat(Database.get_device_by_id(this_deviceid)["last_seen"]))
             for event in Database.get_Events_before(this_userid, datetime.fromisoformat(Database.get_device_by_id(this_deviceid)["last_seen"])):
                 await ws.send_json({
                     "type":"new_event",
@@ -471,8 +500,8 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
     try:
         while True:
             msg = await ws.receive_json()
-            print(f"[WS] From {device_id}: xxxxx")
-            print(msg)
+            print(f"[WS] From {device_id}: _____")
+            #print(msg)
             if msg["type"] == "newchat":
                 if "newdevice" not in device_id and msg["email"] not in device_id:
                     ids=[]
@@ -486,18 +515,18 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                                 print("248❌",e)
                         if len(ids)==0:
                             u=Database.get_user_by_email(msg["email"])
-                            print(u)
+                            #print(u)
                             if u["photo"] == None:
                                 u["photo"]="/static/images/Uniknown.png"
                             for d in u["devices"]:
                                 if d["subscription_data"] is not None and d["subscription_data"] != {} and int(d["id"]) not in ids:
-                                    print("start sendind")
+                                    #print("start sendind")
                                     r=SendWEBpush(notify={
                                         "title":"Новый чат",
                                         "body":f'{u["name"]} хочет создать с вами чат',
                                         "icon":u["photo"]
                                         },subscription_data=d["subscription_data"])
-                                    print("end sending",r)
+                                    #print("end sending",r)
 
                     flag=True
                     for inv in Database.get_user_Inventives(msg["email"]):
@@ -518,7 +547,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                                             reciverencryptedkey=str(msg["encrypted"]),
                                             senderencryptedkey=str(msg["myencrypted"])
                                             )
-                        print(r)
+                        #print(r)
                     await ws.send_json({"type":"answnewchat","success":"waiting"})
                 else:
                     try:
@@ -542,7 +571,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                                 type="p2p",
                                 publickeycrypt=pbc
                             )
-                            print(id)
+                            #print(id)
                             chat={"type":"addmychat","chat":{"id":id["chat_id"],"type":"p2p","name":None,"photo":None,"about":None,"publickeycrypt":pbc,"privatekeycrypt":pvc,"myprivatekeycrypt":mypvc}}
                             await ws.send_json({"type":"addchat","inv_id":inventive["id"],
                                                 "chat":{"id":id["chat_id"],
@@ -559,7 +588,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                             #<>Database.update_reciver_inventive(inventive["id"],chat_id=id["chat_id"])
                             break
                         if msg["type"]=="newchatdisagree":
-                            print("disagree")
+                            print("[disagree]")
                             chats = filter(lambda x: x["type"] == "tehnic", Database.get_user_chats(sender["id"]))
                             for chat in chats:
                                 Database.add_message(chat["id"],sender["id"],"txt",f"Пользователь {reciver['name']} отверг ваш запрос на создание чата с ним")   
@@ -610,7 +639,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                                   "chat_id":chat_["id"]})
 
                     for id in Database.get_ChatParticipants(chat_id=msg["chatid"]):
-                        print(f'id: {id}')
+                        #print(f'id: {id}')
                         u = Database.get_user_by_id(id)
                         s=await send_WS_msg(u["email"],{"type":"addmsg",
                                     "message_id":answ["message_id"],
@@ -621,7 +650,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                                     "message": msg["message"],
                                     "datatime": str(answ["time"])
                                     },False,[str(this_deviceid)])
-                        print("[group ws]",s)
+                        #print("[group ws]",s)
                         if s["status"] == "offline":
                             if u["photo"] == None:
                                 u["photo"]="/"
@@ -634,7 +663,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                                   "success":False})
                     
             if msg["type"] == "Getnewlast":
-                print(msg)
+                #print(msg)
                 if Database.get_user_by_id(msg["id"])["email"] == device_id.split("|id")[0] and device_id.split("|id")[1] != "newdevice":
                     MyLastIDs = msg["lastids"]
                     for key in MyLastIDs:
@@ -644,7 +673,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                             other = MyLastIDs[key]["other"]
                             m1= Database.get_max_msgid(key,int(this_userid))
                             o1=Database.get_max_lastread(key,msg["id"])
-                            print(key, m1,o1)
+                            #print(key, m1,o1)
                             if my < m1:
                                 MyLastIDs[key]["my"]=m1
                             if other<=o1:
@@ -870,7 +899,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                 else:pass
 
             if msg["type"] == "add_new_users":
-                print(820,msg)
+                #print(820,msg)
                 chat = Database.get_chat(int(msg["chat_id"]))
                 participiants = [int(i["id"]) for i in Database.get_ChatParticipants(chat["id"])]
                 for uid,k in msg["users"].items():
@@ -892,7 +921,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                                     "message":{"chatid":chat["id"]}
                                     },
                                     False,)
-                    print([843],this_user)
+                    #print([843],this_user)
                     r=SendWEBpush(notify={
                                         "title":"Новая группа",
                                         "body":f'{this_user.get("name")} приглашает вас в группу {msg["name"]}',
@@ -1162,7 +1191,7 @@ async def podpis(request:Request):
     print(is_valid,email)
     if is_valid:
         if data["what"]["x"]=="auth":
-            print(f"success authorization {email}")
+            print(f"[success authorization] {email}")
             WebSocketDevices.append(email+"|id"+str(data["device_id"]))
             return {"success":True}
                   
@@ -1174,7 +1203,7 @@ async def podpis(request:Request):
                     os.remove(user["photo"]) 
                 except:pass
                 Database.delete_User(user_email=email)
-                print(f"Deleted user {email}")
+                print(f"[Deleted user] {email}")
                 return {"success":True}
             print("blocked")
             return {"success":False,
@@ -1299,7 +1328,7 @@ async def returnUserChatList(request:Request):
         return []
     id = data["id"]
     chats = Database.get_user_chats(id)
-    print("[Chats] ",chats)
+    #print("[Chats] ",chats)
     if chats is not None:
         return chats
     return []
@@ -1307,12 +1336,12 @@ async def returnUserChatList(request:Request):
 @app.post("/SearchUserBy")
 async def SearchUserBy(request:Request):
     data = await request.json()
-    print(data)
+    #print(data)
     typeS = data["type"]
     what = data["request"]
     back = {"sucess":True, "userlist":[]}
     res = Database.search_users_by(what,typeS)
-    print(res)
+    #print(res)
     back["sucess"]=len(res)>0 
     if back["sucess"]:
         back["userlist"]=[{"id":i['id'],"name":i['name'],"photo":i["photo"],"publickeycrypt": list(filter(lambda x: x["publickeycrypt"] is not None, i["devices"]))[0]["publickeycrypt"]} for i in res]
@@ -1371,7 +1400,7 @@ async def Wss_Push_Notify(request:Request):
 @app.post("/cancel")
 async def cancel(request: Request):
     data = await request.json()
-    print(request.client.host)
+    print("[Canael]",request.client.host)
     try:
         if clients.get(data["email"]) is not None:
             for c in clients.get(data["email"]):
@@ -1456,7 +1485,7 @@ async def send_m(msg_id,device_id):
     msg = Database.get_message_by_id(int(msg_id))
     chat_ = Database.get_chat(int(msg["chat_id"]))
     user = Database.get_user_by_id(msg["user_id"])
-    print(msg)
+    #print(msg)
     m=""
     if chat_["type"] == "p2p":
                 chat_["photo"]=user["photo"]
@@ -1487,7 +1516,7 @@ async def send_m(msg_id,device_id):
                         "message": m,
                         "datatime": str(msg["created"])
                         },False,[str(device_id)])
-            print(s)
+            #print(s)
             if s["status"] == "offline":
                 if u["photo"] == None:
                     u["photo"]="/"
@@ -1510,7 +1539,7 @@ async def set_chunk(request: Request, background_tasks: BackgroundTasks):
                 s=False
             with open(f"media/{data['id']}/chunk_count.json", 'r', encoding='utf-8') as f:
                 d = json.load(f)
-            print([f for f in os.listdir(f"media/{data['id']}") if os.path.isfile(os.path.join(f"media/{data['id']}", f))] , d["count"])
+            #print([f for f in os.listdir(f"media/{data['id']}") if os.path.isfile(os.path.join(f"media/{data['id']}", f))] , d["count"])
             if len([f for f in os.listdir(f"media/{data['id']}") if os.path.isfile(os.path.join(f"media/{data['id']}", f))])-3 == d["count"]:
                 print("task_added")
                 background_tasks.add_task(send_m, data["id"], data["device_id"])
@@ -1522,7 +1551,7 @@ async def get_meta(request: Request):
     data = await request.json()
     try:
         device =Database.get_device_by_id(data["device_id"])
-        print(data,device)
+        #print(data,device)
     except Exception as e:
         print("err",e)
         return {"success":False}
@@ -1552,7 +1581,7 @@ async def get_meta(request: Request):
 @app.post("/chatinfo")
 async def chatinfo(request: Request):
     data = await request.json()
-    print(1416,data)
+    #print(1416,data)
     chat = Database.get_chat(data["id"])
     return {"name":chat["name"],"photo":chat["photo"],"about":chat["about"],"created":chat["created"],"users":len(Database.get_ChatParticipants(data["id"]))}
 

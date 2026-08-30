@@ -21,3 +21,15 @@ adb push X:\ALEX\Python\messenger\main.py /storage/sdcard1/messenger/ main.py
 adb shell
 su
 /data/local/linux/bin/busybox chroot /data/local/linux/mnt/testimg /bin/bash -c 'cd /root/Min_messenger && /root/venv/bin/python main.py'
+
+Найти ID процесса
+ps | grep python
+kill номер процесса для остановки
+
+баги с wifi
+1|root@android:/ # settings get global wifi_sleep_policy
+3
+root@android:/ # settings put global wifi_sleep_policy 2
+root@android:/ # settings get global wifi_sleep_policy
+2
+тест с windows    Test-NetConnection 192.168.1.33 -Port 443
