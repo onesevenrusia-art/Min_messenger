@@ -474,6 +474,8 @@ async def send_WS_msg(reciver, msg, wait=False, exception=[], need=[]):
                         "success":False,"ids":ids}
     except Exception as e:
         print(242,e)
+        print(clients)
+        print("\n\n\n")
         return {"status": "error",
                     "success":False}
 def fix(obj):
@@ -566,7 +568,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
     try:
         while True:
             msg = await ws.receive_json()
-            print(f"[WS] From {device_id}: _____")
+            print(f"[WS] From {device_id}: _____ {msg}")
             #print(msg)
             if msg["type"] == "newchat":
                 if "newdevice" not in device_id and msg["email"] not in device_id:
@@ -949,6 +951,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                         chat=Database.get_chat(int(msg["chatid"]))
                         m2=Database.add_message(int(msg["chatid"]),this_userid,"tehnic","")
                         r=Database.add_Event(chat["id"],m2["message_id"],"new_participant")
+                        Database.update_message(chat["id"],m2["message_id"],f"{r['id']}","tehnic")
                         for i in Database.get_ChatParticipants(int(chat["id"])):
                             u=Database.get_user_by_id(i["id"])
                             #print(f"end sending web push to user {i}")
@@ -1001,6 +1004,7 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                 Database.delete_Participant(this_userid,msg["chat_id"])
                 m=Database.add_message(msg["chat_id"],this_userid,"tehnic",f"")
                 ev=Database.add_Event(msg["chat_id"],m["id"],"leavechat")
+                Database.update_message(msg["chat_id"],m["message_id"],f"{ev['id']}","tehnic")
                 background_tasks.add_task(send_msg_toAllInChat,msg["chat_id"],
                                              {"type":"new_event",
                                               "event":

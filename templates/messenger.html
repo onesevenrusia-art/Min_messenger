@@ -637,7 +637,21 @@
         console.log(size / 1024, "KB");
 
 
-        function createChatElement(chat) {
+        async function createChatElement(chat) {
+            if (chat.type === "p2p"){
+                        var id = chat.name.split("/")
+                            //console.log(chat)
+                        if (String(id[0]) === String(Data.my_id)) {
+                            id = id[1]
+                        } else {
+                            id = id[0]
+                        }
+                        var user = await GetUserInfo({
+                            "id": id
+                        })
+                        chat.name = user.name;
+                        chat.photo = user.photo;
+            }
             console.log(chat.id)
             const div = document.createElement("div");
             div.dataset.chatId = chat.id;
@@ -697,14 +711,12 @@
             set(key, keydict, data) {
                 this._create(key);
                 const obj = this.get(key);
-                console.log(obj)
                 obj[keydict] = data;
                 localStorage.setItem(key, JSON.stringify(obj));
             }
 
             get(key, k2 = null) {
                 this._create(key);
-                console.log(localStorage.getItem(key))
                 const obj = JSON.parse(localStorage.getItem(key));
                 if (k2 === null) return obj;
                 return obj[k2];
@@ -1496,7 +1508,7 @@
                 } else {
                     var content = msg.msg
                 }
-            } else {
+            } if (msg.datatype === "media") {
                 try {
                     if (th) {
                         // console.log(deepJsonParse(msg.msg), ChatsData[parseInt(CurrentChat)].privatekeycrypt)
@@ -1517,6 +1529,7 @@
                                 chat_id: Number(CurrentChat),
                                 interval: [media.chunk_id, media.end, media.size, random_k]
                             }))
+                            return
                         }
 
                     } else {
@@ -1529,29 +1542,35 @@
 
             if (msg.datatype === "txt") {
                 //console.log(content)
-                if (!start) {
-                    graphic.add({
+                var m = {
                         type: msg.datatype,
                         id: msg.id,
                         content: content,
                         time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
                         namesender: name,
                         classname: classn
-                    }, readingflag)
+                    }
+                if (!start) {
+                    graphic.add(m, readingflag)
                 } else {
-                    graphic.prepend({
+                    graphic.prepend(m, readingflag)
+                }
+            }
+
+            if (msg.datatype === "tehnic") {
+                //console.log(content)
+                var m = {
                         type: msg.datatype,
                         id: msg.id,
-                        content: content,
-                        time: `${date.getHours()}:${date.getMinutes()}`,
-                        namesender: name,
-                        classname: classn
-                    }, readingflag)
+                        content: {},
+                        time: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+                    }
+                if (!start) {
+                    graphic.add(m, readingflag)
+                } else {
+                    graphic.prepend(m, readingflag)
                 }
-
             }
-            if (msg.datatype === "media") {}
-
         }
 
         async function SavemyMsg(datae) {
@@ -1729,6 +1748,7 @@
                     //console.log(datae.chat)
                 ChatsData[datae.chat.id] = datae.chat
                 if (lastreadchat.length === 0 || !(Number(datae.chat.id) in lastreadchat)) {
+                    console.log("add ok!")
                     lastreadchat[Number(datae.chat.id)] = {
                         "my": 0,
                         "other": 0,
@@ -1737,15 +1757,18 @@
                     }
                     localStorage.setItem("lastreadchat", JSON.stringify(lastreadchat))
                 }
-
+                else{
+                    alert("error zdes")
+                }
+                console.log(lastreadchat)
                 localStorage.setItem("Chats", JSON.stringify(ChatsData)); //!!!
-                ws.send({
+                ws.send(JSON.stringify({
                         type: "answ_2",
                         state_add: true,
                         chatid: datae.chat.id,
                         chattype: "chat",
                         inv_id: datae.inv_id
-                    })
+                    }))
                     //LoadChats();
                 Chat_add(datae.chat)
             } else if (datae.type === "delete_chat") {
@@ -4395,10 +4418,10 @@
                 messagedb.deleteByChat(Number(CurrentChat))
                 chunkdb.deleteChatChunks(Number(CurrentChat))
                 Chat_remove(Number(CurrentChat))
-                ws.send({
+                ws.send(JSON.stringify({
                     type: "leaveGroup",
                     chat_id: Number(CurrentChat)
-                })
+                }))
             }
         })
 
