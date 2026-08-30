@@ -33,3 +33,24 @@ root@android:/ # settings put global wifi_sleep_policy 2
 root@android:/ # settings get global wifi_sleep_policy
 2
 тест с windows    Test-NetConnection 192.168.1.33 -Port 443
+
+запуск намертво с поддержкой отключения adb
+cd /data/local/linux/mnt/testimg/root/Min_messenger
+nohup /root/venv/bin/python main.py > server.log 2>&1 &
+проверка ps | grep '[p]ython'
+посмотреть логи
+cd /data/local/linux/mnt/testimg/root/Min_messenger
+tail -f server.log
+ps | grep '[p]ython'
+
+Для состояния Wi-Fi на Android лучше всего:
+    /data/local/linux/bin/busybox ip addr show wlan0
+wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP>
+
+getprop dhcp.wlan0.result
+    ok
+
+обновить с git актуально
+/data/local/linux/bin/busybox chroot /data/local/linux/mnt/testimg /usr/bin/git -C /root/Min_messenger reset --hard
+/data/local/linux/bin/busybox chroot /data/local/linux/mnt/testimg /usr/bin/git -C /root/Min_messenger clean -fd
+/data/local/linux/bin/busybox chroot /data/local/linux/mnt/testimg /usr/bin/git -C /root/Min_messenger pull

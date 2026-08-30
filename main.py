@@ -30,6 +30,7 @@ import tracemalloc
 import socket
 import urllib.request
 import argparse
+import ctypes
 
 parser = argparse.ArgumentParser(description="Main server")
 
@@ -106,13 +107,9 @@ def show_ips():
 
 show_ips()
 
-import os
-import sys
 
 def get_available_ram():
     if sys.platform == "win32":
-        import ctypes
-
         class MEMORYSTATUSEX(ctypes.Structure):
             _fields_ = [
                 ("dwLength", ctypes.c_ulong),
@@ -129,14 +126,24 @@ def get_available_ram():
         mem = MEMORYSTATUSEX()
         mem.dwLength = ctypes.sizeof(mem)
         ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(mem))
-
         return mem.ullAvailPhys
-
     else:
-        with open("/proc/meminfo") as f:
-            for line in f:
-                if line.startswith("MemAvailable:"):
-                    return int(line.split()[1]) * 1024
+        try:
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if line.startswith("MemAvailable:"):
+                        return int(line.split()[1]) * 1024
+
+            # Если MemAvailable нет — используем MemFree
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if line.startswith("MemFree:"):
+                        return int(line.split()[1]) * 1024
+
+        except (FileNotFoundError, ValueError, PermissionError):
+            return 0
+
+        return 0
 
 print(f"Доступно RAM: {get_available_ram() / 1024 / 1024:.0f} MB")
 
