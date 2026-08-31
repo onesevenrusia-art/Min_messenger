@@ -2439,9 +2439,11 @@
                 return
             }
             const chats = await response.json();
-            //console.log(chats)
+            console.log(chats)
             for (const chat of chats) {
-                if (!chat.photo || chat.photo === "None") {
+            console.log(chat)
+                
+                if (lastreadchat[Number(chat.id)] === null || lastreadchat[Number(chat.id)] === undefined){
                     if (chat.type === "tehnic") {
                         lastreadchat[Number(chat.id)] = {
                             "my": 0,
@@ -2450,6 +2452,8 @@
                             "max_load": 0
                         }
                     }
+                }
+                if (!chat.photo || chat.photo === "None") {
                     if (chat.type === "p2p") {
                         var id = chat.name.split("/")
                             //console.log(chat)

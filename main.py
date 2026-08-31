@@ -4,6 +4,8 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response
 from fastapi import BackgroundTasks
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi import Depends
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives import serialization
@@ -15,6 +17,7 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from pathlib import Path
 from pywebpush import webpush
+from getDeviceInfo import *
 import smtplib
 import json
 import random
@@ -41,6 +44,7 @@ parser.add_argument(
     python main.py write_emailjson flag=false key=2
                    clear_emailjson
                    remove_db
+                   dev_config
     """
 )
 
@@ -53,13 +57,13 @@ if args.config:
         print("Удаление базы данных...")
         os.remove(r"Databases\Main.db")
 
-    elif command == "write_emailjson":
+    elif command == "write_emailjson" or command == "dev_config":
         if len(args.config) < 2:
             print("Не указан JSON")
             sys.exit(1)
         #print(args.config)
         data = {}
-
+        fn={"write_emailjson":"email_config.json","dev_config":"dev_config.json"}
         for item in args.config[1:]:
             key, value = item.split("=", 1)
             key, value = item.split("=", 1)
@@ -72,7 +76,7 @@ if args.config:
                 value = int(value)
 
             data[key] = value
-        with open("email_config.json", "w", encoding="utf-8") as f:
+        with open(fn[command], "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
     elif command == "clear_emailjson":
@@ -81,8 +85,6 @@ if args.config:
                 "flag": False,
                 "key": "xxxx xxxx xxxx xxxx"
             }, f, ensure_ascii=False, indent=4)
-
-
 
 tracemalloc.start()
 
@@ -159,7 +161,7 @@ challenges_conn_device={}
 uploading_files = {}
 try:
     with open('email_config.json', 'r', encoding='utf-8') as file:
-        passwordf = json.load(file)  # Теперь данные — это Python-объект
+        passwordf = json.load(file)
 except:
     passwordf={
         "flag":False,
@@ -167,6 +169,19 @@ except:
     }
     with open("email_config.json", "w", encoding="utf-8") as f:
         json.dump(passwordf, f, ensure_ascii=False, indent=2)
+
+try:
+    with open('dev_config.json', 'r', encoding='utf-8') as file:
+        DEV_password = json.load(file)
+        DEV_password=DEV_password.get("key")
+except:
+    DEV_password={
+        "key":"444342"
+    }
+    with open("dev_config.json", "w", encoding="utf-8") as f:
+        json.dump(DEV_password, f, ensure_ascii=False, indent=2)
+    DEV_password=DEV_password.get("key")
+
 
 """
 if not os.path.exists("Databases\Main.db"):
@@ -191,7 +206,9 @@ if not os.path.exists("Databases/Main.db"):
                 shutil.rmtree(path)
             else:
                 os.remove(path)
-                
+if not os.path.exists("Sertificats"):
+    # Создаём папку. Параметр exist_ok=True предотвращает ошибку, если папка уже есть
+    os.makedirs("Sertificats", exist_ok=True)
 KEY_FILE = "Sertificats/vapid.json"
 templates = Jinja2Templates(directory="templates")
 
@@ -400,6 +417,21 @@ def SendWEBpush(notify, device_id=None,user_id=None,subscription_data = None):
             )
         #print(r)
         return r
+security = HTTPBasic()
+@app.get("/developer03info", response_class=HTMLResponse)
+async def developer_page(
+    credentials: HTTPBasicCredentials = Depends(security)
+):
+    if not secrets.compare_digest(credentials.password, DEV_password):
+        from fastapi import HTTPException
+
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized",
+            headers={"WWW-Authenticate": "Basic"}
+        )
+
+    return get_dev_page()
 
 
 @app.get("/")
@@ -736,9 +768,23 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                                   "success":False})
                     
             if msg["type"] == "Getnewlast":
-                #print(msg)
+                print(msg)
                 if Database.get_user_by_id(msg["id"])["email"] == device_id.split("|id")[0] and device_id.split("|id")[1] != "newdevice":
                     MyLastIDs = msg["lastids"]
+                    if len(MyLastIDs)==0:
+                        MyLastIDs
+                        chats=Database.get_user_chats(this_userid)
+                        for chat in chats:
+                            #a=Database.get_max_lastread(int(chat["id"]),None)
+                            #d=Database.get_max_lastread(int(chat["id"]),this_userid)
+                            MyLastIDs[int(chat["id"])]={
+                                "my": 0,
+                                "other": 0,
+                                "this_device": 0,
+                                "max_load": 0
+                            }
+
+
                     for key in MyLastIDs:
                         try:
                             key=key

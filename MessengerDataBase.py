@@ -426,15 +426,6 @@ class DataBaseManager:
             ).filter_by(chat_id=chat_id).scalar() or 0
         return last_id
 
-    def get_max_lastread(self, chat_id: int):
-        session = self.Session()
-        stmt = (
-            select(func.max(chat_participants.c.last_read))
-            .where(chat_participants.c.chat_id == chat_id)
-        )
-
-        result = session.execute(stmt)
-        return result.scalar() or 0
 
     def read_message(self,user_id,chat_id,internal_id):
         session = self.Session()
@@ -814,15 +805,6 @@ class DataBaseManager:
         finally:
             session.close()
 
-    def get_max_lastread(self, chat_id: int):
-        session = self.Session()
-        stmt = (
-            select(func.max(chat_participants.c.last_read))
-            .where(chat_participants.c.chat_id == chat_id)
-        )
-
-        result = session.execute(stmt)
-        return result.scalar() or 0
 
     def is_user_blocked(self, email):
         """Проверить заблокирован ли пользователь"""
@@ -909,13 +891,19 @@ class DataBaseManager:
 
     def get_max_lastread(self,chat_id,my_id):
         session = self.Session()
-        stmt = (
-            select(func.max(chat_participants.c.last_read))
-            .where(chat_participants.c.chat_id == chat_id, chat_participants.c.user_id != my_id)
-        )
+        if my_id != None:
+            stmt = (
+                select(func.max(chat_participants.c.last_read))
+                .where(chat_participants.c.chat_id == chat_id, chat_participants.c.user_id != my_id)
+            )
+        else:
+            stmt = (
+                select(func.max(chat_participants.c.last_read))
+                .where(chat_participants.c.chat_id == chat_id)
+            )
 
         result = session.execute(stmt)
-        return result.scalar()
+        return result.scalar() or 0
 
     def get_unread_messages(self, user_id, chat_id):
         session = self.Session()

@@ -1,6 +1,6 @@
 privkey.pem
 key.pem
-
+dev_config.json
 # Секреты
 *.key
 *.pem
