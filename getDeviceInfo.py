@@ -1,75 +1,164 @@
+
 import os
+import subprocess
+
 
 def get_battery():
+    # 1. Linux /sys/class/power_supply
     base = "/sys/class/power_supply"
 
     try:
-        for name in os.listdir(base):
-            path = os.path.join(base, name)
+        if os.path.isdir(base):
+            for name in os.listdir(base):
+                path = os.path.join(base, name)
 
-            cap = os.path.join(path, "capacity")
-            if os.path.exists(cap):
-                with open(cap) as f:
-                    percent = f.read().strip()
+                capacity = os.path.join(path, "capacity")
+                status = os.path.join(path, "status")
 
-                status = "unknown"
-                status_file = os.path.join(path, "status")
+                if os.path.isfile(capacity):
+                    with open(capacity, "r") as f:
+                        percent = f.read().strip()
 
-                if os.path.exists(status_file):
-                    with open(status_file) as f:
-                        status = f.read().strip()
+                    state = "unknown"
 
-                return {
-                    "percent": percent,
-                    "status": status
-                }
+                    if os.path.isfile(status):
+                        with open(status, "r") as f:
+                            state = f.read().strip()
+
+                    return {
+                        "percent": percent,
+                        "status": state
+                    }
     except Exception:
         pass
 
-    return None
+    # 2. Android dumpsys battery
+    try:
+        result = subprocess.run(
+            ["dumpsys", "battery"],
+            capture_output=True,
+            text=True,
+            timeout=2
+        )
 
-import os
+        if result.returncode == 0:
+            percent = "?"
+            status = "unknown"
+
+            for line in result.stdout.splitlines():
+                line = line.strip()
+
+                if line.startswith("level:"):
+                    percent = line.split(":", 1)[1].strip()
+
+                elif line.startswith("status:"):
+                    value = line.split(":", 1)[1].strip()
+
+                    statuses = {
+                        "1": "unknown",
+                        "2": "charging",
+                        "3": "discharging",
+                        "4": "not charging",
+                        "5": "full"
+                    }
+
+                    status = statuses.get(value, value)
+
+            return {
+                "percent": percent,
+                "status": status
+            }
+
+    except Exception:
+        pass
+
+    # 3. Ничего не удалось получить
+    return {
+        "percent": "?",
+        "status": "unavailable"
+    }
+
 
 def get_log(lines=50):
     try:
-        with open("server.log", "r", encoding="utf-8", errors="replace") as f:
+        with open(
+            "server.log",
+            "r",
+            encoding="utf-8",
+            errors="replace"
+        ) as f:
             return "".join(f.readlines()[-lines:])
+
     except Exception as e:
         return str(e)
+
 
 def get_ram():
     data = {}
 
-    with open("/proc/meminfo") as f:
-        for line in f:
-            key, value = line.split(":", 1)
+    try:
+        with open("/proc/meminfo", "r") as f:
+            for line in f:
+                key, value = line.split(":", 1)
 
-            if key in ("MemTotal", "MemFree", "Buffers", "Cached"):
-                data[key] = int(value.split()[0]) * 1024
+                if key in (
+                    "MemTotal",
+                    "MemFree",
+                    "MemAvailable",
+                    "Buffers",
+                    "Cached"
+                ):
+                    data[key] = int(value.split()[0]) * 1024
 
-    total = data["MemTotal"]
-    free = data["MemFree"]
-    buffers = data.get("Buffers", 0)
-    cached = data.get("Cached", 0)
+    except Exception:
+        return {
+            "total": 0,
+            "free": 0,
+            "used": 0
+        }
+
+    total = data.get("MemTotal", 0)
+
+    # MemAvailable значительно полезнее MemFree
+    # для отображения реально доступной памяти.
+    if "MemAvailable" in data:
+        free = data["MemAvailable"]
+    else:
+        free = (
+            data.get("MemFree", 0)
+            + data.get("Buffers", 0)
+            + data.get("Cached", 0)
+        )
+
+    used = max(0, total - free)
 
     return {
         "total": total,
         "free": free,
-        "used": total - free - buffers - cached
+        "used": used
     }
 
-def get_disk(path):
-    s = os.statvfs(path)
 
-    total = s.f_blocks * s.f_frsize
-    free = s.f_bavail * s.f_frsize
-    used = total - free
+def get_disk(path="."):
+    try:
+        s = os.statvfs(path)
 
-    return {
-        "total": total,
-        "used": used,
-        "free": free
-    }
+        total = s.f_blocks * s.f_frsize
+        free = s.f_bavail * s.f_frsize
+        used = total - free
+
+        return {
+            "total": total,
+            "used": used,
+            "free": free
+        }
+
+    except Exception:
+        return {
+            "total": 0,
+            "used": 0,
+            "free": 0
+        }
 
 def mb(value):
     return round(value / 1024 / 1024, 1)

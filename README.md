@@ -131,3 +131,11 @@ pm disable com.mediatek.ygps
 pm disable com.mgyapp.android
 
 остановленные приложения pm list packages -d
+
+
+adb push "C:\Certbot\live\basicmimimummessenger.duckdns.org\fullchain.pem" /sdcard/
+adb push "C:\Certbot\live\basicmimimummessenger.duckdns.org\privkey.pem" /sdcard/
+cp /sdcard/fullchain.pem /data/local/linux/mnt/testimg/root/Min_messenger/
+cp /sdcard/privkey.pem /data/local/linux/mnt/testimg/root/Min_messenger/
+
+монтировка памяти mount -t proc proc /data/local/linux/mnt/testimg/proc
