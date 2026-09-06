@@ -1095,7 +1095,7 @@
                 ready: false
             }));
         }
-
+        ChatsData = await KV_db.get("Chats")
         console.log(lastreadchat)
         console.log(ChatsData)
         var readtimer = null
