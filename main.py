@@ -1062,6 +1062,12 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
                                               {"id":ev["id"],"msg_id":m["message_id"],"internal_id":m["internal_id"],"type":"leavechat",
                                                "chat_id":msg["chat_id"],"name":this_user["name"],"photo":this_user["photo"],"datatime":str(datetime.now())}},
                 )
+
+            if msg["type"] == "userchatlist":
+                chats = Database.get_user_chats(int(this_userid))
+                if chats is None:
+                    chats = []
+                await ws.send_json({"type":"set_chats", "chats": chats})
  
     except WebSocketDisconnect as wserror:
         try:
@@ -1445,18 +1451,6 @@ async def podpis(request:Request):
             SendCode(email,message)
             Database.block_user(email,tm)
         return {"success":False}  
-
-@app.post("/userchatlist")
-async def returnUserChatList(request:Request):
-    data = await request.json()
-    if "id" not in data:
-        return []
-    id = data["id"]
-    chats = Database.get_user_chats(id)
-    #print("[Chats] ",chats)
-    if chats is not None:
-        return chats
-    return []
 
 @app.post("/SearchUserBy")
 async def SearchUserBy(request:Request):

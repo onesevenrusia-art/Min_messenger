@@ -8,9 +8,10 @@ Sertificats/vapid.json
 email_config.json
 # База данных
 Databases/*.db
-UserPhotos/
+UsersPhotos/
 media/
 ChatPhotos/
 __pycache__/
+files/
 # Логи
 *.log

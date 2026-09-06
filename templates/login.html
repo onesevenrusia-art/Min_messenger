@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>Файловый сервер</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+
+    font-family: Arial, sans-serif;
+
+    background: #f2f2f2;
+
+    margin: 0;
+
+    min-height: 100vh;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+}
+
+.container {
+
+    background: white;
+
+    width: 350px;
+
+    padding: 30px;
+
+    border-radius: 10px;
+
+    box-shadow:
+        0 2px 15px rgba(0,0,0,0.15);
+
+}
+
+h2 {
+
+    text-align: center;
+
+    margin-top: 0;
+
+    margin-bottom: 25px;
+
+}
+
+input {
+
+    width: 100%;
+
+    padding: 11px;
+
+    margin-bottom: 12px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 5px;
+
+    font-size: 15px;
+
+}
+
+button {
+
+    width: 100%;
+
+    padding: 11px;
+
+    border: none;
+
+    border-radius: 5px;
+
+    background: #4caf50;
+
+    color: white;
+
+    font-size: 15px;
+
+    cursor: pointer;
+
+}
+
+button:hover {
+
+    opacity: 0.9;
+
+}
+
+.secondary {
+
+    background: #777;
+
+    margin-top: 10px;
+
+}
+
+.switch {
+
+    margin-top: 20px;
+
+    text-align: center;
+
+    color: #1677cc;
+
+    cursor: pointer;
+
+}
+
+.error {
+
+    color: #d00;
+
+    margin-top: 15px;
+
+    text-align: center;
+
+    min-height: 20px;
+
+}
+
+.info {
+
+    color: #16833a;
+
+    margin-top: 15px;
+
+    text-align: center;
+
+}
+
+.hidden {
+
+    display: none;
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="container">
+
+
+    <!-- ================================================= -->
+    <!-- LOGIN -->
+    <!-- ================================================= -->
+
+    <div id="loginForm">
+
+        <h2>Вход</h2>
+
+
+        <input
+            id="login"
+            type="text"
+            placeholder="Логин"
+            autocomplete="username"
+        >
+
+
+        <input
+            id="password"
+            type="password"
+            placeholder="Пароль"
+            autocomplete="current-password"
+        >
+
+
+        <button onclick="login()">
+            Войти
+        </button>
+
+
+        <div
+            id="loginError"
+            class="error"
+        ></div>
+
+
+        <div
+            class="switch"
+            onclick="showRegister()"
+        >
+            Нет аккаунта? Регистрация
+        </div>
+
+    </div>
+
+
+    <!-- ================================================= -->
+    <!-- REGISTER -->
+    <!-- ================================================= -->
+
+    <div
+        id="registerForm"
+        class="hidden"
+    >
+
+        <h2>Регистрация</h2>
+
+
+        <input
+            id="registerLogin"
+            type="text"
+            placeholder="Логин"
+            autocomplete="username"
+        >
+
+
+        <input
+            id="registerPassword"
+            type="password"
+            placeholder="Пароль"
+            autocomplete="new-password"
+        >
+
+
+        <input
+            id="registerPassword2"
+            type="password"
+            placeholder="Повторите пароль"
+            autocomplete="new-password"
+        >
+
+
+        <button onclick="register()">
+            Зарегистрироваться
+        </button>
+
+
+        <div
+            id="registerError"
+            class="error"
+        ></div>
+
+
+        <div
+            id="registerInfo"
+            class="info"
+        ></div>
+
+
+        <div
+            class="switch"
+            onclick="showLogin()"
+        >
+            Уже есть аккаунт? Войти
+        </div>
+
+    </div>
+
+
+</div>
+
+
+<script>
+
+
+// =========================================================
+// ПЕРЕКЛЮЧЕНИЕ ФОРМ
+// =========================================================
+
+function showRegister() {
+
+    document
+        .getElementById("loginForm")
+        .classList.add("hidden");
+
+    document
+        .getElementById("registerForm")
+        .classList.remove("hidden");
+
+}
+
+
+function showLogin() {
+
+    document
+        .getElementById("registerForm")
+        .classList.add("hidden");
+
+    document
+        .getElementById("loginForm")
+        .classList.remove("hidden");
+
+}
+
+
+// =========================================================
+// LOGIN
+// =========================================================
+
+async function login() {
+
+    const loginValue =
+        document.getElementById("login").value.trim();
+
+    const passwordValue =
+        document.getElementById("password").value;
+
+
+    const error =
+        document.getElementById("loginError");
+
+
+    error.textContent = "";
+
+
+    if (!loginValue || !passwordValue) {
+
+        error.textContent =
+            "Введите логин и пароль";
+
+        return;
+
+    }
+
+
+    try {
+
+        const response = await fetch(
+            "/login/",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    login: loginValue,
+                    password: passwordValue
+                })
+            }
+        );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            error.textContent =
+                data.detail ||
+                "Ошибка входа";
+
+            return;
+
+        }
+
+
+        // Сохраняем только token.
+        // Пароль НЕ сохраняем.
+
+        localStorage.setItem(
+            "auth_token",
+            data.token
+        );
+
+        localStorage.setItem(
+            "login",
+            data.login
+        );
+
+
+        window.location.href =
+            "/files_client.html";
+
+
+    } catch (e) {
+
+        error.textContent =
+            "Ошибка соединения с сервером";
+
+    }
+
+}
+
+
+// =========================================================
+// REGISTER
+// =========================================================
+
+async function register() {
+
+    const loginValue =
+        document
+            .getElementById("registerLogin")
+            .value
+            .trim();
+
+
+    const passwordValue =
+        document
+            .getElementById("registerPassword")
+            .value;
+
+
+    const passwordValue2 =
+        document
+            .getElementById("registerPassword2")
+            .value;
+
+
+    const error =
+        document.getElementById(
+            "registerError"
+        );
+
+
+    const info =
+        document.getElementById(
+            "registerInfo"
+        );
+
+
+    error.textContent = "";
+
+    info.textContent = "";
+
+
+    // -----------------------------------------------------
+    // Проверки на клиенте
+    // -----------------------------------------------------
+
+    if (!loginValue) {
+
+        error.textContent =
+            "Введите логин";
+
+        return;
+
+    }
+
+
+    if (!passwordValue) {
+
+        error.textContent =
+            "Введите пароль";
+
+        return;
+
+    }
+
+
+    if (passwordValue !== passwordValue2) {
+
+        error.textContent =
+            "Пароли не совпадают";
+
+        return;
+
+    }
+
+
+    try {
+
+        const response = await fetch(
+            "/register/",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    login: loginValue,
+                    password: passwordValue
+                })
+            }
+        );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            error.textContent =
+                data.detail ||
+                "Ошибка регистрации";
+
+            return;
+
+        }
+
+
+        // Сервер сразу выдал token.
+        // Поэтому отдельно входить не нужно.
+
+        localStorage.setItem(
+            "auth_token",
+            data.token
+        );
+
+        localStorage.setItem(
+            "login",
+            data.login
+        );
+
+
+        info.textContent =
+            "Регистрация успешна";
+
+
+        setTimeout(
+            () => {
+
+                window.location.href =
+                    "/files_client.html";
+
+            },
+            300
+        );
+
+
+    } catch (e) {
+
+        error.textContent =
+            "Ошибка соединения с сервером";
+
+    }
+
+}
+
+
+// =========================================================
+// ENTER В ПОЛЯХ
+// =========================================================
+
+document
+    .getElementById("password")
+    .addEventListener(
+        "keydown",
+        function(event) {
+
+            if (event.key === "Enter") {
+
+                login();
+
+            }
+
+        }
+    );
+
+
+document
+    .getElementById("registerPassword2")
+    .addEventListener(
+        "keydown",
+        function(event) {
+
+            if (event.key === "Enter") {
+
+                register();
+
+            }
+
+        }
+    );
+
+
+// =========================================================
+// ЕСЛИ УЖЕ ЕСТЬ TOKEN
+// =========================================================
+
+async function checkExistingSession() {
+
+    const token =
+        localStorage.getItem(
+            "auth_token"
+        );
+
+
+    if (!token)
+        return;
+
+
+    try {
+
+        const response = await fetch(
+            "/me/",
+            {
+                headers: {
+                    "Authorization":
+                        "Bearer " + token
+                }
+            }
+        );
+
+
+        if (response.ok) {
+
+            window.location.href =
+                "/files_client.html";
+
+        } else {
+
+            localStorage.removeItem(
+                "auth_token"
+            );
+
+            localStorage.removeItem(
+                "login"
+            );
+
+        }
+
+    } catch (e) {
+
+        // Сервер недоступен.
+        // Ничего не делаем.
+
+    }
+
+}
+
+
+checkExistingSession();
+
+</script>
+
+
+</body>
+
+</html>

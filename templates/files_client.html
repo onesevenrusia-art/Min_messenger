@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>Мои файлы</title>
+
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+
+body {
+
+    font-family: Arial, sans-serif;
+
+    padding: 20px;
+
+    margin: 0;
+
+}
+
+
+.header {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 15px;
+
+    flex-wrap: wrap;
+
+    margin-bottom: 25px;
+
+}
+
+
+.user {
+
+    font-size: 18px;
+
+}
+
+
+.logout {
+
+    width: auto;
+
+    padding: 8px 15px;
+
+    background: #d9534f;
+
+}
+
+
+.upload {
+
+    border: 1px solid #ccc;
+
+    padding: 20px;
+
+    border-radius: 8px;
+
+    max-width: 600px;
+
+}
+
+
+button {
+
+    padding: 9px 15px;
+
+    border: none;
+
+    border-radius: 5px;
+
+    background: #4caf50;
+
+    color: white;
+
+    cursor: pointer;
+
+}
+
+
+button:hover {
+
+    opacity: 0.9;
+
+}
+
+
+button:disabled {
+
+    opacity: 0.5;
+
+    cursor: default;
+
+}
+
+
+#progressContainer {
+
+    margin-top: 15px;
+
+    width: 100%;
+
+    max-width: 500px;
+
+    height: 22px;
+
+    border: 1px solid #aaa;
+
+    border-radius: 4px;
+
+    overflow: hidden;
+
+}
+
+
+#progressBar {
+
+    height: 100%;
+
+    width: 0;
+
+    background-color: #4caf50;
+
+    text-align: center;
+
+    color: white;
+
+    font-size: 12px;
+
+    line-height: 20px;
+
+    transition: width 0.1s;
+
+}
+
+
+#status {
+
+    margin-top: 10px;
+
+}
+
+
+.files {
+
+    margin-top: 30px;
+
+}
+
+
+.file {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 8px 0;
+
+    border-bottom: 1px solid #eee;
+
+}
+
+
+.download {
+
+    background: #337ab7;
+
+}
+
+
+/* ===================================================== */
+/* DELETE */
+/* ===================================================== */
+
+.delete {
+
+    background: #d9534f;
+
+}
+
+
+#fileInput {
+
+    margin-right: 10px;
+
+}
+
+
+.error {
+
+    color: #d00;
+
+    margin-top: 10px;
+
+}
+
+
+@media (max-width: 600px) {
+
+    body {
+        padding: 10px;
+    }
+
+    .file {
+        flex-wrap: wrap;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<!-- ===================================================== -->
+<!-- HEADER -->
+<!-- ===================================================== -->
+
+<div class="header">
+
+    <div class="user">
+
+        Пользователь:
+
+        <b id="username">...</b>
+
+    </div>
+
+
+    <button
+        class="logout"
+        onclick="logout()"
+    >
+        Выйти
+    </button>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- UPLOAD -->
+<!-- ===================================================== -->
+
+<div class="upload">
+
+    <h2>Загрузка файла</h2>
+
+
+    <input
+        type="file"
+        id="fileInput"
+    >
+
+
+    <button
+        id="uploadButton"
+        onclick="uploadFile()"
+    >
+        Загрузить
+    </button>
+
+
+    <div id="progressContainer">
+
+        <div id="progressBar">
+            0%
+        </div>
+
+    </div>
+
+
+    <div id="status"></div>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- FILES -->
+<!-- ===================================================== -->
+
+<div class="files">
+
+    <h2>Мои файлы</h2>
+
+
+    <button onclick="refreshFiles()">
+        Обновить список
+    </button>
+
+
+    <ul id="files"></ul>
+
+</div>
+
+
+<script>
+
+
+// =========================================================
+// НАСТРОЙКИ
+// =========================================================
+
+const CHUNK_SIZE =
+    1024 * 1024;
+
+
+// =========================================================
+// TOKEN
+// =========================================================
+
+function getToken() {
+
+    return localStorage.getItem(
+        "auth_token"
+    );
+
+}
+
+
+// =========================================================
+// AUTH FETCH
+// =========================================================
+
+async function authFetch(
+    url,
+    options = {}
+) {
+
+    const token =
+        getToken();
+
+
+    if (!token) {
+
+        window.location.href = "/";
+
+        return null;
+
+    }
+
+
+    options.headers = {
+
+        ...(options.headers || {}),
+
+        "Authorization":
+            "Bearer " + token
+
+    };
+
+
+    const response =
+        await fetch(
+            url,
+            options
+        );
+
+
+    // -----------------------------------------------------
+    // Сессия закончилась
+    // -----------------------------------------------------
+
+    if (response.status === 401) {
+
+        localStorage.removeItem(
+            "auth_token"
+        );
+
+        localStorage.removeItem(
+            "login"
+        );
+
+
+        window.location.href =
+            "/";
+
+
+        return null;
+
+    }
+
+
+    return response;
+
+}
+
+
+// =========================================================
+// ПРОВЕРКА СЕССИИ
+// =========================================================
+
+async function checkAuth() {
+
+    const token =
+        getToken();
+
+
+    if (!token) {
+
+        window.location.href = "/";
+
+        return false;
+
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/me/",
+                {
+                    headers: {
+                        "Authorization":
+                            "Bearer " + token
+                    }
+                }
+            );
+
+
+        if (!response.ok) {
+
+            localStorage.removeItem(
+                "auth_token"
+            );
+
+            localStorage.removeItem(
+                "login"
+            );
+
+
+            window.location.href =
+                "/";
+
+
+            return false;
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        document.getElementById(
+            "username"
+        ).textContent =
+            data.login;
+
+
+        return true;
+
+
+    } catch (e) {
+
+        document.getElementById(
+            "status"
+        ).textContent =
+            "Нет соединения с сервером";
+
+
+        return false;
+
+    }
+
+}
+
+
+// =========================================================
+// UPLOAD
+// =========================================================
+
+async function uploadFile() {
+
+    const fileInput =
+        document.getElementById(
+            "fileInput"
+        );
+
+
+    const statusDiv =
+        document.getElementById(
+            "status"
+        );
+
+
+    const progressBar =
+        document.getElementById(
+            "progressBar"
+        );
+
+
+    const uploadButton =
+        document.getElementById(
+            "uploadButton"
+        );
+
+
+    if (!fileInput.files.length) {
+
+        alert("Выберите файл!");
+
+        return;
+
+    }
+
+
+    const file =
+        fileInput.files[0];
+
+
+    const totalChunks =
+        Math.ceil(
+            file.size /
+            CHUNK_SIZE
+        );
+
+
+    uploadButton.disabled =
+        true;
+
+
+    statusDiv.textContent =
+        "Начинаем загрузку…";
+
+
+    progressBar.style.width =
+        "0%";
+
+    progressBar.textContent =
+        "0%";
+
+
+    try {
+
+
+        for (
+            let i = 0;
+            i < totalChunks;
+            i++
+        ) {
+
+
+            const start =
+                i * CHUNK_SIZE;
+
+
+            const end =
+                Math.min(
+                    file.size,
+                    start + CHUNK_SIZE
+                );
+
+
+            const chunk =
+                file.slice(
+                    start,
+                    end
+                );
+
+
+            const formData =
+                new FormData();
+
+
+            formData.append(
+                "file",
+                chunk
+            );
+
+
+            formData.append(
+                "filename",
+                file.name
+            );
+
+
+            formData.append(
+                "chunk_index",
+                i
+            );
+
+
+            formData.append(
+                "total_chunks",
+                totalChunks
+            );
+
+
+            const response =
+                await authFetch(
+                    "/upload_chunk/",
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+
+            if (!response)
+                return;
+
+
+            if (!response.ok) {
+
+                const data =
+                    await response.json()
+                        .catch(() => ({}));
+
+
+                throw new Error(
+                    data.detail ||
+                    "Ошибка загрузки"
+                );
+
+            }
+
+
+            const percent =
+                ((i + 1) /
+                 totalChunks) *
+                100;
+
+
+            progressBar.style.width =
+                percent + "%";
+
+
+            progressBar.textContent =
+                Math.floor(percent) +
+                "%";
+
+
+            statusDiv.textContent =
+                "Загрузка: " +
+                Math.floor(percent) +
+                "%";
+
+        }
+
+
+        statusDiv.textContent =
+            "Файл загружен: " +
+            file.name;
+
+
+        progressBar.style.width =
+            "100%";
+
+
+        progressBar.textContent =
+            "100%";
+
+
+        fileInput.value = "";
+
+
+        await refreshFiles();
+
+
+    } catch (e) {
+
+        statusDiv.textContent =
+            "Ошибка: " +
+            e.message;
+
+
+    } finally {
+
+        uploadButton.disabled =
+            false;
+
+    }
+
+}
+
+
+// =========================================================
+// СПИСОК ФАЙЛОВ
+// =========================================================
+
+async function refreshFiles() {
+
+    const filesList =
+        document.getElementById(
+            "files"
+        );
+
+
+    try {
+
+        const response =
+            await authFetch(
+                "/files/"
+            );
+
+
+        if (!response)
+            return;
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Ошибка получения списка"
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        filesList.innerHTML = "";
+
+
+        if (!data.files.length) {
+
+            const li =
+                document.createElement(
+                    "li"
+                );
+
+
+            li.textContent =
+                "Файлов пока нет";
+
+
+            filesList.appendChild(li);
+
+
+            return;
+
+        }
+
+
+        data.files.forEach(
+            file => {
+
+                const li =
+                    document.createElement(
+                        "li"
+                    );
+
+
+                li.className =
+                    "file";
+
+
+                const name =
+                    document.createElement(
+                        "span"
+                    );
+
+
+                name.textContent =
+                    file;
+
+
+                // -------------------------------------------------
+                // КНОПКА СКАЧАТЬ
+                // -------------------------------------------------
+
+                const downloadBtn =
+                    document.createElement(
+                        "button"
+                    );
+
+
+                downloadBtn.textContent =
+                    "Скачать";
+
+
+                downloadBtn.className =
+                    "download";
+
+
+                downloadBtn.onclick =
+                    () => downloadFile(
+                        file
+                    );
+
+
+                // -------------------------------------------------
+                // КНОПКА УДАЛИТЬ
+                // -------------------------------------------------
+
+                const deleteBtn =
+                    document.createElement(
+                        "button"
+                    );
+
+
+                deleteBtn.textContent =
+                    "Удалить";
+
+
+                deleteBtn.className =
+                    "delete";
+
+
+                deleteBtn.onclick =
+                    () => deleteFile(
+                        file
+                    );
+
+
+                li.appendChild(
+                    name
+                );
+
+
+                li.appendChild(
+                    downloadBtn
+                );
+
+
+                li.appendChild(
+                    deleteBtn
+                );
+
+
+                filesList.appendChild(
+                    li
+                );
+
+            }
+        );
+
+
+    } catch (e) {
+
+        filesList.innerHTML =
+            "<li>Ошибка получения списка</li>";
+
+    }
+
+}
+
+
+// =========================================================
+// DOWNLOAD
+// =========================================================
+
+async function downloadFile(
+    filename
+) {
+
+    try {
+
+        const token =
+            getToken();
+
+
+        if (!token) {
+
+            window.location.href =
+                "/";
+
+            return;
+
+        }
+
+
+        const response =
+            await fetch(
+                "/download/" +
+                encodeURIComponent(
+                    filename
+                ),
+                {
+                    headers: {
+                        "Authorization":
+                            "Bearer " +
+                            token
+                    }
+                }
+            );
+
+
+        if (response.status === 401) {
+
+            localStorage.removeItem(
+                "auth_token"
+            );
+
+            localStorage.removeItem(
+                "login"
+            );
+
+
+            window.location.href =
+                "/";
+
+
+            return;
+
+        }
+
+
+        if (!response.ok) {
+
+            const data =
+                await response.json()
+                    .catch(() => ({}));
+
+
+            throw new Error(
+                data.detail ||
+                "Ошибка скачивания"
+            );
+
+        }
+
+
+        const blob =
+            await response.blob();
+
+
+        const url =
+            URL.createObjectURL(
+                blob
+            );
+
+
+        const link =
+            document.createElement(
+                "a"
+            );
+
+
+        link.href =
+            url;
+
+
+        link.download =
+            filename;
+
+
+        document.body.appendChild(
+            link
+        );
+
+
+        link.click();
+
+
+        link.remove();
+
+
+        setTimeout(
+            () => {
+                URL.revokeObjectURL(url);
+            },
+            1000
+        );
+
+
+    } catch (e) {
+
+        alert(
+            "Ошибка скачивания: " +
+            e.message
+        );
+
+    }
+
+}
+
+
+// =========================================================
+// DELETE
+// =========================================================
+
+async function deleteFile(
+    filename
+) {
+
+    if (!confirm(
+        `Удалить файл "${filename}"?`
+    )) {
+
+        return;
+
+    }
+
+
+    try {
+
+        const response =
+            await authFetch(
+                "/delete/" +
+                encodeURIComponent(
+                    filename
+                ),
+                {
+                    method: "DELETE"
+                }
+            );
+
+
+        if (!response)
+            return;
+
+
+        if (!response.ok) {
+
+            const data =
+                await response.json()
+                    .catch(() => ({}));
+
+
+            throw new Error(
+                data.detail ||
+                "Ошибка удаления"
+            );
+
+        }
+
+
+        await refreshFiles();
+
+
+    } catch (e) {
+
+        alert(
+            "Ошибка удаления: " +
+            e.message
+        );
+
+    }
+
+}
+
+
+// =========================================================
+// LOGOUT
+// =========================================================
+
+async function logout() {
+
+    const token =
+        getToken();
+
+
+    if (token) {
+
+        try {
+
+            await fetch(
+                "/logout/",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Authorization":
+                            "Bearer " +
+                            token
+                    }
+                }
+            );
+
+        } catch (e) {
+
+            // Даже если сервер недоступен,
+            // локальную сессию всё равно удаляем.
+
+        }
+
+    }
+
+
+    localStorage.removeItem(
+        "auth_token"
+    );
+
+    localStorage.removeItem(
+        "login"
+    );
+
+
+    window.location.href =
+        "/";
+
+}
+
+
+// =========================================================
+// START
+// =========================================================
+
+(async function() {
+
+    const authenticated =
+        await checkAuth();
+
+
+    if (!authenticated)
+        return;
+
+
+    await refreshFiles();
+
+})();
+
+</script>
+
+
+</body>
+
+</html>

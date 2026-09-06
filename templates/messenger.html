@@ -675,8 +675,9 @@
         }
 
         function Chat_add(chat) {
-            const chatElement = createChatElement(chat);
-            ChatBox.append(chatElement);
+            const chatElement = createChatElement(chat).then(res=>{
+                ChatBox.append(chatElement);
+            });
         }
 
         function Chat_remove(id) {
@@ -1076,17 +1077,6 @@
             localStorage.setItem("UnloadChunks", JSON.stringify({}));
             var UnloadChunks = {};
         }
-        try {
-            var ChatsData = JSON.parse(localStorage.getItem("Chats")); //!!!
-            console.log(ChatsData)
-            if (ChatsData === null) {
-                ChatsData = {}
-                localStorage.setItem("Chats", JSON.stringify({})); //!!!
-            }
-        } catch {
-            localStorage.setItem("Chats", JSON.stringify({})); //!!!
-            let ChatsData = {};
-        }
         //let ChatsData = minidb.get("Chats")
         //let UserNames = minidb.get("UserNames")
         //let lastreadchat = minidb.get("lastreadchat")
@@ -1185,6 +1175,7 @@
             modal.close();
         };
         async function answer_inv(id, flag) {
+            ChatsData = await KV_db.get("Chats")
             chat = currentinv[Number(id)]
 
             if (flag) {
@@ -1192,7 +1183,7 @@
                     chat.photo = null
                 }
                 console.log(chat, currentinv)
-                minidb.set("Chats", chat.id, {
+                ChatsData[chat.id] = {
                     id: chat.id,
                     publickeycrypt: chat.public,
                     privatekeycrypt: chat.private,
@@ -1201,7 +1192,8 @@
                     admin: chat.user,
                     type: "group",
                     created: new Date()
-                })
+                }
+                await KV_db.set("Chats",ChatsData)
                 console.log(JSON.parse(localStorage.getItem("Chats")))
                 if (lastreadchat.length === 0 || !(Number(chat.id) in lastreadchat)) {
                     console.log("success add")
@@ -1223,7 +1215,7 @@
                     chat.photo = localStorage.getItem("UniknownChat2")
                 }
                 Chat_add(chat)
-                ChatsData = minidb.get("Chats")
+                ChatsData = await KV_db.get("Chats")
                 console.log(ChatsData)
                 chat.id = p_id
                 ws.send(JSON.stringify({
@@ -1407,8 +1399,6 @@
                 document.getElementById("fon").src = localStorage.getItem("fone") || "static/images/bgmes.jpg";
             }
         });
-        LoadChats()
-        console.log("loadchats started....>")
 
         async function DownloadingMSGs(chat_id, current_lastid, maxid) {
             if (current_lastid < maxid) {
@@ -1655,6 +1645,54 @@
         console.log(device_id)
         let pendingNotification = null;
 
+        async function LoadChats(response) {
+            var ChatsData = await KV_db.get("Chats") || {}; //!!!
+            console.log(ChatsData)
+            const chats = response
+            for (const chat of chats) {
+                console.log(chat)
+                if (lastreadchat[Number(chat.id)] === null || lastreadchat[Number(chat.id)] === undefined){
+                    if (chat.type === "tehnic") {
+                        lastreadchat[Number(chat.id)] = {
+                            "my": 0,
+                            "other": 0,
+                            "this_device": 0,
+                            "max_load": 0
+                        }
+                    }
+                }
+                if (chat.type === "p2p"){
+                    
+                }
+                if (!chat.photo || chat.photo === "None") {
+                    if (chat.type === "p2p") {
+                        var id = chat.name.split("/")
+                        if (String(id[0]) === String(Data.my_id)) {
+                            id = id[1]
+                        } else {
+                            id = id[0]
+                        }
+                        var user = await GetUserInfo({
+                            "id": id
+                        })
+                        chat.name = user.name;
+                        chat.photo = user.photo;
+                    } else {
+                        chat.photo = localStorage.getItem("UniknownChat2");
+                    }
+                } else {
+                    chat.photo = await imageToBase64(chat.photo);
+                }
+                try {
+                    chat.privatekeycrypt = ChatsData[parseInt(chat.id)].privatekeycrypt
+                } catch {}
+                ChatsData[parseInt(chat.id)] = chat
+            }
+            await KV_db.set("Chats", ChatsData)
+            console.log("update chat UI, this chats is", ChatsData,await KV_db.get("Chats"))
+            UpdataChats();
+        }
+
         function OPENws() {
             fetch('/TEST')
                 .then(response => {
@@ -1687,12 +1725,16 @@
                 id: Data.my_id,
                 lastids: lastreadchat
             }))
+            ws.send(JSON.stringify({type:"userchatlist"}))
             initPush();
         };
 
         ws.onmessage = async function(event) {
             const datae = JSON.parse(event.data)
             console.log(datae);
+            if (datae.type === "set_chats"){
+                LoadChats(datae.chats)
+            }
             if (datae.type === "newdevice") {
                 localStorage.setItem("newdeviceadd", JSON.stringify({
                     d: datae.mydevice
@@ -1742,7 +1784,7 @@
             } else if (datae.type === "addchat") { // для инициатора и получателя  - успешный ответ пользователя = sava chat 
                 //console.log(datae.chat)
                 // создание чата
-                ChatsData = minidb.get("Chats");
+                ChatsData = await KV_db.get("Chats");
                 var jsonkey = deepJsonParse(datae.chat.privatekeycrypt.replace(/'/g, '"'))
                 datae.chat.privatekeycrypt = await hybridDecrypt(jsonkey, Data.privatekeycrypt)
                     //console.log(datae.chat)
@@ -1761,7 +1803,7 @@
                     alert("error zdes")
                 }
                 console.log(lastreadchat)
-                localStorage.setItem("Chats", JSON.stringify(ChatsData)); //!!!
+                await KV_db.set("Chats", ChatsData); //!!!
                 ws.send(JSON.stringify({
                         type: "answ_2",
                         state_add: true,
@@ -1769,10 +1811,12 @@
                         chattype: "chat",
                         inv_id: datae.inv_id
                     }))
-                    //LoadChats();
                 Chat_add(datae.chat)
             } else if (datae.type === "delete_chat") {
-                minidb.delete("Chats", datae.chat_id)
+                var ChatsData = await KV_db.get("Chats")
+                delete ChatsData[datae.chat_id]
+                await KV_db.set("Chats",ChatsData)
+                //minidb.delete("Chats", datae.chat_id)
                 Chat_remove(datae.chat_id)
             } else if (datae.type === "addmymsg") {
                 await SavemyMsg(datae)
@@ -1785,7 +1829,7 @@
                 }
                 localStorage.setItem("lastreadchat", JSON.stringify(lsrd))
             } else if (datae.type === "addmsg") {
-                ChatsData = minidb.get("Chats")
+                ChatsData = await KV_db.get("Chats")
                 await SaveMsg(datae)
                 var lsrd = JSON.parse(localStorage.getItem("lastreadchat"))
                 lsrd[Number(datae.chat_id)].this_device = Number(datae.message_id)
@@ -2049,6 +2093,7 @@
                     // создание чата >><<
                     var chat_t = minidb.get("add_group", datae.token)
                     console.log(chat, datae)
+                    var chats = await KV_db.get("Chats")
                     chat = {
                         id: datae.id,
                         publickeycrypt: chat_t.publickey,
@@ -2058,8 +2103,10 @@
                         type: "group",
                         created: new Date()
                     }
-                    minidb.set("Chats", datae.id, chat)
-                    ChatsData = minidb.get("Chats")
+                    chats[datae.id] = chat
+                    await KV_db.set("Chats",chats)
+                    //minidb.set("Chats", datae.id, chat)
+                    ChatsData = chats
                     console.log(ChatsData)
                     if (lastreadchat.length === 0 || !(Number(datae.id) in lastreadchat)) {
                         console.log("success add")
@@ -2227,10 +2274,11 @@
                 let user = JSON.parse(localStorage.getItem("Userdata"));
 
                 const keysencrypt = JSON.parse(localStorage.getItem("new_public"))
+                var ChatsData = await KV_db.get("Chats")
                 const dts = JSON.stringify({
                     privatekey: user.privatekey,
                     privatekeycrypt: user.privatekeycrypt,
-                    Chats: JSON.parse(localStorage.getItem("Chats")), //!!!
+                    Chats: ChatsData, //!!!
                     lastread: JSON.parse(localStorage.getItem("lastreadchat"))
                 })
                 let keys_shifr = await hybridEncrypt(dts, keysencrypt.publickey);
@@ -2370,8 +2418,8 @@
         //}
 
         async function UpdataChats() {
-            const chats = JSON.parse(localStorage.getItem("Chats")) || {};
-
+            const chats = await KV_db.get("Chats");
+            console.log(chats)
             const data = await Promise.all(
                 Object.values(chats).map(async chat => {
                     const lastMessage = await messagedb.getLastMessage(chat.id);
@@ -2384,13 +2432,14 @@
                     };
                 })
             );
+            console.log("sorted data",chats,data)
 
             data.sort((a, b) => {
                 try {
                     const ta = a.lastMessage.created || a.lastMessage.datatime || 0;
                     const tb = b.lastMessage.created || b.lastMessage.datatime || 0;
                 } catch {
-                    return new Date(minidb.get("Chats", "created"))
+                    return new Date(0)
                 }
 
                 return new Date(tb) - new Date(ta);
@@ -2417,71 +2466,6 @@
             }
         }
 
-
-        async function UpdateChatlist() {
-            ChatsData = minidb.get("Chats")
-        }
-
-        async function LoadChats() {
-            var ChatsData = JSON.parse(localStorage.getItem("Chats")); //!!!
-
-            console.log(" loading chats...", ChatsData)
-            const response = await fetch("/userchatlist", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    id: JSON.parse(localStorage.getItem("Userdata")).my_id
-                }),
-            });
-            if (!(response)) {
-                return
-            }
-            const chats = await response.json();
-            console.log(chats)
-            for (const chat of chats) {
-            console.log(chat)
-                
-                if (lastreadchat[Number(chat.id)] === null || lastreadchat[Number(chat.id)] === undefined){
-                    if (chat.type === "tehnic") {
-                        lastreadchat[Number(chat.id)] = {
-                            "my": 0,
-                            "other": 0,
-                            "this_device": 0,
-                            "max_load": 0
-                        }
-                    }
-                }
-                if (!chat.photo || chat.photo === "None") {
-                    if (chat.type === "p2p") {
-                        var id = chat.name.split("/")
-                            //console.log(chat)
-                        if (String(id[0]) === String(Data.my_id)) {
-                            id = id[1]
-                        } else {
-                            id = id[0]
-                        }
-                        var user = await GetUserInfo({
-                            "id": id
-                        })
-                        chat.name = user.name;
-                        chat.photo = user.photo;
-                    } else {
-                        chat.photo = localStorage.getItem("UniknownChat2");
-                    }
-                } else {
-                    chat.photo = await imageToBase64(chat.photo);
-                }
-                try {
-                    chat.privatekeycrypt = ChatsData[parseInt(chat.id)].privatekeycrypt
-                } catch {}
-                ChatsData[parseInt(chat.id)] = chat
-            }
-            localStorage.setItem("Chats", JSON.stringify(ChatsData)); //!!!
-            console.log("update chat UI")
-            UpdataChats();
-        }
         //messagedb.deleteDB()
         document.getElementById("inputsearchuser").addEventListener("focus", function() {
             document.querySelector("#SearchUser").style.display = "flex";
@@ -2698,8 +2682,8 @@
                 GraphicChat.innerHTML = "";
                 //console.log(e.target.closest(".chatinfo").dataset.chatId)
                 CurrentChat = Number(e.target.closest(".chatinfo").dataset.chatId.substring(4));
-                //console.log(CurrentChat)
-                //console.log(ChatsData)
+                ChatsData = await KV_db.get("Chats")
+                console.log(ChatsData,CurrentChat)
                 need_id = lastreadchat[CurrentChat].my
                 const chatmsgs = await messagedb.loadNewerMessages(parseInt(CurrentChat), need_id - 10, 20)
                 scrollToMessage(need_id)
@@ -2713,7 +2697,19 @@
                     }
                 }
                 document.getElementById("shapechatavatar").src = photochat;
-                document.getElementById("shapechatname").innerText = ChatsData[CurrentChat].name;
+                if (ChatsData[CurrentChat].name === "p2p"){
+                    var id = ChatsData[CurrentChat].name.split("/")
+                    if (String(id[0]) === String(Data.my_id)) {
+                            id = id[1]
+                        } else {
+                            id = id[0]
+                        }
+                    var user = await GetUserInfo({
+                        "id": id
+                    })
+                    document.getElementById("shapechatname").innerText = user.name;
+                }else{
+                document.getElementById("shapechatname").innerText = ChatsData[CurrentChat].name;}
                 //console.log(ChatsData[CurrentChat].type)
                 if (!(innerWidth > 480))
                     document.getElementById("chatbox").classList.add("hide");
@@ -4400,7 +4396,8 @@
             add_parctipiant_modal.style.display = "none";
             const users = [...selected]
             let inv = {}
-            var chat = minidb.get("Chats", Number(CurrentChat))
+            var chats = await KV_db.get("Chats")
+            var chat = chats[Number(CurrentChat)]
             for (let u of users) {
                 var encryptedkey = await hybridEncrypt(chat.privateKey, u[1].keys.publickeycrypt)
                 inv[u[0]] = encryptedkey
