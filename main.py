@@ -375,24 +375,27 @@ def SendCode(emailreciver,body=0):
         return [True, code]
 
 
-def SendWEBpush(notify, device_id=None,user_id=None,subscription_data = None):
+def SendWEBpush(notify, device_id=None, user_id=None, subscription_data=None, chat_id=None):
+    if chat_id is not None:
+        notify["chat_id"] = chat_id
+
     if subscription_data is not None:
-            r = webpush(
-                subscription_info=subscription_data,
-                data=json.dumps(notify),
-                vapid_private_key=PRIVATE_KEY,
-                vapid_claims={
-                    "sub": "mailto:test@test.com"
-                }
-            )
-            #print(r)
-            return r
+        return webpush(
+            subscription_info=subscription_data,
+            data=json.dumps(notify),
+            vapid_private_key=PRIVATE_KEY,
+            vapid_claims={
+                "sub": "mailto:test@test.com"
+            }
+        )
+
     if device_id == "all":
-        r=0
+        r = 0
+
         for d in Database.get_user_devices(int(user_id)):
             if not d["subscription_data"] or d["subscription_data"] == {}:
                 continue
-            #print(d)
+
             r = webpush(
                 subscription_info=d["subscription_data"],
                 data=json.dumps(notify),
@@ -401,22 +404,24 @@ def SendWEBpush(notify, device_id=None,user_id=None,subscription_data = None):
                     "sub": "mailto:test@test.com"
                 }
             )
-            #print(r)
+
         return r
+
     else:
         d = Database.get_device_by_id(int(device_id))
+
         if not d["subscription_data"] or d["subscription_data"] == {}:
-            return 
-        r = webpush(
-                subscription_info=d["subscription_data"],
-                data=json.dumps(notify),
-                vapid_private_key=PRIVATE_KEY,
-                vapid_claims={
-                    "sub": "mailto:test@test.com"
-                }
-            )
-        #print(r)
-        return r
+            return
+
+        return webpush(
+            subscription_info=d["subscription_data"],
+            data=json.dumps(notify),
+            vapid_private_key=PRIVATE_KEY,
+            vapid_claims={
+                "sub": "mailto:test@test.com"
+            }
+        )
+
 security = HTTPBasic()
 @app.get("/developer03info", response_class=HTMLResponse)
 async def developer_page(
@@ -608,52 +613,52 @@ async def websocket_endpoint(ws: WebSocket, background_tasks: BackgroundTasks):
             print(f"[WS] From {device_id}: _____ {msg}")
             #print(msg)
             if msg["type"] == "newchat":
-                if "newdevice" not in device_id and msg["email"] not in device_id:
-                    ids=[]
-                    if clients.get(msg["email"]) is not None:
-                        for client in clients.get(msg["email"]):
-                            try:
-                                if client["id"]!="newdevice":
-                                    await client["ws"].send_json({"type":"new_chat","user":device_id.split("|")[0]})
-                                    ids.append(int(client["id"]))
-                            except Exception as e:
-                                print("248❌",e)
-                        if len(ids)==0:
-                            u=Database.get_user_by_email(msg["email"])
-                            #print(u)
-                            if u["photo"] == None:
-                                u["photo"]="/static/images/Uniknown.png"
-                            for d in u["devices"]:
-                                if d["subscription_data"] is not None and d["subscription_data"] != {} and int(d["id"]) not in ids:
-                                    #print("start sendind")
-                                    r=SendWEBpush(notify={
-                                        "title":"Новый чат",
-                                        "body":f'{u["name"]} хочет создать с вами чат',
-                                        "icon":u["photo"]
-                                        },subscription_data=d["subscription_data"])
-                                    #print("end sending",r)
+                if "newdevice" not in device_id and msg["email"] not in device_id and not Database.is_user_have_chat(this_userid,Database.get_user_by_email(msg["email"])["id"]):
+                        ids=[]
+                        if clients.get(msg["email"]) is not None:
+                            for client in clients.get(msg["email"]):
+                                try:
+                                    if client["id"]!="newdevice":
+                                        await client["ws"].send_json({"type":"new_chat","user":device_id.split("|")[0]})
+                                        ids.append(int(client["id"]))
+                                except Exception as e:
+                                    print("248❌",e)
+                            if len(ids)==0:
+                                u=Database.get_user_by_email(msg["email"])
+                                print(623,u)
+                                if u["photo"] == None:
+                                    u["photo"]="/static/images/Uniknown.png"
+                                for d in u["devices"]:
+                                    if d["subscription_data"] is not None and d["subscription_data"] != {} and int(d["id"]) not in ids:
+                                        #print("start sendind")
+                                        r=SendWEBpush(notify={
+                                            "title":"Новый чат",
+                                            "body":f'{u["name"]} хочет создать с вами чат',
+                                            "icon":u["photo"]
+                                            },subscription_data=d["subscription_data"])
+                                        #print("end sending",r)
 
-                    flag=True
-                    for inv in Database.get_user_Inventives(msg["email"]):
-                        if inv["typeinventive"] == "newchat"  and inv["emailsent"] == this_email:
-                            flag=False
-                            break
-                     
-                    if flag:
-                        ms_data = {
-                            "chatid":"x",
-                            "devices": [i['id'] for i in Database.get_user_devices(this_userid)]+[i['id'] for i in Database.get_user_devices(msg["email"])]
-                        }
-                        r=Database.add_Inventive(emailrecive=msg["email"],
-                                            emailsent=this_email,
-                                            inventivetype="newchat",
-                                            publickey=msg["publickey"],
-                                            message=ms_data,
-                                            reciverencryptedkey=str(msg["encrypted"]),
-                                            senderencryptedkey=str(msg["myencrypted"])
-                                            )
-                        #print(r)
-                    await ws.send_json({"type":"answnewchat","success":"waiting"})
+                        flag=True
+                        for inv in Database.get_user_Inventives(msg["email"]):
+                            if inv["typeinventive"] == "newchat"  and inv["emailsent"] == this_email:
+                                flag=False
+                                break
+                        
+                        if flag:
+                            ms_data = {
+                                "chatid":"x",
+                                "devices": [i['id'] for i in Database.get_user_devices(this_userid)]+[i['id'] for i in Database.get_user_devices(msg["email"])]
+                            }
+                            r=Database.add_Inventive(emailrecive=msg["email"],
+                                                emailsent=this_email,
+                                                inventivetype="newchat",
+                                                publickey=msg["publickey"],
+                                                message=ms_data,
+                                                reciverencryptedkey=str(msg["encrypted"]),
+                                                senderencryptedkey=str(msg["myencrypted"])
+                                                )
+                            #print(r)
+                        await ws.send_json({"type":"answnewchat","success":"waiting"})
                 else:
                     try:
                         print("error answ")

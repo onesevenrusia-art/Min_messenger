@@ -139,3 +139,22 @@ cp /sdcard/fullchain.pem /data/local/linux/mnt/testimg/root/Min_messenger/
 cp /sdcard/privkey.pem /data/local/linux/mnt/testimg/root/Min_messenger/
 
 монтировка памяти mount -t proc proc /data/local/linux/mnt/testimg/proc
+
+установка библиотеки
+/data/local/linux/bin/busybox chroot /data/local/linux/mnt/testimg /root/venv/bin/pip install python-multipart
+logs easy-server 
+
+====================
+МОНТИРОВКА ОБРАЗА
+ls -l /storage/sdcard1/debian2g_legacy.img
+должно быть ----rwxr-x system   sdcard_rw 2147483648 2026-09-10 00:40 debian2g_legacy.img
+
+/data/local/linux/bin/busybox mknod /dev/loop0 b 7 0
+
+/data/local/linux/bin/busybox losetup /dev/loop0 /storage/sdcard1/debian2g_legacy.img
+
+/data/local/linux/bin/busybox mount -t ext4 /dev/loop0 /data/local/linux/mnt/testimg
+
+ls -l /data/local/linux/mnt/testimg/bin/bash
+должно быть -rwxr-xr-x root     root       816764 2022-03-28 02:40 bash
+====================

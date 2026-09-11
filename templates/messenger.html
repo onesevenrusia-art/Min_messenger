@@ -676,7 +676,7 @@
 
         function Chat_add(chat) {
             const chatElement = createChatElement(chat).then(res=>{
-                ChatBox.append(chatElement);
+                ChatBox.append(res);
             });
         }
 
@@ -1095,6 +1095,21 @@
                 ready: false
             }));
         }
+
+        async function clearChatNotification(chatId) {
+                                if (!("serviceWorker" in navigator)) return;
+
+                                const registration = await navigator.serviceWorker.ready;
+
+                                const notifications = await registration.getNotifications({
+                                    tag: "chat_" + String(chatId)
+                                });
+
+                                for (const notification of notifications) {
+                                    notification.close();
+                                }
+                            }
+
         ChatsData = await KV_db.get("Chats")
         console.log(lastreadchat)
         console.log(ChatsData)
@@ -1112,13 +1127,13 @@
                     if (readtimer === null) {
                         var cth = CurrentChat
                         readtimer = setTimeout(() => {
+                            clearChatNotification(CurrentChat)
                             readtimer = null
                             console.log("add -1")
                             messagedb.countMessages(CurrentChat, Number(currentlastread)).then(res => {
-                                console.log("🟠")
                                 updateUnread(Number(cth), res, false, true)
                             });
-
+                            lastreadchat[cth]["my"]=currentlastread
                             ws.send(JSON.stringify({
                                 type: "reading",
                                 last_read_id: currentlastread,
@@ -1447,8 +1462,9 @@
                     if (msg.user_id in UserNames) {
                         name = UserNames[msg.user_id]["name"]
                     } else {
-                        name = await GetName(id = msg.user_id)
-                        name = name["name"]
+                        var n = await GetName(id = msg.user_id)
+                        console.log(n)
+                        name = n["name"]
                         if (name !== null && name !== undefined) {
                             UserNames[msg.user_id] = {
                                 "name": name
@@ -1456,7 +1472,7 @@
                             localStorage.setItem("UserNames", UserNames)
                         } else {
 
-                            alert(`error get name ${msg.user_id}`)
+                            alert(`error get name ${msg.user_id} <> ${msg.user_id}`)
                         }
                     }
 
@@ -1842,8 +1858,8 @@
                     name = UserNames[datae.user_id]["name"]
                     console.log(UserNames)
                 } else {
-                    name = await GetName(id = datae.user_id)
-                    name = name["name"]
+                    var n = await GetName(id = datae.user_id)
+                    var name = n["name"]
                     if (name !== null && name !== undefined) {
                         UserNames[datae.user_id] = {
                             "name": name
@@ -2077,6 +2093,7 @@
                 await createOffer()
             } else if (datae.type === "answ_media") {
                 if (datae.success === true) {
+                    var ChatsData = await KV_db.get("Chats")
                     processFile(file, ChatsData[parseInt(datae.chat_id)].publickeycrypt, parseInt(datae.message_id), datae.upload_id, datae)
                 } else {
                     alert("Error connecting to server!")
@@ -2433,17 +2450,16 @@
                 })
             );
             console.log("sorted data",chats,data)
-
+            try{
             data.sort((a, b) => {
-                try {
-                    const ta = a.lastMessage.created || a.lastMessage.datatime || 0;
-                    const tb = b.lastMessage.created || b.lastMessage.datatime || 0;
-                } catch {
-                    return new Date(0)
-                }
+                const ta = a.lastMessage?.created || a.lastMessage?.datatime || 0;
+                const tb = b.lastMessage?.created || b.lastMessage?.datatime || 0;
 
                 return new Date(tb) - new Date(ta);
-            });
+            });}catch{
+
+            }
+
 
             ChatBox.innerHTML = "";
 

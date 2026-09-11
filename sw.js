@@ -12,23 +12,36 @@ self.addEventListener('fetch', event => {
 });
 
 self.addEventListener("push", event => {
+    if (!event.data) return;
 
-    if (!event.data) return
-    const data = event.data.json()
-    console.log(data)
-    const options = {
-        body: data.body || "Новое сообщение",
-        icon: data.avatar || "/static/default.png",
-        badge: "/static/images/logo.png",
-        tag: "chat_" + data.chat_id || 0,
-        renotify: true,
-        vibrate: [200, 100, 200, 100, 200],
-        data: {
-            chat_id: data.chat_id || 0
-        }
-    }
+    const data = event.data.json();
+
+    const chatId = data.chat_id || 0;
+    const tag = "chat_" + chatId;
+
     event.waitUntil(
-        self.registration.showNotification(data.title, options)
-    )
-    
-})
+        self.registration.getNotifications({ tag: tag })
+            .then(notifications => {
+
+                // Уже есть уведомление этого чата
+                if (notifications.length > 0) {
+                    return;
+                }
+
+                return self.registration.showNotification(
+                    data.title || "Новое сообщение",
+                    {
+                        body: data.body || "Новое сообщение",
+                        icon: data.avatar || "/static/images/Uniknown.png",
+                        badge: "/static/images/logo.png",
+                        tag: tag,
+                        renotify: false,
+                        vibrate: [200, 100, 200],
+                        data: {
+                            chat_id: chatId
+                        }
+                    }
+                );
+            })
+    );
+});

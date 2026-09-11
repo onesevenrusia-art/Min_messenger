@@ -299,6 +299,29 @@ class DataBaseManager:
         finally:
             session.close()
 
+    def is_user_have_chat(self, user1_id, user2_id):
+        session = self.Session()
+        try:
+            p1 = chat_participants.alias("p1")
+            p2 = chat_participants.alias("p2")
+
+            chat = (
+                session.query(Chat.id)
+                .join(p1, p1.c.chat_id == Chat.id)
+                .join(p2, p2.c.chat_id == Chat.id)
+                .filter(
+                    Chat.type == "p2p",
+                    p1.c.user_id == user1_id,
+                    p2.c.user_id == user2_id
+                )
+                .first()
+            )
+
+            return chat is not None
+
+        finally:
+            session.close()
+
 
 
     def add_chat(self, name, user_ids, type="tehnic", about=None, photo=None, publickeycrypt=None):
